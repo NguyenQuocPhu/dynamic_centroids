@@ -301,14 +301,14 @@ def find_log_files(directory):
         std_candidates = sorted(list(glob.glob(str(std_pattern))))
         if std_candidates:
             comprehensive_log = std_candidates[-1]
-            
+
     if comprehensive_log is None:
         std_global = directory / "rainbowplus_log_global.json"
         if std_global.exists():
             comprehensive_log = str(std_global)
         else:
             std_pattern = directory / "rainbowplus_log_*.json"
-            std_candidates = sorted(list(glob.glob(str(std_pattern))
+            std_candidates = sorted(list(glob.glob(str(std_pattern))))
             if std_candidates:
                 comprehensive_log = std_candidates[-1]
 
