@@ -195,12 +195,6 @@ def visualize_structure_and_fitness(centroids_emb, elites_emb, elites_scores, me
                    zorder=3)                   # Vẽ trên cùng
 
         # --- LAYER 3: CONVEX HULL (BIÊN GIỚI TỔNG) ---
-        try:
-            hull = ConvexHull(all_2d)
-            for simplex in hull.simplices:
-                ax.plot(all_2d[simplex, 0], all_2d[simplex, 1], 'k--', lw=1.5, alpha=0.6, zorder=1)
-        except:
-            pass
 
         # Trang trí
         # Tắt giới hạn trục mặc định của Voronoi (đôi khi nó zoom quá xa)
