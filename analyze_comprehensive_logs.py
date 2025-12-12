@@ -341,6 +341,7 @@ def main():
     model = SentenceTransformer('all-MiniLM-L6-v2')
     ga_prompts = []
     ga_scores = []
+    res = 999999999
     if comprehensive_ga_log:
         try:
             # SỬA: Load trực tiếp file, không load chồng chéo
@@ -359,15 +360,15 @@ def main():
                     ga_evaluations.append(max_evaluation)
                     # Take the highest fitness in each cells
                     for elite in list_of_elite:
-                        if elite['fitness'] > 0.8:
-                            ga_prompts.append(elite['prompt'])
-                            ga_scores.append(elite['fitness'])
-                            elites_emb.append(elite['behavior'])
-                            elites_scores.append(elite['fitness'])
+                        ga_prompts.append(elite['prompt'])
+                        ga_scores.append(elite['fitness'])
+                        elites_emb.append(elite['behavior'])
+                        elites_scores.append(elite['fitness'])
+                        res = min(res, elite['fitness'])
                     #    ga_evaluations.append(elite)
             
             print(f"[GrowingArchive] Loaded {len(ga_prompts)} prompts.")
-            
+            print(res)
             stats = get_top_k_data(ga_evaluations, args.top_k, 'highest')
             scores = [e['fitness'] for e in stats]
             print(f"GA Top-{args.top_k} Fitness: {float(np.mean(scores)):.4f} (±{float(np.std(scores)):.4f}")
