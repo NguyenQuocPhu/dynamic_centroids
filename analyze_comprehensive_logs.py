@@ -358,7 +358,7 @@ def main():
                     for elite in list_of_elite:
                         ga_prompts.append(elite['prompt'])
                         ga_scores.append(elite['fitness'])
-                        elites_emb = model.encode([elite['prompt']])
+                        elites_emb.append(elite['behavior'])
                         elites_scores.append(elite['fitness'])
                     #    ga_evaluations.append(elite)
             
