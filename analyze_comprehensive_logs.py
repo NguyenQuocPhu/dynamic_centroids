@@ -186,10 +186,9 @@ def visualize_structure_and_fitness(centroids_emb, elites_emb, elites_scores, me
 
         # --- LAYER 2: CENTROIDS (LÃNH CHÚA) ---
         ax.scatter(centroids_2d[:, 0], centroids_2d[:, 1],
-                   c='red',                    # Màu đỏ
-                   marker='X',                 # Hình chữ X
-                   s=120,                      # Kích thước lớn
-                   edgecolors='white',         # Viền trắng
+                   c='black',                    # Màu đỏ                 # Hình chữ X
+                   s=70,                      # Kích thước lớn
+                   edgecolors='none',         # Viền trắng
                    linewidth=1.5,
                    label='Centroids (Centers)',
                    zorder=3)                   # Vẽ trên cùng
