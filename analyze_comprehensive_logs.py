@@ -240,7 +240,7 @@ def plot_fitness_distribution(scores_ga, scores_pt, output_filename="fitness_dis
         data.append({"Method": "GrowingArchive", "Fitness": s})
     
     for s in scores_pt:
-        if s['fitness'] > 0.6: data.append({"Method": "PersonaTeaming", "Fitness": s})
+        data.append({"Method": "PersonaTeaming", "Fitness": s})
         
     df = pd.DataFrame(data)
 
