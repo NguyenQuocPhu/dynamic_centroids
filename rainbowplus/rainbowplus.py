@@ -504,7 +504,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
                         "candidate": response,
                         "descriptor": selected_persona,
                         "fitness": fit,
-                        "behavior": behavior,
+                        "behavior": behavior,   
                         "iter": i,
                         # Lineage info
                         "prompt_id": new_pid,

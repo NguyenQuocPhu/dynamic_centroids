@@ -132,6 +132,101 @@ def analyze_convex_hull_simple(embeddings, method_name="Method"):
 
     return volume
 
+from scipy.spatial import Voronoi, voronoi_plot_2d
+
+def visualize_structure_and_fitness(centroids_emb, elites_emb, elites_scores, method_name="GA_Structure"):
+    """
+    Vẽ cấu trúc không gian với ranh giới VORONOI:
+    1. Voronoi Lines: Ranh giới phân chia lãnh thổ giữa các Centroids.
+    2. Elites: Các điểm nhỏ, màu theo Fitness.
+    3. Centroids: Các điểm to, đánh dấu X.
+    """
+    # Gộp dữ liệu để chạy PCA chung
+    num_centroids = len(centroids_emb)
+    
+    # Stack: [Centroids trước ... Elites sau]
+    all_data = np.vstack([centroids_emb, elites_emb])
+    
+    # --- 1. GIẢM CHIỀU (PCA) ---
+    if len(all_data) >= 3:
+        # PCA 2D
+        pca_2d = PCA(n_components=2)
+        all_2d = pca_2d.fit_transform(all_data)
+        
+        # Tách lại
+        centroids_2d = all_2d[:num_centroids]
+        elites_2d = all_2d[num_centroids:]
+
+        # --- 2. VẼ HÌNH (VISUALIZATION) ---
+        # Sử dụng plt.subplots để dễ quản lý các layer
+        fig, ax = plt.subplots(figsize=(12, 10))
+
+        # --- LAYER 0: VORONOI BOUNDARIES (NỀN) ---
+        # Chỉ vẽ nếu có đủ điểm để tạo Voronoi (>= 4 điểm để an toàn)
+        if num_centroids >= 4:
+            try:
+                vor = Voronoi(centroids_2d)
+                # voronoi_plot_2d vẽ các đường ranh giới
+                # show_vertices=False: Ẩn các điểm giao cắt thừa
+                # show_points=False: Ẩn điểm gốc (vì ta sẽ tự vẽ Centroids cho đẹp)
+                voronoi_plot_2d(vor, ax=ax, show_vertices=False, show_points=False, 
+                                line_colors='gray', line_width=1, line_alpha=0.3)
+            except Exception as e:
+                print(f"Warning: Could not draw Voronoi ({e})")
+
+        # --- LAYER 1: ELITES (DÂN CƯ) ---
+        sc = ax.scatter(elites_2d[:, 0], elites_2d[:, 1],
+                        c=elites_scores,       # Tô màu theo Fitness
+                        cmap='viridis',        # Tím -> Vàng
+                        s=30,                  # Kích thước nhỏ
+                        alpha=0.7,             # Hơi trong suốt
+                        edgecolors='none',
+                        label='Elites (Populations)',
+                        zorder=2)              # Vẽ đè lên Voronoi
+
+        # --- LAYER 2: CENTROIDS (LÃNH CHÚA) ---
+        ax.scatter(centroids_2d[:, 0], centroids_2d[:, 1],
+                   c='red',                    # Màu đỏ
+                   marker='X',                 # Hình chữ X
+                   s=120,                      # Kích thước lớn
+                   edgecolors='white',         # Viền trắng
+                   linewidth=1.5,
+                   label='Centroids (Centers)',
+                   zorder=3)                   # Vẽ trên cùng
+
+        # --- LAYER 3: CONVEX HULL (BIÊN GIỚI TỔNG) ---
+        try:
+            hull = ConvexHull(all_2d)
+            for simplex in hull.simplices:
+                ax.plot(all_2d[simplex, 0], all_2d[simplex, 1], 'k--', lw=1.5, alpha=0.6, zorder=1)
+        except:
+            pass
+
+        # Trang trí
+        # Tắt giới hạn trục mặc định của Voronoi (đôi khi nó zoom quá xa)
+        # Ta set giới hạn dựa trên dữ liệu thực tế + chút lề
+        margin = 0.1
+        x_min, x_max = all_2d[:, 0].min(), all_2d[:, 0].max()
+        y_min, y_max = all_2d[:, 1].min(), all_2d[:, 1].max()
+        ax.set_xlim(x_min - margin, x_max + margin)
+        ax.set_ylim(y_min - margin, y_max + margin)
+
+        cbar = plt.colorbar(sc, ax=ax)
+        cbar.set_label('Elite Fitness Score', rotation=270, labelpad=15)
+        
+        ax.set_title(f'{method_name}: Voronoi Tessellation & Fitness Map', fontsize=15)
+        ax.set_xlabel('PCA Dim 1')
+        ax.set_ylabel('PCA Dim 2')
+        ax.legend(loc='upper right')
+        ax.grid(True, linestyle=':', alpha=0.3)
+        
+        filename = f"voronoi_{method_name}.png"
+        plt.savefig(filename, dpi=300, bbox_inches='tight')
+        print(f"✅ Đã lưu biểu đồ Voronoi: {filename}")
+        plt.close()
+        
+    else:
+        print("Không đủ dữ liệu để vẽ.")
 def plot_fitness_distribution(scores_ga, scores_pt, output_filename="fitness_dist.png"):
     """
     Vẽ biểu đồ phân bố điểm số (Fitness) của 2 phương pháp.
@@ -185,7 +280,6 @@ def plot_fitness_distribution(scores_ga, scores_pt, output_filename="fitness_dis
     print(f"✅ Đã lưu biểu đồ vào file: {output_filename}")
     plt.close() # Đóng lại cho đỡ tốn RAM
 
-
 def find_log_files(directory):
     directory = Path(directory)
     
@@ -236,6 +330,9 @@ def main():
         return
     
     centroids = []
+    elites_emb = []
+    elites_scores = []
+
     # 3. Compute Embeddings
     print("\n[AI] Computing Embeddings (all-MiniLM-L6-v2)...")
     model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -261,6 +358,8 @@ def main():
                     for elite in list_of_elite:
                         ga_prompts.append(elite['prompt'])
                         ga_scores.append(elite['fitness'])
+                        elites_emb = model.encode([elite['prompt']])
+                        elites_scores.append(elite['fitness'])
                     #    ga_evaluations.append(elite)
             
             print(f"[GrowingArchive] Loaded {len(ga_prompts)} prompts.")
@@ -312,7 +411,7 @@ def main():
             distinct_n = calculate_distinct_n(flat_prompts)
             print(f"Persona Distinct-2: {distinct_n:.4f}")
             pt_emb = model.encode(flat_prompts)
-            analyze_convex_hull_simple(pt_emb, "PersonaTeaming")
+            analyze_convex_hull_simple(pt_emb, fitness, "PersonaTeaming")
             '''
             # Random Stats
             stats_rand = get_top_k_data(persona_evaluations, args.top_k, 'random')
@@ -326,6 +425,8 @@ def main():
 
     plot_fitness_distribution(ga_scores, persona_scores)
     analyze_convex_hull_simple(centroids, "Centroids")
+    visualize_structure_and_fitness(centroids, elites_emb, elites_scores)
+
 
 if __name__ == "__main__":
     main()
