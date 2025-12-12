@@ -411,7 +411,7 @@ def main():
             distinct_n = calculate_distinct_n(flat_prompts)
             print(f"Persona Distinct-2: {distinct_n:.4f}")
             pt_emb = model.encode(flat_prompts)
-            analyze_convex_hull_simple(pt_emb, fitness, "PersonaTeaming")
+            analyze_convex_hull_simple(pt_emb, "PersonaTeaming")
             '''
             # Random Stats
             stats_rand = get_top_k_data(persona_evaluations, args.top_k, 'random')
