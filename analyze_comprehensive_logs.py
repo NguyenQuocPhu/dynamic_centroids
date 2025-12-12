@@ -359,7 +359,7 @@ def main():
                     ga_evaluations.append(max_evaluation)
                     # Take the highest fitness in each cells
                     for elite in list_of_elite:
-                        if elite['fitness'] > 0.6:
+                        if elite['fitness'] > 0.8:
                             ga_prompts.append(elite['prompt'])
                             ga_scores.append(elite['fitness'])
                             elites_emb.append(elite['behavior'])
