@@ -240,7 +240,7 @@ def plot_fitness_distribution(scores_ga, scores_pt, output_filename="fitness_dis
         data.append({"Method": "GrowingArchive", "Fitness": s})
     
     for s in scores_pt:
-        data.append({"Method": "PersonaTeaming", "Fitness": s})
+        if s['fitness'] > 0.6: data.append({"Method": "PersonaTeaming", "Fitness": s})
         
     df = pd.DataFrame(data)
 
@@ -301,6 +301,16 @@ def find_log_files(directory):
         std_candidates = sorted(list(glob.glob(str(std_pattern))))
         if std_candidates:
             comprehensive_log = std_candidates[-1]
+            
+    if comprehensive_log is None:
+        std_global = directory / "rainbowplus_log_global.json"
+        if std_global.exists():
+            comprehensive_log = str(std_global)
+        else:
+            std_pattern = directory / "rainbowplus_log_*.json"
+            std_candidates = sorted(list(glob.glob(str(std_pattern))
+            if std_candidates:
+                comprehensive_log = std_candidates[-1]
 
     return comprehensive_ga_log, comprehensive_log
 
@@ -377,8 +387,8 @@ def main():
     if comprehensive_log:
         try:
             std_data = load_comprehensive_log(comprehensive_log)
-            all_prompts = std_data.get('all_prompts', {})
-            all_scores = std_data.get('all_scores', {})
+            all_prompts = std_data.get('adv_prompts', {})
+            all_scores = std_data.get('scores', {})
             
             persona_evaluations = []
             for category, prompts in all_prompts.items():
