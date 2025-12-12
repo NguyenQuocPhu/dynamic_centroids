@@ -147,7 +147,7 @@ class GrowingArchive:
         """
         Logic chính: Expansion -> Replacement -> Competition.
         """
-        if evaluation["fitness"] < self.fitness_threshold:
+        if evaluation["fitness"] <= self.fitness_threshold:
             return "rejected_fitness_low"
 
         b_vector = evaluation["behavior"].reshape(1, -1)

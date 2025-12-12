@@ -359,10 +359,11 @@ def main():
                     ga_evaluations.append(max_evaluation)
                     # Take the highest fitness in each cells
                     for elite in list_of_elite:
-                        ga_prompts.append(elite['prompt'])
-                        ga_scores.append(elite['fitness'])
-                        elites_emb.append(elite['behavior'])
-                        elites_scores.append(elite['fitness'])
+                        if elite['fitness'] > 0.6:
+                            ga_prompts.append(elite['prompt'])
+                            ga_scores.append(elite['fitness'])
+                            elites_emb.append(elite['behavior'])
+                            elites_scores.append(elite['fitness'])
                     #    ga_evaluations.append(elite)
             
             print(f"[GrowingArchive] Loaded {len(ga_prompts)} prompts.")
