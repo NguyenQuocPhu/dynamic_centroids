@@ -1,0 +1,20 @@
+# Bỏ qua môi trường ảo
+venv/
+env/
+.env
+
+# Bỏ qua file cache của Python
+__pycache__/
+*.pyc
+
+# Bỏ qua các file ảnh kết quả do code sinh ra
+*.png
+*.jpg
+*.pdf
+
+# Bỏ qua các file log hoặc data lớn (nếu bạn không muốn lưu log lên git)
+*.json
+result.txt
+
+# Bỏ qua các file cấu hình hệ thống
+.DS_Store
