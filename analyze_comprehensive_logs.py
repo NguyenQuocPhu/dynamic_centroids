@@ -341,7 +341,7 @@ def main():
     model = SentenceTransformer('all-MiniLM-L6-v2')
     ga_prompts = []
     ga_scores = []
-    res = 999999999
+    res = 9999999999
     if comprehensive_ga_log:
         try:
             # SỬA: Load trực tiếp file, không load chồng chéo
