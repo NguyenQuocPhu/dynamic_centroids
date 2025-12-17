@@ -121,7 +121,7 @@ def calculate_distinct_clusters(embeddings=None, eps=0.4, min_samples=2):
     n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
     
     # (Tùy chọn) Nếu bạn muốn coi các điểm Nhiễu (Outliers) cũng là các chiến thuật độc nhất
-    n_clusters += list(labels).count(-1) 
+    #n_clusters += list(labels).count(-1) 
     
     return n_clusters
 
