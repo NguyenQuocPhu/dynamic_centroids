@@ -59,7 +59,71 @@ def calculate_distinct_n(prompts_list, n=2):
     if not ngrams_all: return 0.0
     return len(set(ngrams_all)) / len(ngrams_all)
 
+def calculate_embedding_diversity(embeddings=None):
+    """
+    Tính Embedding Diversity (Cosine Distance trung bình).
+    
+    Args:
+        prompts (list): Danh sách các câu text (nếu chưa có embeddings).
+        embeddings (numpy array): Mảng vector (nếu đã encode rồi thì truyền vào đây cho nhanh).
+        
+    Returns:
+        float: Giá trị từ 0.0 đến 2.0. Càng CAO càng TỐT (đa dạng).
+    """
+    
+    if len(embeddings) < 2:
+        return 0.0
 
+    # 2. Tính ma trận khoảng cách Cosine (Cosine Distance Matrix)
+    # cosine_distance = 1 - cosine_similarity
+    # Kết quả trả về ma trận NxN
+    dist_matrix = cosine_distances(embeddings)
+    
+    # 3. Tính trung bình (chỉ lấy phần tam giác trên để tránh trùng lặp và đường chéo)
+    # Lấy các chỉ số của tam giác trên (upper triangle), k=1 để bỏ đường chéo chính (dist=0)
+    triu_indices = np.triu_indices(len(embeddings), k=1)
+    
+    # Tính trung bình các khoảng cách
+    diversity_score = np.mean(dist_matrix[triu_indices])
+    
+    return float(diversity_score)
+
+from sklearn.cluster import DBSCAN
+def calculate_distinct_clusters(embeddings=None, eps=0.4, min_samples=2):
+    """
+    Đếm số lượng cụm phân biệt sử dụng thuật toán DBSCAN.
+    DBSCAN tốt hơn K-Means ở chỗ không cần quy định trước số cụm (K).
+    
+    Args:
+        eps (float): Khoảng cách tối đa để coi 2 điểm là cùng 1 cụm. 
+                     Thấp (vd 0.1) -> Cần rất giống nhau mới chung cụm -> Ra nhiều cụm.
+                     Cao (vd 0.5) -> Hơi giống cũng chung cụm -> Ra ít cụm.
+                     0.3 là ngưỡng trung bình thường dùng cho SBERT.
+        min_samples (int): Số lượng điểm tối thiểu để tạo thành 1 cụm.
+        
+    Returns:
+        int: Số lượng cụm tìm thấy.
+    """
+        
+    if len(embeddings) < min_samples:
+        return 1 # Coi như 1 nhóm nhỏ
+
+    # 2. Chạy thuật toán DBSCAN
+    # metric='cosine' để gom cụm dựa trên góc thay vì khoảng cách Ơ-clit
+    clustering = DBSCAN(eps=eps, min_samples=min_samples, metric='cosine').fit(embeddings)
+    
+    # 3. Đếm số nhãn (labels)
+    # labels_ chứa danh sách cụm (0, 1, 2...). 
+    # Label -1 nghĩa là Nhiễu (Noise) - các điểm không thuộc cụm nào (quá khác biệt).
+    labels = clustering.labels_
+    
+    # Đếm số lượng cụm (loại bỏ -1 nếu có)
+    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+    
+    # (Tùy chọn) Nếu bạn muốn coi các điểm Nhiễu (Outliers) cũng là các chiến thuật độc nhất
+    n_clusters += list(labels).count(-1) 
+    
+    return n_clusters
 
 def get_top_k_data(evaluations, k=100, strategy='highest'):
     """Lấy Top-K theo fitness."""
@@ -378,6 +442,10 @@ def main():
             distinct_n = calculate_distinct_n(flat_prompts)
             print(f"GA Distinct-2: {distinct_n:.4f}")
             ga_emb = model.encode(flat_prompts)
+            embedding_diversity = calculate_embedding_diversity(ga_emb)
+            print(f"GA Embedding diversity: {embedding_diversity:.4f}")
+            cluster = calculate_distinct_clusters(ga_emb)
+            print(f"GA Distinct Clusters: {cluster:.4f}")
             analyze_convex_hull_simple(ga_emb, "GrowingArchive")
             
         except Exception as e:
@@ -416,6 +484,10 @@ def main():
             distinct_n = calculate_distinct_n(flat_prompts)
             print(f"Persona Distinct-2: {distinct_n:.4f}")
             pt_emb = model.encode(flat_prompts)
+            embedding_diversity = calculate_embedding_diversity(pt_emb)
+            print(f"Persona Embedding diversity: {embedding_diversity}")
+            cluster = calculate_distinct_clusters(pt_emb)
+            print(f"Persona Distinct Clusters: {cluster:.4f}")
             analyze_convex_hull_simple(pt_emb, "PersonaTeaming")
             '''
             # Random Stats
