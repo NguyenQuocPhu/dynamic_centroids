@@ -401,8 +401,10 @@ def main():
     elites_scores = []
 
     # 3. Compute Embeddings
-    print("\n[AI] Computing Embeddings (all-MiniLM-L6-v2)...")
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    #print("\n[AI] Computing Embeddings (all-MiniLM-L6-v2)...")
+    #model = SentenceTransformer('all-MiniLM-L6-v2')
+    print("\n[AI] Computing Embeddings (gte-large-en-v1.5)..."))
+    model = SentenceTransformer('Alibaba-NLP/gte-large-en-v1.5', trust_remote_code=True)
     ga_prompts = []
     ga_scores = []
     res = 9999999999
