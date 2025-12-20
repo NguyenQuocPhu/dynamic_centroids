@@ -376,7 +376,13 @@ def find_log_files(directory):
             if std_candidates:
                 comprehensive_log = std_candidates[-1]
 
-    return comprehensive_ga_log, comprehensive_log
+    attack_memory_log = None
+    attack_memory_pattern = directory / "attack_memory_*.yml"
+    attack_memory_candidates = sorted(list(glob.glob(str(attack_memory_pattern))))
+    if attack_memory_candidates:
+        attack_memory_log = attack_memory_candidates[-1]
+
+    return comprehensive_ga_log, comprehensive_log, attack_memory_log
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze comprehensive RainbowPlus logs")
@@ -387,9 +393,10 @@ def main():
     args = parser.parse_args()
 
     try:
-        comprehensive_ga_log, comprehensive_log = find_log_files(args.directory)
+        comprehensive_ga_log, comprehensive_log, memory_log = find_log_files(args.directory)
         print(f"Standard Log: {comprehensive_log}")
         print(f"GA Log:       {comprehensive_ga_log}")
+        print(f"Attack Memory: {memory_log}")
         print("-" * 40)
             
     except Exception as e:
@@ -407,7 +414,6 @@ def main():
     model = SentenceTransformer('Alibaba-NLP/gte-large-en-v1.5', trust_remote_code=True)
     ga_prompts = []
     ga_scores = []
-    res = 9999999999
     if comprehensive_ga_log:
         try:
             # SỬA: Load trực tiếp file, không load chồng chéo
@@ -428,13 +434,10 @@ def main():
                     for elite in list_of_elite:
                         ga_prompts.append(elite['prompt'])
                         ga_scores.append(elite['fitness'])
-                        elites_emb.append(elite['behavior'])
                         elites_scores.append(elite['fitness'])
-                        res = min(res, elite['fitness'])
                     #    ga_evaluations.append(elite)
             
             print(f"[GrowingArchive] Loaded {len(ga_prompts)} prompts.")
-            print(res)
             stats = get_top_k_data(ga_evaluations, args.top_k, 'highest')
             scores = [e['fitness'] for e in stats]
             print(f"GA Top-{args.top_k} Fitness: {float(np.mean(scores)):.4f} (±{float(np.std(scores)):.4f}")
@@ -449,6 +452,7 @@ def main():
             cluster = calculate_distinct_clusters(ga_emb)
             print(f"GA Distinct Clusters: {cluster:.4f}")
             analyze_convex_hull_simple(ga_emb, "GrowingArchive")
+            elites_emb = model.encode(flat_prompts)
             
         except Exception as e:
             print(f"Error processing GA log: {e}")
@@ -500,7 +504,6 @@ def main():
             print(f"Error processing Standard log: {e}")
     
     print("-" * 40)
-
 
     plot_fitness_distribution(ga_scores, persona_scores)
     analyze_convex_hull_simple(centroids, "Centroids")
