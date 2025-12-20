@@ -450,7 +450,7 @@ def main():
             embedding_diversity = calculate_embedding_diversity(ga_emb)
             print(f"GA Embedding diversity: {embedding_diversity:.4f}")
             cluster = calculate_distinct_clusters(ga_emb)
-            print(f"GA Distinct Clusters: {cluster:.4f}")
+            #print(f"GA Distinct Clusters: {cluster:.4f}")
             analyze_convex_hull_simple(ga_emb, "GrowingArchive")
             elites_emb = model.encode(flat_prompts)
             
@@ -493,7 +493,7 @@ def main():
             embedding_diversity = calculate_embedding_diversity(pt_emb)
             print(f"Persona Embedding diversity: {embedding_diversity}")
             cluster = calculate_distinct_clusters(pt_emb)
-            print(f"Persona Distinct Clusters: {cluster:.4f}")
+            #print(f"Persona Distinct Clusters: {cluster:.4f}")
             analyze_convex_hull_simple(pt_emb, "PersonaTeaming")
             '''
             # Random Stats
@@ -507,7 +507,7 @@ def main():
 
     plot_fitness_distribution(ga_scores, persona_scores)
     analyze_convex_hull_simple(centroids, "Centroids")
-    visualize_structure_and_fitness(centroids, elites_emb, elites_scores)
+    #visualize_structure_and_fitness(centroids, elites_emb, elites_scores)
 
 
 if __name__ == "__main__":
