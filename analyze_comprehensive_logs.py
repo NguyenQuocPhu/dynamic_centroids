@@ -480,14 +480,15 @@ def calculate_metrics(model, evaluation, method = 'GA', k = 5):
         if method == 'GA':
             unsafe = num_queries - sum(1 for r in reasons if r == 'rejected_fitness_low')   
         else:
-            unsafe = num_queries - sum(1 for r in reasons if r == 'fitness_too_low')   
+            unsafe = sum(1 for r in reasons if r == 'accepted')
+            
         total_num_queries += num_queries
         num_unsafe += unsafe
     print(f"Num_unsafe: {num_unsafe}")
     print(f"Total_num_queries: {total_num_queries}")
     print(f"ASR: {num_unsafe / total_num_queries:.4f}")
     # Convergence
-    plot_fixed_grid_heatmap(evaluation, metric = "max_fitness", k = k)
+    plot_fixed_grid_heatmap(evaluation, metric = method , k = k)
 
     # Diversity
     
@@ -581,7 +582,7 @@ def main():
             # SỬA: Load trực tiếp file, không load chồng chéo
             ga_data = load_comprehensive_log(comprehensive_ga_log)
             ga = build_archive_risk_style(ga_data)
-            calculate_metrics(model, ga, 'GA')
+            calculate_metrics(model, ga, 'GA', k = 5)
             
             # ga_state = ga_data.get('ga_state', {})
             # centroids = ga_state.get('centroids', [])
@@ -628,7 +629,7 @@ def main():
         try:
             std_data = load_comprehensive_log(comprehensive_log)
             persona = build_archive_risk_style(std_data)
-            calculate_metrics(model, persona, 'PersonaTeaming')
+            calculate_metrics(model, persona, 'PersonaTeaming', k =5)
             
             # all_prompts = std_data.get('adv_prompts', {})
             # all_scores = std_data.get('scores', {})
