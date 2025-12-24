@@ -482,7 +482,7 @@ def calculate_metrics(model, evaluation, method = 'GA', k = 5):
         total_num_queries += num_queries
         num_unsafe += unsafe
 
-
+    print(f"ASR: {num_unsafe / total_num_queries:.4f}")
     # Convergence
     plot_fixed_grid_heatmap(evaluation, metric = "max_fitness", k = k)
 
