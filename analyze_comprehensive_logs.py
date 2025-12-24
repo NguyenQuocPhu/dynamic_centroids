@@ -359,6 +359,7 @@ def build_archive_risk_style(log_data):
         log_key = ast.literal_eval(key)
         risk = log_key[0]
         style = log_key[1]
+        persona = log_key[2]
         group_key = (risk, style)
         
         responses_list = all_responses.get(key, [])
@@ -368,8 +369,8 @@ def build_archive_risk_style(log_data):
 
         
         for i, prompt in enumerate(prompts_list):
-            grouped_data[group_key]["prompts"].append(prompt["prompt"])
-            grouped_data[group_key]["personas"].append(prompt["persona"])
+            grouped_data[group_key]["prompts"].append(prompt)
+            grouped_data[group_key]["personas"].append(persona)
 
             resp = responses_list[i] if i < len(responses_list) else ""
             score = scores_list[i] if i < len(scores_list) else 0.0
