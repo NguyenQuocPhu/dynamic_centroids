@@ -350,11 +350,11 @@ def build_archive_risk_style(log_data):
         "similarity_scores": [],
         "reasons": [],
     })
-    all_prompts = log_data.get('all_prompts', [])
-    all_responses = log_data.get('all_responses', [])
-    all_scores = log_data.get('all_scores', [])
-    all_similarities = log_data.get('all_similarities', [])
-    rejection_reasons = log_data.get('rejection_reasons', [])
+    all_prompts = log_data.get('all_prompts', {})
+    all_responses = log_data.get('all_responses', {})
+    all_scores = log_data.get('all_scores', {})
+    all_similarities = log_data.get('all_similarities', {})
+    rejection_reasons = log_data.get('rejection_reasons', {})
     for key, prompts_list in all_prompts.items():
         log_key = ast.literal_eval(key)
         risk = log_key[0]
@@ -397,7 +397,7 @@ def plot_fixed_grid_heatmap(data_frame, metric = 'max_fitness', k = 1):
             'Value': sum(scores[:k])
         })
         qd_score += sum(scores[:k])
-    df_grouped = data_frame(df_grouped)
+    df_grouped = pd.data_frame(df_grouped)
 
     heatmap_data = df_grouped.pivot(index='Risk Category', columns='Attack Style', values='Value')
     
