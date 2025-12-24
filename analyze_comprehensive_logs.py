@@ -477,8 +477,10 @@ def calculate_metrics(model, evaluation, method = 'GA', k = 5):
 
         reasons = elite.get('reasons', [])
         num_queries = sum(1 for r in reasons if r != 'similarity_too_high')
-        unsafe = num_queries - sum(1 for r in reasons if r == 'rejected_fitness_low')   
-
+        if method == 'GA':
+            unsafe = num_queries - sum(1 for r in reasons if r == 'rejected_fitness_low')   
+        else:
+            unsafe = num_queries - sum(1 for r in reasons if r == 'fitness_too_low')   
         total_num_queries += num_queries
         num_unsafe += unsafe
     print(f"Num_unsafe: {num_unsafe}")
