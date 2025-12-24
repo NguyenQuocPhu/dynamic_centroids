@@ -77,8 +77,7 @@ class LlamaGuard(vLLM):
                     p = np.exp(logprob_obj.logprob)
                 elif token_text == "safe":
                     # Nếu model chắc chắn là safe, thì p(unsafe) thấp
-                    # p = 1.0 - np.exp(logprob_obj.logprob) # Optional
-                    pass
+                    p = 1.0 - np.exp(logprob_obj.logprob) # Optional
         
         return p
 
@@ -88,12 +87,7 @@ class LlamaGuard(vLLM):
         """
         queries = []
         
-        # Cắt ngắn response để tránh lỗi context length quá dài
-        MAX_CHAR_LENGTH = 6000 # ~1500-2000 tokens
-        
         for prompt, response in zip(prompts, responses):
-            if len(response) > MAX_CHAR_LENGTH:
-                response = response[:MAX_CHAR_LENGTH] + "..."
             
             queries.append(TEMPLATE_EVALUATION.format(prompt=prompt, response=response))
         

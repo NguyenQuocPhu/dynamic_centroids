@@ -502,6 +502,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
                     eval_item = {
                         "prompt": m_prompt,
                         "candidate": response,
+                        "key_tuple": log_key_tuple,
                         "descriptor": selected_persona,
                         "fitness": fit,
                         "behavior": behavior,   
@@ -518,7 +519,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
                         "behavior": behavior,
                         "prompt": m_prompt,
                         "score": fit,
-                        "persoa": selected_persona
+                        "persona": selected_persona
                     }
                     attack_memory.add(candidate_memory)
                     if "rejected" in ga_result:

@@ -285,6 +285,7 @@ def visualize_structure_and_fitness(centroids_emb, elites_emb, elites_scores, me
     else:
         print("Không đủ dữ liệu để vẽ.")
 def plot_fitness_distribution(scores_ga, scores_pt, output_filename="fitness_dist.png"):
+
     """
     Vẽ biểu đồ phân bố điểm số (Fitness) của 2 phương pháp.
     
@@ -336,6 +337,143 @@ def plot_fitness_distribution(scores_ga, scores_pt, output_filename="fitness_dis
     plt.savefig(output_filename, dpi=300, bbox_inches='tight')
     print(f"✅ Đã lưu biểu đồ vào file: {output_filename}")
     plt.close() # Đóng lại cho đỡ tốn RAM
+
+
+import ast
+from collections import defaultdict
+def build_archive_risk_style(log_data):
+    grouped_data = defaultdict(lambda:{
+        "prompts": [],
+        "personas": [],
+        "responses": [],
+        "scores": [],
+        "similarity_scores": [],
+        "reasons": [],
+    })
+    all_prompts = log_data.get('all_prompts', [])
+    all_responses = log_data.get('all_responses', [])
+    all_scores = log_data.get('all_scores', [])
+    all_similarities = log_data.get('all_similarities', [])
+    rejection_reasons = log_data.get('rejection_reasons', [])
+    for key, prompts_list in all_prompts.items():
+        log_key = ast.literal_eval(key)
+        risk = log_key[0]
+        style = log_key[1]
+        group_key = (risk, style)
+        
+        responses_list = all_responses.get(key, [])
+        scores_list = all_scores.get(key, [])
+        similarities_list = all_similarities.get(key, [])
+        reasons_list = rejection_reasons.get(key, [])
+
+        
+        for i, prompt in enumerate(prompts_list):
+            grouped_data[group_key]["prompts"].append(prompt["prompt"])
+            grouped_data[group_key]["personas"].append(prompt["persona"])
+
+            resp = responses_list[i] if i < len(responses_list) else ""
+            score = scores_list[i] if i < len(scores_list) else 0.0
+            similar = similarities_list[i] if i < len(similarities_list) else 0.0
+            reason = reasons_list[i] if i < len(reasons_list) else ""
+            
+            grouped_data[group_key]["responses"].append(resp)
+            grouped_data[group_key]["scores"].append(score)
+            grouped_data[group_key]["similarity_scores"].append(similar)
+            grouped_data[group_key]["reasons"].append(reason)
+
+
+    return grouped_data
+
+def plot_fixed_grid_heatmap(data_frame, metric = 'max_fitness', k = 1):
+    df_grouped = []
+    qd_score = 0
+    for key, elite in data_frame.items():
+        risk_category = key[0]
+        attack_style = key[1]
+        scores = elite.get('scores', 0)
+        df_grouped.append({
+            'Risk Category': risk_category,
+            'Attack Style': attack_style,
+            'Value': sum(scores[:k])
+        })
+        qd_score += sum(scores[:k])
+    df_grouped = data_frame(df_grouped)
+
+    heatmap_data = df_grouped.pivot(index='Risk Category', columns='Attack Style', values='Value')
+    
+    # Điền 0 vào các ô không có dữ liệu
+    heatmap_data = heatmap_data.fillna(0)
+
+    # --- BƯỚC 2: VẼ HEATMAP (Visualization) ---
+    plt.figure(figsize=(12, 8)) # Kích thước ảnh
+    
+    # Tùy chọn màu sắc giống ảnh mẫu
+    # cmap='Reds' (Đỏ), 'OrRd' (Cam-Đỏ), 'YlOrRd' (Vàng-Cam-Đỏ)
+    # Mẹo: Dùng 'Reds' cho số lượng (như ảnh mẫu), 'viridis' hoặc 'magma' cho Fitness (nhìn ngầu hơn)
+
+    ax = sns.heatmap(
+        heatmap_data,
+        cmap='Reds',           # Màu đỏ giống ảnh mẫu
+        annot=False,           # False: Không hiện số trong ô (giống ảnh mẫu)
+        linewidths=1,          # ĐƯỜNG VIỀN TRẮNG (Quan trọng)
+        linecolor='white',     # Màu đường viền
+        square=True,           # Ép các ô thành hình vuông
+        cbar_kws={'label': f'{metric.replace("_", " ").title()}'} # Nhãn thanh màu
+    )
+
+    # --- BƯỚC 3: TINH CHỈNH GIAO DIỆN (Styling) ---
+    
+    # Đưa trục X (Style) lên trên đầu (giống ảnh mẫu)
+    ax.xaxis.tick_top() 
+    ax.xaxis.set_label_position('top') 
+    
+    # Xoay chữ trục X cho dễ đọc
+    plt.xticks(rotation=45, ha='left')
+    plt.yticks(rotation=0)
+    
+    plt.title(f"Risk Category vs Attack Style ({metric}) and QD_score: {qd_score:.2f}", y=1.1, fontsize=15)
+    plt.xlabel("") # Bỏ nhãn trục X vì đã đưa lên title hoặc tự hiểu
+    plt.ylabel("") # Bỏ nhãn trục Y cho gọn
+    # Lưu file
+    filename = f"fixed_grid_heatmap_{metric}.png"
+    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    print(f"✅ Đã lưu Heatmap Lưới: {filename}")
+    plt.close()
+
+def calculate_metrics(model, evaluation, method = 'GA', k = 5):
+    # ASR
+    evaluation =sorted(evaluation, key=lambda x: x.get('fitness', 0), reverse=True)
+    prompts = []
+    for elite in evaluation.values():
+        prompt = elite.get('prompts', [])
+        prompts.extend(prompt[:k])
+    # ASR_among_pass = num_unsafe / total_num_queries
+    total_num_queries = 0
+    num_unsafe = 0
+    for key, elite in evaluation.items():
+        num_queries = 0
+        unsafe = 0
+
+        reasons = elite.get('reasons', [])
+        num_queries = sum(1 for r in reasons if r != 'similarity_too_high')
+        unsafe = num_queries - sum(1 for r in reasons if r == 'rejected_fitness_low')   
+
+        total_num_queries += num_queries
+        num_unsafe += unsafe
+
+
+    # Convergence
+    plot_fixed_grid_heatmap(evaluation, k)
+
+    # Diversity
+    
+    self_bleu = calculate_self_bleu(prompts)
+    distinct_n = calculate_distinct_n(prompts)
+    embedding_diversity = calculate_embedding_diversity(model.encode(prompts))
+    print(f"Self-BLEU Score {method}: {self_bleu}")
+    print(f"Distinct N-Grams {method}: {distinct_n}")
+    print(f"Embedding Diversity {method}: {embedding_diversity}")
+
 
 def find_log_files(directory):
     directory = Path(directory)
@@ -442,7 +580,7 @@ def main():
             scores = [e['fitness'] for e in stats]
             print(f"GA Top-{args.top_k} Fitness: {float(np.mean(scores)):.4f} (±{float(np.std(scores)):.4f}")
             flat_prompts = [e['prompt'] for e in stats]
-            diversity = calculate_self_bleu(flat_prompts)
+            diversity = calculate_self_bleu(flat_prompts, 1)
             print(f"GA Self-BLEU: {diversity:.4f}")
             distinct_n = calculate_distinct_n(flat_prompts)
             print(f"GA Distinct-2: {distinct_n:.4f}")
@@ -485,7 +623,7 @@ def main():
             scores = [e['fitness'] for e in stats_high]
             print(f"Persona Highest Top-{args.top_k} Fitness: {float(np.mean(scores)):.4f} (±{float(np.std(scores)):.4f}")
             flat_prompts = [e['prompt'] for e in stats_high]
-            diversity = calculate_self_bleu(flat_prompts)
+            diversity = calculate_self_bleu(flat_prompts, 1)
             print(f"Persona Self-BLEU: {diversity:.4f}")
             distinct_n = calculate_distinct_n(flat_prompts)
             print(f"Persona Distinct-2: {distinct_n:.4f}")
