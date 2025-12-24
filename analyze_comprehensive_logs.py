@@ -392,12 +392,14 @@ def plot_fixed_grid_heatmap(data_frame, metric = 'max_fitness', k = 1):
         risk_category = key[0]
         attack_style = key[1]
         scores = elite.get('scores', 0)
+        sorted_scores = sorted(scores, reverse=True)
+        current_sum = sorted_scores[:k]
         df_grouped.append({
             'Risk Category': risk_category,
             'Attack Style': attack_style,
-            'Value': sum(scores[:k])
+            'Value': sum(current_sum)
         })
-        qd_score += sum(scores[:k])
+        qd_score += sum(current_sum)
     df_grouped = pd.data_frame(df_grouped)
 
     heatmap_data = df_grouped.pivot(index='Risk Category', columns='Attack Style', values='Value')
@@ -443,8 +445,24 @@ def plot_fixed_grid_heatmap(data_frame, metric = 'max_fitness', k = 1):
 
 def calculate_metrics(model, evaluation, method = 'GA', k = 5):
     # ASR
-    evaluation =sorted(evaluation, key=lambda x: x.get('fitness', 0), reverse=True)
     prompts = []
+    for elite in evaluation.values():
+        p_list = elite.get('prompts', [])
+        s_list = elite.get('scores', [])
+        
+        # Ghép cặp (prompt, score) để sort lấy top k trong từng cell
+        # Xử lý an toàn nếu p_list chứa dict thay vì string
+        clean_prompts = []
+        for p in p_list:
+            clean_prompts.append(p)
+        
+        zipped = sorted(zip(clean_prompts, s_list), key=lambda x: x[1], reverse=True)
+        
+        # Lấy top k prompt tốt nhất của cell này
+        top_k_cell = [x[0] for x in zipped[:k]]
+        prompts.extend(top_k_cell)
+    
+    scores = evaluation.get('scores', [])
     for elite in evaluation.values():
         prompt = elite.get('prompts', [])
         prompts.extend(prompt[:k])
