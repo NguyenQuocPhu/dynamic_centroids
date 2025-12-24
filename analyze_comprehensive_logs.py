@@ -401,7 +401,9 @@ def plot_fixed_grid_heatmap(data_frame, metric = 'max_fitness', k = 1):
         })
         qd_score += sum(current_sum)
     df_grouped = pd.DataFrame(df_grouped)
-
+    if df_grouped.empty:
+        print(f"Warning: No data available for Heatmap ({metric}). Skipping.")
+        return
     heatmap_data = df_grouped.pivot(index='Risk Category', columns='Attack Style', values='Value')
     
     # Điền 0 vào các ô không có dữ liệu
@@ -482,7 +484,7 @@ def calculate_metrics(model, evaluation, method = 'GA', k = 5):
 
 
     # Convergence
-    plot_fixed_grid_heatmap(evaluation, k)
+    plot_fixed_grid_heatmap(evaluation, metric = "max_fitness", k = k)
 
     # Diversity
     
