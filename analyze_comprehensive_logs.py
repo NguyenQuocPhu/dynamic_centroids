@@ -400,7 +400,7 @@ def plot_fixed_grid_heatmap(data_frame, metric = 'max_fitness', k = 1):
             'Value': sum(current_sum)
         })
         qd_score += sum(current_sum)
-    df_grouped = pd.data_frame(df_grouped)
+    df_grouped = pd.DataFrame(df_grouped)
 
     heatmap_data = df_grouped.pivot(index='Risk Category', columns='Attack Style', values='Value')
     
