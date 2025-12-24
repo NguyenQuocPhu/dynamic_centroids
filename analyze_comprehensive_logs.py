@@ -556,41 +556,43 @@ def main():
         try:
             # SỬA: Load trực tiếp file, không load chồng chéo
             ga_data = load_comprehensive_log(comprehensive_ga_log)
+            ga = build_archive_risk_style(ga_data)
+            calculate_metrics(model, ga, 'GA')
             
-            ga_state = ga_data.get('ga_state', {})
-            centroids = ga_state.get('centroids', [])
-            print(ga_state.get('n_centroids', 0))
-            print(f"#######################")
-            elites = ga_state.get('elites', {})
+            # ga_state = ga_data.get('ga_state', {})
+            # centroids = ga_state.get('centroids', [])
+            # print(ga_state.get('n_centroids', 0))
+            # print(f"#######################")
+            # elites = ga_state.get('elites', {})
             
-            ga_evaluations = []
-            for key, list_of_elite in elites.items():
-                if list_of_elite:
-                    max_evaluation = max(list_of_elite, key=lambda x: x.get('fitness', 0))
-                    ga_evaluations.append(max_evaluation)
-                    # Take the highest fitness in each cells
-                    for elite in list_of_elite:
-                        ga_prompts.append(elite['prompt'])
-                        ga_scores.append(elite['fitness'])
-                        elites_scores.append(elite['fitness'])
+            # ga_evaluations = []
+            # for key, list_of_elite in elites.items():
+            #     if list_of_elite:
+            #         max_evaluation = max(list_of_elite, key=lambda x: x.get('fitness', 0))
+            #         ga_evaluations.append(max_evaluation)
+            #         # Take the highest fitness in each cells
+            #         for elite in list_of_elite:
+            #             ga_prompts.append(elite['prompt'])
+            #             ga_scores.append(elite['fitness'])
+            #             elites_scores.append(elite['fitness'])
                     #    ga_evaluations.append(elite)
             
-            print(f"[GrowingArchive] Loaded {len(ga_prompts)} prompts.")
-            stats = get_top_k_data(ga_evaluations, args.top_k, 'highest')
-            scores = [e['fitness'] for e in stats]
-            print(f"GA Top-{args.top_k} Fitness: {float(np.mean(scores)):.4f} (±{float(np.std(scores)):.4f}")
-            flat_prompts = [e['prompt'] for e in stats]
-            diversity = calculate_self_bleu(flat_prompts, 1)
-            print(f"GA Self-BLEU: {diversity:.4f}")
-            distinct_n = calculate_distinct_n(flat_prompts)
-            print(f"GA Distinct-2: {distinct_n:.4f}")
-            ga_emb = model.encode(flat_prompts)
-            embedding_diversity = calculate_embedding_diversity(ga_emb)
-            print(f"GA Embedding diversity: {embedding_diversity:.4f}")
-            cluster = calculate_distinct_clusters(ga_emb)
+            # print(f"[GrowingArchive] Loaded {len(ga_prompts)} prompts.")
+            # stats = get_top_k_data(ga_evaluations, args.top_k, 'highest')
+            # scores = [e['fitness'] for e in stats]
+            # print(f"GA Top-{args.top_k} Fitness: {float(np.mean(scores)):.4f} (±{float(np.std(scores)):.4f}")
+            # flat_prompts = [e['prompt'] for e in stats]
+            # diversity = calculate_self_bleu(flat_prompts, 1)
+            # print(f"GA Self-BLEU: {diversity:.4f}")
+            # distinct_n = calculate_distinct_n(flat_prompts)
+            # print(f"GA Distinct-2: {distinct_n:.4f}")
+            # ga_emb = model.encode(flat_prompts)
+            # embedding_diversity = calculate_embedding_diversity(ga_emb)
+            # print(f"GA Embedding diversity: {embedding_diversity:.4f}")
+            # cluster = calculate_distinct_clusters(ga_emb)
             #print(f"GA Distinct Clusters: {cluster:.4f}")
             #analyze_convex_hull_simple(ga_emb, "GrowingArchive")
-            elites_emb = model.encode(flat_prompts)
+            #elites_emb = model.encode(flat_prompts)
             
         except Exception as e:
             print(f"Error processing GA log: {e}")
@@ -601,36 +603,39 @@ def main():
     if comprehensive_log:
         try:
             std_data = load_comprehensive_log(comprehensive_log)
-            all_prompts = std_data.get('adv_prompts', {})
-            all_scores = std_data.get('scores', {})
+            persona = build_archive_risk_style(std_data)
+            calculate_metrics(model, persona, 'PersonaTeaming')
             
-            persona_evaluations = []
-            for category, prompts in all_prompts.items():
-                persona_prompts.extend(prompts)
-                scores = all_scores.get(category, [])
+            # all_prompts = std_data.get('adv_prompts', {})
+            # all_scores = std_data.get('scores', {})
+            
+            # persona_evaluations = []
+            # for category, prompts in all_prompts.items():
+            #     persona_prompts.extend(prompts)
+            #     scores = all_scores.get(category, [])
                 
-                for prompt, score in zip(prompts, scores):
-                    persona_evaluations.append({
-                        "prompt": prompt,
-                        "fitness": score,
-                    })
-                    persona_scores.append(score)
+            #     for prompt, score in zip(prompts, scores):
+            #         persona_evaluations.append({
+            #             "prompt": prompt,
+            #             "fitness": score,
+            #         })
+            #         persona_scores.append(score)
             
-            print(f"\n[PersonaTeaming] Loaded {len(persona_prompts)} prompts.")
+            # print(f"\n[PersonaTeaming] Loaded {len(persona_prompts)} prompts.")
             
             # Highest Stats
-            stats_high = get_top_k_data(persona_evaluations, args.top_k, 'highest')
-            scores = [e['fitness'] for e in stats_high]
-            print(f"Persona Highest Top-{args.top_k} Fitness: {float(np.mean(scores)):.4f} (±{float(np.std(scores)):.4f}")
-            flat_prompts = [e['prompt'] for e in stats_high]
-            diversity = calculate_self_bleu(flat_prompts, 1)
-            print(f"Persona Self-BLEU: {diversity:.4f}")
-            distinct_n = calculate_distinct_n(flat_prompts)
-            print(f"Persona Distinct-2: {distinct_n:.4f}")
-            pt_emb = model.encode(flat_prompts)
-            embedding_diversity = calculate_embedding_diversity(pt_emb)
-            print(f"Persona Embedding diversity: {embedding_diversity}")
-            cluster = calculate_distinct_clusters(pt_emb)
+            # stats_high = get_top_k_data(persona_evaluations, args.top_k, 'highest')
+            # scores = [e['fitness'] for e in stats_high]
+            # print(f"Persona Highest Top-{args.top_k} Fitness: {float(np.mean(scores)):.4f} (±{float(np.std(scores)):.4f}")
+            # flat_prompts = [e['prompt'] for e in stats_high]
+            # diversity = calculate_self_bleu(flat_prompts, 1)
+            # print(f"Persona Self-BLEU: {diversity:.4f}")
+            # distinct_n = calculate_distinct_n(flat_prompts)
+            # print(f"Persona Distinct-2: {distinct_n:.4f}")
+            # pt_emb = model.encode(flat_prompts)
+            # embedding_diversity = calculate_embedding_diversity(pt_emb)
+            #print(f"Persona Embedding diversity: {embedding_diversity}")
+            #cluster = calculate_distinct_clusters(pt_emb)
             #print(f"Persona Distinct Clusters: {cluster:.4f}")
             #analyze_convex_hull_simple(pt_emb, "PersonaTeaming")
             '''
@@ -643,7 +648,7 @@ def main():
     
     print("-" * 40)
 
-    plot_fitness_distribution(ga_scores, persona_scores)
+    #plot_fitness_distribution(ga_scores, persona_scores)
     #analyze_convex_hull_simple(centroids, "Centroids")
     #visualize_structure_and_fitness(centroids, elites_emb, elites_scores)
 
