@@ -440,7 +440,7 @@ def plot_fixed_grid_heatmap(data_frame, metric = 'max_fitness', k = 1):
     plt.xlabel("") # Bỏ nhãn trục X vì đã đưa lên title hoặc tự hiểu
     plt.ylabel("") # Bỏ nhãn trục Y cho gọn
     # Lưu file
-    filename = f"fixed_grid_heatmap_{metric}.png"
+    filename = f"fixed_grid_heatmap_{metric}{k}.png"
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     print(f"✅ Đã lưu Heatmap Lưới: {filename}")
     plt.close()
@@ -481,7 +481,8 @@ def calculate_metrics(model, evaluation, method = 'GA', k = 5):
 
         total_num_queries += num_queries
         num_unsafe += unsafe
-
+    print(f"Num_unsafe: {num_unsafe}")
+    print(f"Total_num_queries: {total_num_queries}")
     print(f"ASR: {num_unsafe / total_num_queries:.4f}")
     # Convergence
     plot_fixed_grid_heatmap(evaluation, metric = "max_fitness", k = k)
@@ -491,9 +492,9 @@ def calculate_metrics(model, evaluation, method = 'GA', k = 5):
     self_bleu = calculate_self_bleu(prompts)
     distinct_n = calculate_distinct_n(prompts)
     embedding_diversity = calculate_embedding_diversity(model.encode(prompts))
-    print(f"Self-BLEU Score {method}: {self_bleu}")
-    print(f"Distinct N-Grams {method}: {distinct_n}")
-    print(f"Embedding Diversity {method}: {embedding_diversity}")
+    print(f"Self-BLEU Score {method}: {self_bleu:.4f}")
+    print(f"Distinct N-Grams {method}: {distinct_n:.4f}")
+    print(f"Embedding Diversity {method}: {embedding_diversity:.4f}")
 
 
 def find_log_files(directory):
