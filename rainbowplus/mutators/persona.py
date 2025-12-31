@@ -706,6 +706,7 @@ class PersonaMutator:
             text += '"'
             
         return text
+    
     def _format_persona_description(self, persona_name: str, persona_details: Dict) -> str: 
         """Format a detailed description of the persona for the prompt.
         Be tolerant to missing keys from generated YAML by providing safe defaults.

@@ -391,7 +391,7 @@ def plot_fixed_grid_heatmap(data_frame, metric = 'max_fitness', k = 1):
     for key, elite in data_frame.items():
         risk_category = key[0]
         attack_style = key[1]
-        scores = elite.get('scores', 0)
+        scores = elite.get('scores', [])
         sorted_scores = sorted(scores, reverse=True)
         current_sum = sorted_scores[:k]
         df_grouped.append({
@@ -464,10 +464,6 @@ def calculate_metrics(model, evaluation, method = 'GA', k = 5):
         top_k_cell = [x[0] for x in zipped[:k]]
         prompts.extend(top_k_cell)
     
-    scores = evaluation.get('scores', [])
-    for elite in evaluation.values():
-        prompt = elite.get('prompts', [])
-        prompts.extend(prompt[:k])
     # ASR_among_pass = num_unsafe / total_num_queries
     total_num_queries = 0
     num_unsafe = 0

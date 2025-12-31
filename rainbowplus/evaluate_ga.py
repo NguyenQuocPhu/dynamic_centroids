@@ -189,7 +189,7 @@ def main():
     parser.add_argument("-a", "--algo", default="rainbowplus", help="Override algorithm from config")
     parser.add_argument("-m", "--method", default="all", help="Override evaluation method from config")
     parser.add_argument("-k", "--keyword", default="global", help="Keyword of global config file name")
-    parser.add_argument("--top_k", default = 5, help = "Number of elites will be choosen in each cell")
+    parser.add_argument("--top_k", type = int, default = 5, help = "Number of elites will be choosen in each cell")
 
     args = parser.parse_args()
 

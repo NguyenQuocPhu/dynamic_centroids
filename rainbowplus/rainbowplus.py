@@ -378,6 +378,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
             "seed_id": pid,
             "prompt_id": pid
         })
+        
     attack_memory.add_list(seed_prompts_memory)
     # --- MAIN LOOP ---
     for i in range(args.max_iters):
