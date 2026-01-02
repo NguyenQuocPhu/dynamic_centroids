@@ -683,27 +683,56 @@ class PersonaMutator:
         """
         Cố gắng sửa các lỗi format thường gặp của LLM trước khi parse.
         """
-        # 1. Xóa markdown fence
+        # 1. Xóa markdown fence (Code cũ)
         text = strip_markdown_fence(yaml_str)
         
+        # [MỚI] Xóa dấu phân cách document YAML (nguyên nhân lỗi "expected single document")
+        text = text.replace("---", "")
+
         lines = text.split('\n')
         fixed_lines = []
+        
+        # [MỚI] Biến cờ để xác định khi nào bắt đầu nội dung YAML thực sự
+        found_yaml_start = False
+
         for line in lines:
+            stripped = line.strip()
+            
+            # Giữ nguyên dòng trống để format đẹp
+            if not stripped:
+                fixed_lines.append(line)
+                continue
+
+            # [MỚI] Lọc bỏ các câu dẫn dắt (Chatty prefix) ở đầu
+            # Nếu chưa gặp key nào (chưa có ':') và không phải list ('-'), coi là rác
+            if not found_yaml_start:
+                if ":" not in line and not stripped.startswith("-"):
+                    continue # Bỏ qua dòng kiểu "Here is the persona:"
+                else:
+                    found_yaml_start = True # Đã bắt đầu vào vùng YAML
+
             # 2. Sửa lỗi dấu hai chấm ở cuối giá trị (VD: "title: Doctor:")
-            # Regex này tìm: (Key: Value)(:) -> Xóa nhóm cuối
-            # Chỉ áp dụng nếu dòng không kết thúc bằng trích dẫn (để tránh sửa sai string)
-            if line.strip().endswith(':') and line.count(':') > 1:
-                 # Nếu dòng có format "key: value:", xóa dấu : cuối cùng
-                 line = line.rsplit(':', 1)[0]
+            if stripped.endswith(':') and line.count(':') > 1:
+                 # Chỉ xóa nếu không phải là key rỗng (VD: "description: ")
+                 # Logic: Nếu bên trái dấu : cuối cùng có nội dung, thì dấu : đó là thừa
+                 line = line.rstrip()[:-1]
             
             fixed_lines.append(line)
         
+        # [MỚI] Xử lý trường hợp bị cắt cụt (Truncation) do max_tokens
+        # Nếu dòng cuối cùng là một key đang viết dở (kết thúc bằng :), xóa nó đi để không lỗi cú pháp
+        if fixed_lines and fixed_lines[-1].strip().endswith(':'):
+            fixed_lines.pop()
+
         text = '\n'.join(fixed_lines)
 
-        # 3. Kiểm tra ngoặc kép không đóng (Unclosed quotes) - Nguyên nhân gây lỗi "unexpected end of stream"
-        # Nếu số lượng dấu " là lẻ, thêm 1 dấu " vào cuối
+        # 3. Kiểm tra ngoặc kép không đóng (Code cũ)
         if text.count('"') % 2 != 0:
             text += '"'
+        
+        # [MỚI] Kiểm tra ngoặc đơn không đóng (thêm cho chắc chắn)
+        if text.count("'") % 2 != 0:
+            text += "'"
             
         return text
     
