@@ -60,7 +60,7 @@ num_samples: 100
 seed_memory: configs/seed_memory.yml
 threshold_bot: 0.6
 threshold_top: 0.8
-number_example_prompts: 3
+number_example_prompts: 2
 
 delta: 0.35
 k_elites: 5
