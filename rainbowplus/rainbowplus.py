@@ -520,7 +520,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
                         "behavior": behavior,
                         "prompt": m_prompt,
                         "score": fit,
-                        "persona": selected_persona
+                        #"persona": selected_persona (Optional) 
                     }
                     attack_memory.add(candidate_memory)
                     if "rejected" in ga_result:

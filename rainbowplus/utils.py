@@ -293,15 +293,15 @@ def save_attack_memory_log(log_dir, attack_memory, timestamp):
 
 def format_example(entry: Dict[str, Any]) -> str:
     """Chuyển đổi entry thành chuỗi YAML."""
-    details = entry.get('persona', {})
+    #details = entry.get('persona', {})
     prompt_text = entry.get('prompt', '').strip()
     
     ordered_data = {}
     if prompt_text:
         ordered_data['generated_attack_prompt'] = prompt_text
     
-    for key, value in details.items():
-        ordered_data[key] = value
+    #for key, value in details.items():
+     #   ordered_data[key] = value
 
     try:
         yaml_str = yaml.dump(
