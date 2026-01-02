@@ -683,56 +683,65 @@ class PersonaMutator:
             
     def _repair_yaml_string(self, yaml_str: str) -> str:
         """
-        Cố gắng sửa các lỗi format thường gặp của LLM trước khi parse.
+        Phiên bản Line-by-Line:
+        - Xử lý tốt trường hợp bị cắt cụt (thiếu đóng ```).
+        - Xử lý tốt các biến thể lạ như ``` ```yaml.
+        - Lọc bỏ văn bản rác.
         """
-        # 1. Xóa markdown fence (Code cũ)
-        text = strip_markdown_fence(yaml_str)
+        text = yaml_str.strip()
         
-        # [MỚI] Xóa dấu phân cách document YAML (nguyên nhân lỗi "expected single document")
+        # 1. Xóa dấu phân cách document (---) gây lỗi "expected single document"
         text = text.replace("---", "")
 
         lines = text.split('\n')
         fixed_lines = []
-        
-        # [MỚI] Biến cờ để xác định khi nào bắt đầu nội dung YAML thực sự
-        found_yaml_start = False
+        found_start = False
 
         for line in lines:
             stripped = line.strip()
             
-            # Giữ nguyên dòng trống để format đẹp
+            # --- [FIX QUAN TRỌNG NHẤT] ---
+            # Xóa triệt để các dòng chứa markdown fence
+            # Bất kể là ```yaml, ``` YAML, hay ``` ```yaml
+            if stripped.startswith("```"):
+                continue 
+            # -----------------------------
+
             if not stripped:
                 fixed_lines.append(line)
                 continue
 
-            # [MỚI] Lọc bỏ các câu dẫn dắt (Chatty prefix) ở đầu
-            # Nếu chưa gặp key nào (chưa có ':') và không phải list ('-'), coi là rác
-            if not found_yaml_start:
-                if ":" not in line and not stripped.startswith("-"):
-                    continue # Bỏ qua dòng kiểu "Here is the persona:"
-                else:
-                    found_yaml_start = True # Đã bắt đầu vào vùng YAML
+            # Xác định dòng hợp lệ (Key-Value, List item, Comment)
+            is_valid_yaml_line = (":" in stripped) or (stripped.startswith("-")) or (stripped.startswith("#"))
 
-            # 2. Sửa lỗi dấu hai chấm ở cuối giá trị (VD: "title: Doctor:")
-            if stripped.endswith(':') and line.count(':') > 1:
-                 # Chỉ xóa nếu không phải là key rỗng (VD: "description: ")
-                 # Logic: Nếu bên trái dấu : cuối cùng có nội dung, thì dấu : đó là thừa
-                 line = line.rstrip()[:-1]
-            
-            fixed_lines.append(line)
-        
-        # [MỚI] Xử lý trường hợp bị cắt cụt (Truncation) do max_tokens
-        # Nếu dòng cuối cùng là một key đang viết dở (kết thúc bằng :), xóa nó đi để không lỗi cú pháp
+            if not found_start:
+                # Nếu chưa vào vùng YAML, chỉ chấp nhận dòng Key-Value (vd: title: ...)
+                # Bỏ qua mọi lời dẫn dắt như "Here is the persona:"
+                if is_valid_yaml_line and not stripped.startswith("-"):
+                    found_start = True
+                    fixed_lines.append(line)
+                else:
+                    continue # Bỏ qua rác đầu (Pre-amble)
+            else:
+                # Đã vào trong YAML
+                if is_valid_yaml_line:
+                    # Sửa lỗi dấu hai chấm thừa ở cuối (VD: "key: value:")
+                    if stripped.endswith(':') and stripped.count(':') > 1:
+                         line = line.rstrip()[:-1]
+                    fixed_lines.append(line)
+                # Nếu gặp dòng text không phải yaml ở giữa, bỏ qua luôn
+
+        # 3. Xử lý Cắt cụt (Truncation Fix)
+        # Nếu dòng cuối cùng là một key đang viết dở (kết thúc bằng :), xóa nó đi
         if fixed_lines and fixed_lines[-1].strip().endswith(':'):
             fixed_lines.pop()
 
+        # Lắp lại
         text = '\n'.join(fixed_lines)
 
-        # 3. Kiểm tra ngoặc kép không đóng (Code cũ)
+        # 4. Fix Quotes
         if text.count('"') % 2 != 0:
             text += '"'
-        
-        # [MỚI] Kiểm tra ngoặc đơn không đóng (thêm cho chắc chắn)
         if text.count("'") % 2 != 0:
             text += "'"
             
