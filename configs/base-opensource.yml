@@ -12,13 +12,13 @@ target_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-7B-Instruct
     trust_remote_code: True
-    max_model_len: 4096
+    max_model_len: 2048
     gpu_memory_utilization: 0.5
 
   sampling_params:
     temperature: 0.6
     top_p: 0.9
-    max_tokens: 2048
+    max_tokens: 1024
 
 
 # Mutator LLM Configuration
@@ -32,9 +32,9 @@ mutator_llm:
     max_model_len: 2048
 
   sampling_params:
-    temperature: 1
+    temperature: 0.7
     top_p: 0.9
-    max_tokens: 2048
+    max_tokens: 128
 
 
 # Fitness LLM Configuration
