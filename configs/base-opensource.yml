@@ -13,7 +13,7 @@ target_llm:
     model: Qwen/Qwen2.5-7B-Instruct
     trust_remote_code: True
     max_model_len: 2048
-    gpu_memory_utilization: 0.25
+    gpu_memory_utilization: 0.3
 
   sampling_params:
     temperature: 0.6
@@ -28,7 +28,7 @@ mutator_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-3B-Instruct
     trust_remote_code: True
-    gpu_memory_utilization: 0.15
+    gpu_memory_utilization: 0.2
     max_model_len: 2048
 
   sampling_params:
@@ -44,7 +44,7 @@ fitness_llm:
   model_kwargs:
     model: meta-llama/Llama-Guard-3-1B
     trust_remote_code: True
-    gpu_memory_utilization: 0.1
+    gpu_memory_utilization: 0.15
     max_model_len: 4096
 
   sampling_params:
