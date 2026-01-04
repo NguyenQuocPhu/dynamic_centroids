@@ -32,9 +32,9 @@ mutator_llm:
     max_model_len: 4096
     enforce_eager: true
   sampling_params:
-    temperature: 1.2
+    temperature: 1
     top_p: 0.9
-    max_tokens: 512
+    max_tokens: 1024
 
 
 # Fitness LLM Configuration
@@ -65,7 +65,7 @@ number_example_prompts: 3
 delta: 0.35
 k_elites: 5
 n_cells: 100
-max_iters: 50
+max_iters: 10
 sim_threshold: 0.6
 num_mutations: 10
 fitness_threshold: 0.6

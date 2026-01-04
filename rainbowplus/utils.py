@@ -295,14 +295,15 @@ def format_example(entry: Dict[str, Any]) -> str:
     """Chuyển đổi entry thành chuỗi YAML."""
     #details = entry.get('persona', {})
     prompt_text = entry.get('prompt', '').strip()
-    
+    score_val = entry.get('score', '')
     ordered_data = {}
     if prompt_text:
-        ordered_data['generated_attack_prompt'] = prompt_text
+        ordered_data['Prompt:'] = prompt_text
     
     #for key, value in details.items():
      #   ordered_data[key] = value
-
+    if score_val:
+        ordered_data['Score:'] = round(score_val, 4)
     try:
         yaml_str = yaml.dump(
             ordered_data,

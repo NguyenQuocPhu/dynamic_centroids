@@ -731,7 +731,7 @@ class PersonaMutator:
                     fixed_lines.append(line)
                 # Nếu gặp dòng text không phải yaml ở giữa, bỏ qua luôn
 
-        # 3. Xử lý Cắt cụt (Truncation Fix)
+        # 3. Xử lý Cắt cụt (Truncation Fix)Greedy Max-Sum Distance.
         # Nếu dòng cuối cùng là một key đang viết dở (kết thúc bằng :), xóa nó đi
         if fixed_lines and fixed_lines[-1].strip().endswith(':'):
             fixed_lines.pop()

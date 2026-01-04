@@ -18,8 +18,6 @@ class AttackMemory:
         
         clean_entry = {
             "behavior": entry.get("behavior", None),
-            # Thêm key fitness để đồng bộ với hàm sort bên dưới
-            "fitness": score,
             "score": score,
             "prompt": entry.get("prompt", ""),
             "persona": entry.get("persona", {}),
@@ -72,8 +70,6 @@ class AttackMemory:
         if len(valid_candidates) < k:
             return valid_candidates
 
-        # 2. Sắp xếp theo Fitness giảm dần
-        valid_candidates.sort(key=lambda x: x.get('fitness', 0.0), reverse=True)
         
         try:
             embeddings = np.array([item['behavior'] for item in valid_candidates])
