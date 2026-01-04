@@ -65,9 +65,9 @@ number_example_prompts: 3
 delta: 0.35
 k_elites: 5
 n_cells: 100
-max_iters: 10
+max_iters: 20
 sim_threshold: 0.6
-num_mutations: 20
+num_mutations: 10
 fitness_threshold: 0.6
 log_interval: 50
 shuffle: true
