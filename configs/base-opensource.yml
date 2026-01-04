@@ -34,7 +34,7 @@ mutator_llm:
   sampling_params:
     temperature: 1
     top_p: 0.9
-    max_tokens: 1024
+    max_tokens: 512
 
 
 # Fitness LLM Configuration
