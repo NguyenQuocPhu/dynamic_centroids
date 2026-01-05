@@ -488,7 +488,7 @@ def calculate_metrics(model, evaluation, method = 'GA', k = 5):
 
     # Diversity
     
-    self_bleu = calculate_self_bleu(prompts)
+    self_bleu = calculate_self_bleu(prompts, 1)
     distinct_n = calculate_distinct_n(prompts)
     embedding_diversity = calculate_embedding_diversity(model.encode(prompts))
     print(f"Self-BLEU Score {method}: {self_bleu:.4f}")
