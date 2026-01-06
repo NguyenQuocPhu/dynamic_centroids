@@ -30,7 +30,7 @@ from rainbowplus.utils import (
 )
 from rainbowplus.archive import Archive
 from rainbowplus.configs import ConfigurationLoader
-from rainbowplus.prompts import MUTATOR_PROMPT, TARGET_PROMPT, MUTATOR_PROMPT_V1
+from rainbowplus.prompts import MUTATOR_PROMPT, TARGET_PROMPT, MUTATOR_PROMPT_V4
 from rainbowplus.configs.base import LLMConfig
 from rainbowplus.mutators.persona import PersonaMutator
 from rainbowplus.attack_memory import AttackMemory
@@ -452,7 +452,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
         success_yml_strings = [format_example(entry) for entry in sample_bot_prompts]
         successful_example_text = "\n".join(success_yml_strings)
 
-        prompt_ = MUTATOR_PROMPT_V1.format(
+        prompt_ = MUTATOR_PROMPT_V4.format(
             failed_examples_text=failed_example_text,
             successful_examples_text=successful_example_text,
             risk=descriptor["Category"], # Adjust based on your config keys
@@ -461,30 +461,10 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
             prompt=prompt
         )
         
-        original_mutated_prompts = llms[config.mutator_llm.model_kwargs["model"]].batch_generate(
+        mutated_prompts = llms[config.mutator_llm.model_kwargs["model"]].batch_generate(
             [prompt_] * args.num_mutations, config.mutator_llm.sampling_params
         )
-        mutated_prompts = []
-        for output in original_mutated_prompts:
-            cleaned_text = re.sub(r"```json\s*|\s*```", "", output).strip()
-            try:
-                # 3. Parse chuỗi thành Dictionary
-                json_data = json.loads(cleaned_text)
-                
-                # 4. Trích xuất 'final_prompt'
-                if "final_prompt" in json_data:
-                    mutated_prompts.append(json_data["final_prompt"])
-                else:
-                    # Trường hợp JSON hợp lệ nhưng không có key 'final_prompt' (hiếm)
-                    # Lấy toàn bộ text làm fallback
-                    mutated_prompts.append(cleaned_text)
-                    
-            except json.JSONDecodeError:
-                # 5. Xử lý lỗi: Nếu LLM không trả về JSON đúng chuẩn
-                # Fallback: Lấy luôn text thô hoặc log lại lỗi
-                print(f"Warning: Failed to parse JSON. Raw output: {cleaned_text[:50]}...")
-                mutated_prompts.append(cleaned_text)
-                
+
         # --- Step 3: Filtering & Evaluation ---
         # Filter by similarity
         mutated_prompts = [
