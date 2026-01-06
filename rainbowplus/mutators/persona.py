@@ -698,7 +698,7 @@ class PersonaMutator:
         logger.warning(f"Đang sinh persona ban đầu cho prompt: {prompt[:50]}...")
         
         
-        return self._generate_persona_(prompt, mutator_llm, sampling_params)
+        return self._generate_persona(prompt, mutator_llm, sampling_params)
         
     def _cache_persona_embeddings(self):
         """Cache embeddings for all personas to avoid recomputing."""
