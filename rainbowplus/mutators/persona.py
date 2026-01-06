@@ -695,20 +695,10 @@ class PersonaMutator:
         """
         import logging
         logger = logging.getLogger(__name__)
-        logger.info(f"Đang sinh persona ban đầu cho prompt: {prompt[:50]}...")
+        logger.warning(f"Đang sinh persona ban đầu cho prompt: {prompt[:50]}...")
         
-        # Tự động gọi hàm sinh persona phù hợp (RTer hoặc User)
-        # dựa trên `self.persona_type` đã được cấu hình
-        if self.persona_type == "RedTeamingExperts":
-            #
-            return self._generate_new_persona_rter(prompt, mutator_llm, sampling_params)
-        elif self.persona_type == "RegularAIUsers":
-            #
-            return self._generate_new_persona_user(prompt, mutator_llm, sampling_params)
-        else:
-            # Fallback (Mặc dù __init__ đã kiểm tra)
-            logger.warning(f"Persona type không rõ: {self.persona_type}. Dùng RTer.")
-            return self._generate_new_persona_rter(prompt, mutator_llm, sampling_params)
+        
+        return self._generate_persona_(prompt, mutator_llm, sampling_params)
         
     def _cache_persona_embeddings(self):
         """Cache embeddings for all personas to avoid recomputing."""
