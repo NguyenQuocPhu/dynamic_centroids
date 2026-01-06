@@ -348,12 +348,12 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
             args.threshold_top_memory)
     # --- 4. Initialize Persona Mutator ---
     persona_mutator = None
-    simple_persona_mode = getattr(config, 'simple_persona_mode', False) or getattr(config, 'simple_mode', False) or config.__dict__.get('simple_persona_mode', False)
+    #simple_persona_mode = getattr(config, 'simple_persona_mode', False) or getattr(config, 'simple_mode', False) or config.__dict__.get('simple_persona_mode', False)
     if config.persona_config:
-        selected_personas = config.archive.get('selected_personas')
-        persona_type = getattr(config, 'persona_type', None) or config.__dict__.get('persona_type', 'RedTeamingExperts')
-        logger.info(f"Using persona_type: {persona_type}")
-        persona_mutator = PersonaMutator(config.persona_config, selected_personas=selected_personas, simple_mode=simple_persona_mode, persona_type=persona_type)
+        #selected_personas = config.archive.get('selected_personas')
+        #persona_type = getattr(config, 'persona_type', None) or config.__dict__.get('persona_type', 'RedTeamingExperts')
+        #logger.info(f"Using persona_type: {persona_type}")
+        persona_mutator = PersonaMutator(config.persona_config)
 
     # Log Directory
     dataset_name = Path(config.sample_prompts).stem
@@ -396,7 +396,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
             current_parent_id = selection["prompt_id"]
             current_seed_id = selection["seed_id"]
             
-            current_descriptor = persona_mutator._get_initial_persona_from_prompt(
+            current_descriptor = persona_mutator._get_initial_persona(
                 prompt, llms[config.mutator_llm.model_kwargs["model"]], config.mutator_llm.sampling_params
             )
         else:
@@ -414,7 +414,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
                 prompt = selection["prompt"]
                 current_parent_id = selection["prompt_id"]
                 current_seed_id = selection["seed_id"]
-                current_descriptor = persona_mutator._get_initial_persona_from_prompt(
+                current_descriptor = persona_mutator._get_initial_persona(
                     prompt, llms[config.mutator_llm.model_kwargs["model"]], config.mutator_llm.sampling_params
                 )
 
@@ -426,7 +426,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
         # Sample descriptors
         for key, values in descriptors.items():
             if key == "Persona":
-                persona_name, persona_details = persona_mutator._generate_persona(
+                persona_name, persona_details = persona_mutator.evolve_persona(
                     prompt, 
                     current_descriptor,
                     llms[config.mutator_llm.model_kwargs["model"]], 
