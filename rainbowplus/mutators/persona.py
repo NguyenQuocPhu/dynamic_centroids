@@ -13,6 +13,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import re
 import unicodedata
+from collections import defaultdict
 from rainbowplus.llms.base import BaseLLM
 from rainbowplus.prompts import MUTATOR_PROMPT, PERSONA_MUTATOR_PROMPT, SIMPLE_PERSONA_MUTATOR_PROMPT
 # TEMPLATE PROMPT MỚI
@@ -734,97 +735,124 @@ class PersonaMutator:
         self._cache_persona_embeddings()
             
 
-    def _repair_yaml_string(self, yaml_str: str) -> str:
+    def _repair_yaml_string(self, raw_text: str) -> str:
         """
-        Robust YAML repair for LLM outputs.
-        Strategy:
-        - Strip non-YAML noise
-        - Normalize Unicode & whitespace
-        - Enforce a safe YAML subset
-        - Prune incomplete or ambiguous structures
+        One-pass persona extractor with auto scalar/list detection.
+        Input: arbitrary LLM text
+        Output: deterministic clean YAML
         """
 
-        # ---------- 0. Normalize Unicode & invisible chars ----------
-        text = unicodedata.normalize("NFKC", yaml_str)
+        # ---------- 0. Normalize ----------
+        text = unicodedata.normalize("NFKC", raw_text)
         text = text.replace("\u200b", "").replace("\xa0", " ")
 
-        # ---------- 1. Remove markdown fences & document separators ----------
-        lines = []
-        for line in text.splitlines():
-            stripped = line.strip()
-            if stripped.startswith("```"):
-                continue
-            if stripped == "---":
-                continue
-            lines.append(line)
+        lines = [l.rstrip() for l in text.splitlines()]
 
-        fixed_lines = []
-        found_start = False
+        # ---------- 1. First pass: observe key behavior ----------
+        key_counts = defaultdict(int)
+        key_has_bullets = defaultdict(bool)
+
         current_key = None
-        last_indent = 0
 
-        for raw_line in lines:
-            line = raw_line.rstrip()
-            stripped = line.strip()
+        for line in lines:
+            stripped = re.sub(r"[`*_>#]", "", line.strip())
 
             if not stripped:
                 continue
 
-            # ---------- 2. Detect key-only line split across lines ----------
-            if re.match(r"^[A-Za-z0-9_]+\s*$", stripped):
-                current_key = stripped
+            # key-value
+            if ":" in stripped and not stripped.startswith("-"):
+                key = stripped.split(":", 1)[0].strip().lower()
+                if key.isidentifier():
+                    key_counts[key] += 1
+                    current_key = key
+                else:
+                    current_key = None
                 continue
 
-            if stripped.startswith(":") and current_key:
-                # merge split key + value
-                line = f"{current_key}{stripped}"
-                stripped = line.strip()
-                current_key = None
+            # bullet after key
+            if stripped.startswith(("-", "•", "*")) and current_key:
+                key_has_bullets[current_key] = True
 
-            # ---------- 3. Basic YAML validity ----------
-            is_kv = ":" in stripped and not stripped.startswith("-")
-            is_list = stripped.startswith("-")
+        # ---------- 2. Decide field type ----------
+        field_type = {}
+        for key in key_counts:
+            if key_counts[key] > 1 or key_has_bullets[key]:
+                field_type[key] = "list"
+            else:
+                field_type[key] = "scalar"
 
-            if not found_start:
-                if is_kv:
-                    found_start = True
-                    fixed_lines.append(line)
-                    last_indent = len(line) - len(line.lstrip())
+        # ---------- 3. Second pass: extract values ----------
+        persona = defaultdict(list)
+        scalar_values = {}
+
+        active_key = None
+
+        for line in lines:
+            stripped = re.sub(r"[`*_>#]", "", line.strip())
+
+            if not stripped:
                 continue
 
-            # ---------- 4. Fix list indentation ----------
-            indent = len(line) - len(line.lstrip())
-            if is_list and indent == 0:
-                line = "  " + line
-                indent = 2
+            # narrative stop
+            if stripped.lower().startswith((
+                "this persona", "overall", "in summary", "the persona"
+            )):
+                break
 
-            # ---------- 5. Drop malformed key-value inside list ----------
-            if is_list and ":" in stripped[1:]:
-                # Convert "- key: value" → "- value"
-                value = stripped.split(":", 1)[1].strip()
-                line = "  - " + value
-
-            # ---------- 6. Drop trailing incomplete constructs ----------
-            if stripped.endswith(":") and stripped.count(":") == 1:
-                # incomplete key
+            # list item
+            if stripped.startswith(("-", "•", "*")) and active_key:
+                value = stripped.lstrip("-•*").strip()
+                if value:
+                    persona[active_key].append(value)
                 continue
 
-            fixed_lines.append(line)
-            last_indent = indent
+            # key-value
+            if ":" in stripped:
+                key, value = stripped.split(":", 1)
+                key = key.strip().lower()
+                value = value.strip()
 
-        # ---------- 7. Remove trailing incomplete list item ----------
-        if fixed_lines and fixed_lines[-1].strip().startswith("-"):
-            if len(fixed_lines[-1].strip()) <= 1:
-                fixed_lines.pop()
+                if not key.isidentifier():
+                    active_key = None
+                    continue
 
-        # ---------- 8. Fix unbalanced quotes conservatively ----------
-        text = "\n".join(fixed_lines)
-        if text.count('"') % 2 != 0:
-            text = text.replace('"', '', 1)
-        if text.count("'") % 2 != 0:
-            text = text.replace("'", '', 1)
+                active_key = key
 
-        return text.strip()
+                if field_type.get(key) == "list":
+                    if value:
+                        persona[key].append(value)
+                else:
+                    scalar_values[key] = value
+                continue
+
+            active_key = None
+
+        # ---------- 4. Merge scalar + list ----------
+        result = {}
+
+        for key in set(field_type.keys()):
+            if field_type[key] == "list":
+                values = persona.get(key, [])
+                if values:
+                    result[key] = values
+            else:
+                if key in scalar_values:
+                    result[key] = scalar_values[key]
+
+        # ---------- 5. Enforce minimal persona ----------
+        if "title" not in result:
+            result["title"] = "unknown_persona"
+        if "name" not in result:
+            result["name"] = "Unnamed Individual"
+
+        # ---------- 6. Emit clean YAML ----------
+        return yaml.safe_dump(
+            result,
+            sort_keys=False,
+            allow_unicode=True,
+            width=1000
+        )
 
     
     def _format_persona_description(self, persona_name: str, persona_details: Dict) -> str: 
