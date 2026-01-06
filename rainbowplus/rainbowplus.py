@@ -30,7 +30,7 @@ from rainbowplus.utils import (
 )
 from rainbowplus.archive import Archive
 from rainbowplus.configs import ConfigurationLoader
-from rainbowplus.prompts import MUTATOR_PROMPT, TARGET_PROMPT, MUTATOR_PROMPT_V4
+from rainbowplus.prompts import MUTATOR_PROMPT, TARGET_PROMPT, MUTATOR_PROMPT_V1
 from rainbowplus.configs.base import LLMConfig
 from rainbowplus.mutators.persona import PersonaMutator
 from rainbowplus.attack_memory import AttackMemory
@@ -452,7 +452,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
         success_yml_strings = [format_example(entry) for entry in sample_bot_prompts]
         successful_example_text = "\n".join(success_yml_strings)
 
-        prompt_ = MUTATOR_PROMPT_V4.format(
+        prompt_ = MUTATOR_PROMPT_V1.format(
             failed_examples_text=failed_example_text,
             successful_examples_text=successful_example_text,
             risk=descriptor["Category"], # Adjust based on your config keys
