@@ -733,71 +733,101 @@ class PersonaMutator:
         # Update embeddings cache
         self._cache_persona_embeddings()
             
+    import re
+    import unicodedata
+
     def _repair_yaml_string(self, yaml_str: str) -> str:
         """
-        Phiên bản Line-by-Line:
-        - Xử lý tốt trường hợp bị cắt cụt (thiếu đóng ```).
-        - Xử lý tốt các biến thể lạ như ``` ```yaml.
-        - Lọc bỏ văn bản rác.
+        Robust YAML repair for LLM outputs.
+        Strategy:
+        - Strip non-YAML noise
+        - Normalize Unicode & whitespace
+        - Enforce a safe YAML subset
+        - Prune incomplete or ambiguous structures
         """
-        text = yaml_str.strip()
-        
-        # 1. Xóa dấu phân cách document (---) gây lỗi "expected single document"
-        text = text.replace("---", "")
 
-        lines = text.split('\n')
+        # ---------- 0. Normalize Unicode & invisible chars ----------
+        text = unicodedata.normalize("NFKC", yaml_str)
+        text = text.replace("\u200b", "").replace("\xa0", " ")
+
+        # ---------- 1. Remove markdown fences & document separators ----------
+        lines = []
+        for line in text.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("```"):
+                continue
+            if stripped == "---":
+                continue
+            lines.append(line)
+
         fixed_lines = []
         found_start = False
+        current_key = None
+        last_indent = 0
 
-        for line in lines:
+        for raw_line in lines:
+            line = raw_line.rstrip()
             stripped = line.strip()
-            
-            # --- [FIX QUAN TRỌNG NHẤT] ---
-            # Xóa triệt để các dòng chứa markdown fence
-            # Bất kể là ```yaml, ``` YAML, hay ``` ```yaml
-            if stripped.startswith("```"):
-                continue 
-            # -----------------------------
 
             if not stripped:
-                fixed_lines.append(line)
                 continue
 
-            # Xác định dòng hợp lệ (Key-Value, List item, Comment)
-            is_valid_yaml_line = (":" in stripped) or (stripped.startswith("-")) or (stripped.startswith("#"))
+            # ---------- 2. Detect key-only line split across lines ----------
+            if re.match(r"^[A-Za-z0-9_]+\s*$", stripped):
+                current_key = stripped
+                continue
+
+            if stripped.startswith(":") and current_key:
+                # merge split key + value
+                line = f"{current_key}{stripped}"
+                stripped = line.strip()
+                current_key = None
+
+            # ---------- 3. Basic YAML validity ----------
+            is_kv = ":" in stripped and not stripped.startswith("-")
+            is_list = stripped.startswith("-")
 
             if not found_start:
-                # Nếu chưa vào vùng YAML, chỉ chấp nhận dòng Key-Value (vd: title: ...)
-                # Bỏ qua mọi lời dẫn dắt như "Here is the persona:"
-                if is_valid_yaml_line and not stripped.startswith("-"):
+                if is_kv:
                     found_start = True
                     fixed_lines.append(line)
-                else:
-                    continue # Bỏ qua rác đầu (Pre-amble)
-            else:
-                # Đã vào trong YAML
-                if is_valid_yaml_line:
-                    # Sửa lỗi dấu hai chấm thừa ở cuối (VD: "key: value:")
-                    if stripped.endswith(':') and stripped.count(':') > 1:
-                         line = line.rstrip()[:-1]
-                    fixed_lines.append(line)
-                # Nếu gặp dòng text không phải yaml ở giữa, bỏ qua luôn
+                    last_indent = len(line) - len(line.lstrip())
+                continue
 
-        # 3. Xử lý Cắt cụt (Truncation Fix)Greedy Max-Sum Distance.
-        # Nếu dòng cuối cùng là một key đang viết dở (kết thúc bằng :), xóa nó đi
-        if fixed_lines and fixed_lines[-1].strip().endswith(':'):
-            fixed_lines.pop()
+            # ---------- 4. Fix list indentation ----------
+            indent = len(line) - len(line.lstrip())
+            if is_list and indent == 0:
+                line = "  " + line
+                indent = 2
 
-        # Lắp lại
-        text = '\n'.join(fixed_lines)
+            # ---------- 5. Drop malformed key-value inside list ----------
+            if is_list and ":" in stripped[1:]:
+                # Convert "- key: value" → "- value"
+                value = stripped.split(":", 1)[1].strip()
+                line = "  - " + value
 
-        # 4. Fix Quotes
+            # ---------- 6. Drop trailing incomplete constructs ----------
+            if stripped.endswith(":") and stripped.count(":") == 1:
+                # incomplete key
+                continue
+
+            fixed_lines.append(line)
+            last_indent = indent
+
+        # ---------- 7. Remove trailing incomplete list item ----------
+        if fixed_lines and fixed_lines[-1].strip().startswith("-"):
+            if len(fixed_lines[-1].strip()) <= 1:
+                fixed_lines.pop()
+
+        # ---------- 8. Fix unbalanced quotes conservatively ----------
+        text = "\n".join(fixed_lines)
         if text.count('"') % 2 != 0:
-            text += '"'
+            text = text.replace('"', '', 1)
         if text.count("'") % 2 != 0:
-            text += "'"
-            
-        return text
+            text = text.replace("'", '', 1)
+
+        return text.strip()
+
     
     def _format_persona_description(self, persona_name: str, persona_details: Dict) -> str: 
         """Format a detailed description of the persona for the prompt.
