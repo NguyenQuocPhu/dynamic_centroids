@@ -138,11 +138,11 @@ Execute the following steps internally, then output ONLY the final JSON.
      • Risk profile: {risk}
 
 ### OUTPUT FORMAT (JSON ONLY)
-{
+{{
   "mechanism_deconstruction": "High-level abstract analysis of exhausted mechanisms",
   "exclusion_zone": ["forbidden_element_1", "forbidden_element_2"],
   "final_prompt": "THE_SINGLE_GENERATED_PROMPT"
-}
+}}
 """
 
 
