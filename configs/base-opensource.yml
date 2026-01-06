@@ -29,12 +29,12 @@ mutator_llm:
     model: meta-llama/Llama-3.1-8B-Instruct
     trust_remote_code: True
     gpu_memory_utilization: 0.35
-    max_model_len: 4096
+    max_model_len: 5060
     enforce_eager: true
   sampling_params:
     temperature: 1
     top_p: 0.9
-    max_tokens: 512
+    max_tokens: 1024
 
 
 # Fitness LLM Configuration
