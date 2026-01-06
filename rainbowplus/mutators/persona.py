@@ -12,7 +12,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import re
-
+import unicodedata
 from rainbowplus.llms.base import BaseLLM
 from rainbowplus.prompts import MUTATOR_PROMPT, PERSONA_MUTATOR_PROMPT, SIMPLE_PERSONA_MUTATOR_PROMPT
 # TEMPLATE PROMPT MỚI
@@ -733,8 +733,6 @@ class PersonaMutator:
         # Update embeddings cache
         self._cache_persona_embeddings()
             
-    import re
-    import unicodedata
 
     def _repair_yaml_string(self, yaml_str: str) -> str:
         """
