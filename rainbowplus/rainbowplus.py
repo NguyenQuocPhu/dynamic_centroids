@@ -332,7 +332,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
     all_seed_ids = Archive("all_seed_ids")
 
     # --- 3. Initialize Growing Archive ---
-    behavior_dim = 384 # Matching all-MiniLM-L6-v2 dimensions
+    behavior_dim = 1024 # Matching all-MiniLM-L6-v2 dimensions
     
 
     GA = GrowingArchive(

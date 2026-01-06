@@ -189,7 +189,7 @@ class PersonaMutator:
             if 'core_motivation' not in persona_details:
                 persona_details['core_motivation'] = f"To explore the boundaries of {prompt[:20]}..."
             
-            logger.info(f"Successfully created initial persona: {persona_title}")
+            logger.warning(f"Successfully created initial persona: {persona_title}")
             return (persona_title, persona_details)
 
         except Exception as e:
