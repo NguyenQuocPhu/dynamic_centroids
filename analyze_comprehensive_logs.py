@@ -124,6 +124,57 @@ def calculate_distinct_clusters(embeddings=None, eps=0.4, min_samples=2):
     #n_clusters += list(labels).count(-1) 
     
     return n_clusters
+def calculate_vendi_score(X):
+    """
+    Tính Vendi Score (Effective Number of Elements) cho tập embeddings.
+    
+    Công thức: Vendi(X) = exp(ShannonEntropy(eigenvalues(K)/N))
+    Trong đó K là ma trận tương đồng Cosine: K = X_norm . X_norm^T
+    
+    Args:
+        X (np.ndarray hoặc list): Ma trận đặc trưng kích thước (N, D).
+                                  N: Số lượng mẫu.
+                                  D: Số chiều embedding.
+    
+    Returns:
+        float: Giá trị Vendi Score (từ 1.0 đến N).
+               - 1.0: Tất cả giống hệt nhau.
+               - N: Tất cả khác nhau hoàn toàn (vuông góc).
+    """
+    # 1. Chuyển đổi sang numpy array và kiểm tra đầu vào
+    X = np.array(X)
+    
+    # Trường hợp rỗng hoặc 1 phần tử
+    if X.shape[0] <= 1:
+        return float(X.shape[0])
+        
+    # 2. Chuẩn hóa vector (L2 Norm) để tính Cosine Similarity
+    # Thêm 1e-12 để tránh chia cho 0 nếu có vector toàn số 0
+    norm = np.linalg.norm(X, axis=1, keepdims=True)
+    X_normalized = X / (norm + 1e-12)
+    
+    # 3. Tính Ma trận Kernel (Gram Matrix)
+    # K[i, j] chính là Cosine Similarity giữa vector i và j
+    K = np.dot(X_normalized, X_normalized.T)
+    
+    # 4. Phân rã Trị riêng (Eigendecomposition)
+    # Dùng eigh hoặc eigvalsh vì K là ma trận đối xứng (nhanh và ổn định hơn eig)
+    eigenvalues = np.linalg.eigvalsh(K)
+    
+    # 5. Xử lý trị riêng
+    # Do sai số máy tính, trị riêng có thể ra số âm cực nhỏ (vd: -1e-15), cần gán về 0
+    eigenvalues = np.maximum(eigenvalues, 0)
+    
+    # Chuẩn hóa trị riêng thành phân phối xác suất
+    # Tổng các trị riêng của ma trận correlation luôn bằng N (Trace của ma trận)
+    weight = eigenvalues / np.sum(eigenvalues)
+    
+    # 6. Tính Shannon Entropy
+    # Chỉ tính log với các giá trị > 0 để tránh log(0)
+    entropy = -np.sum(weight[weight > 0] * np.log(weight[weight > 0]))
+    
+    # 7. Tính Vendi Score
+    return np.exp(entropy)
 
 def get_top_k_data(evaluations, k=100, strategy='highest'):
     """Lấy Top-K theo fitness."""
@@ -491,9 +542,11 @@ def calculate_metrics(model, evaluation, method = 'GA', k = 5):
     self_bleu = calculate_self_bleu(prompts, 1)
     distinct_n = calculate_distinct_n(prompts)
     embedding_diversity = calculate_embedding_diversity(model.encode(prompts))
+    vendi_score = calculate_vendi_score(model.encode(prompts))
     print(f"Self-BLEU Score {method}: {self_bleu:.4f}")
     print(f"Distinct N-Grams {method}: {distinct_n:.4f}")
     print(f"Embedding Diversity {method}: {embedding_diversity:.4f}")
+    print(f"Vendi Score {method}: {vendi_score:.4f}")
 
 
 def find_log_files(directory):
