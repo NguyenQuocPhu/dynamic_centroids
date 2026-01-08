@@ -452,7 +452,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
         success_yml_strings = [format_example(entry) for entry in sample_bot_prompts]
         successful_example_text = "\n".join(success_yml_strings)
 
-        prompt_ = MUTATOR_PROMPT_V1.format(
+        prompt_ = MUTATOR_PROMPT.format(
             failed_examples_text=failed_example_text,
             successful_examples_text=successful_example_text,
             risk=descriptor["Category"], # Adjust based on your config keys
