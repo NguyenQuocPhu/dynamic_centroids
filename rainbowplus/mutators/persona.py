@@ -532,7 +532,7 @@ class PersonaMutator:
             self.personas = self._load_personas(config_path)
             self.selected_personas = selected_personas
             # Initialize the sentence transformer for RAG
-            self.model = SentenceTransformer('all-MiniLM-L6-v2')
+            self.model = SentenceTransformer('BAAI/bge-m3')
             # Cache for persona embeddings
             self.persona_embeddings = {}
             self._cache_persona_embeddings()
