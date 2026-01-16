@@ -100,8 +100,10 @@ class EvaluationProcessor:
         """Process evaluations across log files."""
         # Get sorted log files starting with the specified method
         log_files = sorted(
-            [f for f in os.listdir(self.log_dir) if f.startswith(self.algo) and self.keyword in f]
+            [f for f in os.listdir(self.log_dir) if f.startswith(self.algo)]
         )
+        for file in log_files:
+            print(file)
 
         for idx, log_file in enumerate(log_files):
             # Load log file

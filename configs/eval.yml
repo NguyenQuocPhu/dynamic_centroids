@@ -5,7 +5,7 @@
 log_dir: ./logs/mistralai/Ministral-8B-Instruct-2410/AdversarialQA
 
 # Algorithm
-algo: rainbowplus
+algo: comprehensive
 method: ga # Ignore this param, only valid for old version
 
 target_llm:
