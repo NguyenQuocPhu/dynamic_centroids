@@ -22,7 +22,7 @@ class EvaluationConfig:
     algo: str
     method: str
     judge_llm: LLMConfig
-
+    target_llm: LLMConfig
     def __post_init__(self):
         self.log_dir = Path(self.log_dir)
 
