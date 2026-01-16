@@ -60,6 +60,7 @@ class EvaluationProcessor:
         eval_reasons = Archive("eval_reasons")
         judge_responses = Archive("judge_responses")
 
+
             
         # Process all prompts
         for key in adv_prompts._archive.keys():
@@ -87,12 +88,12 @@ class EvaluationProcessor:
             judge_responses.add(key, outputs)
 
         return {
-            "eval_prompts": eval_prompts,
-            "eval_persona": eval_persona,
-            "eval_responses": eval_responses,
-            "eval_scores": eval_scores,
-            "eval_similarities": eval_similarities,
-            "eval_reasons": eval_reasons,
+            "all_prompts": eval_prompts,
+            "all_persona": eval_persona,
+            "all_responses": eval_responses,
+            "all_scores": eval_scores,
+            "all_similarities": eval_similarities,
+            "rejection_reasons": eval_reasons,
             "judge_responses": judge_responses,
         }
     
