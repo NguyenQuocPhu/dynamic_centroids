@@ -53,12 +53,12 @@ class EvaluationProcessor:
         self, adv_prompts: Archive, personas: Archive, responses: Archive, scores: Archive, similarities: Archive, reasons: Archive
     ) -> Dict[str, Archive]:
         """Process evaluation using median or max method."""
-        eval_prompts = Archive("eval_prompts")
-        eval_persona = Archive("eval_persona")
-        eval_responses = Archive("eval_responses")
-        eval_scores = Archive("eval_scores")
-        eval_similarities = Archive("eval_similarities")
-        eval_reasons = Archive("eval_reasons")
+        eval_prompts = Archive("all_prompts")
+        eval_persona = Archive("all_persona")
+        eval_responses = Archive("all_responses")
+        eval_scores = Archive("all_scores")
+        eval_similarities = Archive("all_similarities")
+        eval_reasons = Archive("rejection_reasons")
         judge_responses = Archive("judge_responses")
 
 
