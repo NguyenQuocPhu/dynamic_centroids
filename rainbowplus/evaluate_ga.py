@@ -36,7 +36,7 @@ class EvaluationProcessor:
 
     def _save_eval_log(self, file_name: str, archive_instances: List[Archive]) -> None:
         """Save evaluation logs to a JSON file."""
-        log_path = f"eval_{self.method}_{file_name}.json"
+        log_path = f"{file_name}_eval.json"
 
         log_data = {
             archive.name: {str(key): value for key, value in archive._archive.items()}
