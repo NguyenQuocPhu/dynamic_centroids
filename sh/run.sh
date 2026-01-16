@@ -19,14 +19,14 @@ run_experiment() {
     echo "Running experiment for model: $model"
     python -m rainbowplus.rainbowplus \
         --config_file "$config_file" \
-        --num_samples "$NUM_SAMPLES" \
-        --max_iters "$MAX_ITERS" \
-        --sim_threshold "$SIM_THRESHOLD" \
-        --num_mutations "$NUM_MUTATIONS" \
-        --fitness_threshold "$FITNESS_THRESHOLD" \
-        --log_dir "$LOG_DIR" \
-        --dataset "$DATASET" \
-        --log_interval "$LOG_INTERVAL" \
+        #--num_samples "$NUM_SAMPLES" \
+        #--max_iters "$MAX_ITERS" \
+        #--sim_threshold "$SIM_THRESHOLD" \
+        #--num_mutations "$NUM_MUTATIONS" \
+        #--fitness_threshold "$FITNESS_THRESHOLD" \
+        #--log_dir "$LOG_DIR" \
+        #--dataset "$DATASET" \
+        #--log_interval "$LOG_INTERVAL" \
         ${model:+--target_llm "$model"}
 }
 
@@ -38,10 +38,11 @@ run_evaluation() {
     python -m rainbowplus.evaluate \
         --config configs/eval.yml \
         --log_dir "$LOG_DIR/$model/harmbench"
-
+    '''
     echo "Getting scores for model: $model"
     python rainbowplus/get_scores.py \
         --log_dir "$LOG_DIR/$model/harmbench"
+    '''
 }
 
 # Clear HuggingFace cache
@@ -71,7 +72,7 @@ main() {
         run_experiment "$MODEL" "configs/base-opensource.yml"
         clear_hf_cache
     done
-    
+    '''
     for MODEL in "${OPEN_SOURCE_MODELS[@]}"; do
         run_evaluation "$MODEL"
     done
@@ -90,6 +91,7 @@ main() {
     for MODEL in "${CLOSED_SOURCE_MODELS[@]}"; do
         run_evaluation "$MODEL"
     done
+    '''
 }
 
 # Execute main function

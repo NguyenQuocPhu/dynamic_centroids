@@ -43,13 +43,18 @@ class EvalConfigLoader:
     @staticmethod
     def _create_config(data: Dict[str, Any]) -> EvaluationConfig:
         """Create EvaluationConfig instance from parsed YAML data."""
-        required_fields = ["log_dir", "algo", "method", "judge_llm"]
+        required_fields = ["log_dir", "algo", "method", "judge_llm", "target_llm"]
         if missing := [f for f in required_fields if f not in data]:
             raise ValueError(f"Missing required fields: {missing}")
 
         judge_llm = (
             LLMConfig(**data["judge_llm"])
             if isinstance(data["judge_llm"], dict)
+            else None
+        )
+        target_llm = (
+            LLMConfig(**data["target_llm"])
+            if isinstance(data["target_llm"], dict)
             else None
         )
         if not judge_llm:
@@ -60,4 +65,5 @@ class EvalConfigLoader:
             algo=data["algo"],
             method=data["method"],
             judge_llm=judge_llm,
+            target_llm=target_llm,
         )
