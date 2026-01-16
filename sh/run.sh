@@ -35,7 +35,7 @@ run_evaluation() {
     local model=$1
     
     echo "Running evaluation for model: $model"
-    python -m rainbowplus.evaluate \
+    python -m rainbowplus.evaluate_ga \
         --config configs/eval.yml \
         --log_dir "$LOG_DIR/$model/harmbench"
     '''
@@ -55,6 +55,7 @@ clear_hf_cache() {
 main() {
     echo "=== Running experiments for open-source models ==="
     # Open-source models
+    '''
     OPEN_SOURCE_MODELS=(
         "meta-llama/Llama-2-7b-chat-hf"
         "lmsys/vicuna-7b-v1.5"
@@ -67,11 +68,11 @@ main() {
         "berkeley-nest/Starling-LM-7B-alpha"
         "HuggingFaceH4/zephyr-7b-beta"
     )
-    
-    for MODEL in "${OPEN_SOURCE_MODELS[@]}"; do
+    '''
+    #for MODEL in "${OPEN_SOURCE_MODELS[@]}"; do
         run_experiment "$MODEL" "configs/base-opensource.yml"
         clear_hf_cache
-    done
+    #done
     '''
     for MODEL in "${OPEN_SOURCE_MODELS[@]}"; do
         run_evaluation "$MODEL"
