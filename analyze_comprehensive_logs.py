@@ -633,23 +633,23 @@ def main():
             ga = build_archive_risk_style(ga_data)
             calculate_metrics(model, ga, 'GA', k = 5)
             
-            # ga_state = ga_data.get('ga_state', {})
-            # centroids = ga_state.get('centroids', [])
-            # print(ga_state.get('n_centroids', 0))
-            # print(f"#######################")
-            # elites = ga_state.get('elites', {})
+            ga_state = ga_data.get('ga_state', {})
+            centroids = ga_state.get('centroids', [])
+            print(ga_state.get('n_centroids', 0))
+            print(f"#######################")
+            elites = ga_state.get('elites', {})
             
-            # ga_evaluations = []
-            # for key, list_of_elite in elites.items():
-            #     if list_of_elite:
-            #         max_evaluation = max(list_of_elite, key=lambda x: x.get('fitness', 0))
-            #         ga_evaluations.append(max_evaluation)
-            #         # Take the highest fitness in each cells
-            #         for elite in list_of_elite:
-            #             ga_prompts.append(elite['prompt'])
-            #             ga_scores.append(elite['fitness'])
-            #             elites_scores.append(elite['fitness'])
-                    #    ga_evaluations.append(elite)
+            ga_evaluations = []
+            for key, list_of_elite in elites.items():
+                if list_of_elite:
+                    max_evaluation = max(list_of_elite, key=lambda x: x.get('fitness', 0))
+                    ga_evaluations.append(max_evaluation)
+                    # Take the highest fitness in each cells
+                    for elite in list_of_elite:
+                        ga_prompts.append(elite['prompt'])
+                        ga_scores.append(elite['fitness'])
+                        elites_scores.append(elite['fitness'])
+                        ga_evaluations.append(elite)
             
             # print(f"[GrowingArchive] Loaded {len(ga_prompts)} prompts.")
             # stats = get_top_k_data(ga_evaluations, args.top_k, 'highest')
@@ -680,20 +680,20 @@ def main():
             persona = build_archive_risk_style(std_data)
             calculate_metrics(model, persona, 'PersonaTeaming', k =5)
             
-            # all_prompts = std_data.get('adv_prompts', {})
-            # all_scores = std_data.get('scores', {})
+            all_prompts = std_data.get('adv_prompts', {})
+            all_scores = std_data.get('scores', {})
             
-            # persona_evaluations = []
-            # for category, prompts in all_prompts.items():
-            #     persona_prompts.extend(prompts)
-            #     scores = all_scores.get(category, [])
+            persona_evaluations = []
+            for category, prompts in all_prompts.items():
+                persona_prompts.extend(prompts)
+                scores = all_scores.get(category, [])
                 
-            #     for prompt, score in zip(prompts, scores):
-            #         persona_evaluations.append({
-            #             "prompt": prompt,
-            #             "fitness": score,
-            #         })
-            #         persona_scores.append(score)
+                for prompt, score in zip(prompts, scores):
+                    persona_evaluations.append({
+                        "prompt": prompt,
+                        "fitness": score,
+                    })
+                    persona_scores.append(score)
             
             # print(f"\n[PersonaTeaming] Loaded {len(persona_prompts)} prompts.")
             
@@ -722,7 +722,7 @@ def main():
     
     print("-" * 40)
 
-    #plot_fitness_distribution(ga_scores, persona_scores)
+    plot_fitness_distribution(ga_scores, persona_scores)
     #analyze_convex_hull_simple(centroids, "Centroids")
     #visualize_structure_and_fitness(centroids, elites_emb, elites_scores)
 

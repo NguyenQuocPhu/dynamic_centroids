@@ -15,7 +15,6 @@ class AttackMemory:
 
         clean_entry = {
             "behavior": entry.get("behavior", None),
-            "fitness": score,
             "score": score,
             "prompt": entry.get("prompt", ""),
             "persona": entry.get("persona", {}),
@@ -51,8 +50,8 @@ class AttackMemory:
         if len(valid) <= k:
             return valid
 
-        # 2. Sort theo fitness (giữ semantics cũ)
-        valid.sort(key=lambda x: x.get("fitness", 0.0), reverse=True)
+        # 2. Sort theo score (giữ semantics cũ)
+        valid.sort(key=lambda x: x.get("score", 0.0), reverse=True)
 
         try:
             embeddings = np.asarray([c["behavior"] for c in valid], dtype=np.float32)
