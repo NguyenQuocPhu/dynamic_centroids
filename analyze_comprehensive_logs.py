@@ -680,8 +680,8 @@ def main():
             persona = build_archive_risk_style(std_data)
             calculate_metrics(model, persona, 'PersonaTeaming', k =5)
             
-            all_prompts = std_data.get('adv_prompts', {})
-            all_scores = std_data.get('scores', {})
+            all_prompts = std_data.get('all_prompts', {})
+            all_scores = std_data.get('all_scores', {})
             
             persona_evaluations = []
             for category, prompts in all_prompts.items():
