@@ -165,13 +165,6 @@ Input Seed: {prompt}
    worldview and habitual mode of expression, while adhering to
    the language patterns defined in [Target Style].
 
-3. Burned Earth Constraint:
-- Ensure < 10% n-gram overlap with the [Input Seed]
-  AND with all content inside <evolutionary_history>,
-  including SUCCESS_ANCHORS.
-- Do not preserve sentence structure, clause ordering,
-  rhetorical scaffolding, or discourse flow
-  from either the input or any prior attempt.
 
 ### OUTPUT REQUIREMENT
 - Return ONLY the final mutated prompt.
