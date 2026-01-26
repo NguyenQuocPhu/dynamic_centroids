@@ -1029,7 +1029,7 @@ class PersonaMutator:
         # Log the raw LLM output for debugging
         import logging
         logger = logging.getLogger(__name__)
-        logger.warning(f"Raw LLM persona YAML output: {persona_yaml}")
+        #logger.warning(f"Raw LLM persona YAML output: {persona_yaml}")
         
         try:
             # Remove Markdown code fences if present
@@ -1093,7 +1093,7 @@ class PersonaMutator:
         # Log the raw LLM output for debugging
         import logging
         logger = logging.getLogger(__name__)
-        logger.warning(f"Raw LLM persona YAML output: {persona_yaml}")
+        #logger.warning(f"Raw LLM persona YAML output: {persona_yaml}")
         
         try:
             # Remove Markdown code fences if present
