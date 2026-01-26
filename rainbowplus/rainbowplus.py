@@ -451,6 +451,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
         failed_example_text = "\n".join(failed_yml_strings)
         success_yml_strings = [format_example(entry) for entry in sample_bot_prompts]
         successful_example_text = "\n".join(success_yml_strings)
+        '''
         selective_prompt = SELECTOR_PROMPT.format(
             successful_examples_text=successful_example_text,
             risk=descriptor["Category"], # Adjust based on your config keys
@@ -461,15 +462,16 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
         cognitive_analysis = llms[config.mutator_llm.model_kwargs["model"]].generate(
             selective_prompt, config.mutator_llm.sampling_params
         )
-
-        logger.warning(f"Cognitive Analysis: {cognitive_analysis}")
+        '''
+        #logger.warning(f"Cognitive Analysis: {cognitive_analysis}")
         prompt_ = MUTATOR_PROMPT.format(
+            successful_examples_text=successful_example_text,
             failed_examples_text=failed_example_text,
             risk=descriptor["Category"], # Adjust based on your config keys
             style=descriptor["Style"],
             persona_yaml_details=persona_yaml_string,
             prompt=prompt,
-            descriptor=cognitive_analysis.strip()
+            #descriptor=cognitive_analysis.strip()
         )
         
         mutated_prompts = llms[config.mutator_llm.model_kwargs["model"]].batch_generate(

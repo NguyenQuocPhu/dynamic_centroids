@@ -1034,7 +1034,7 @@ class PersonaMutator:
         try:
             # Remove Markdown code fences if present
             persona_yaml_clean = strip_markdown_fence(persona_yaml)
-            logger.warning(f"Persona YAML after stripping code fence: {persona_yaml_clean}")
+            #ogger.warning(f"Persona YAML after stripping code fence: {persona_yaml_clean}")
             persona_details = yaml.safe_load(persona_yaml_clean)
             if not isinstance(persona_details, dict):
                 logger.warning(f"Parsed persona is not a dict. Got: {persona_details}")
@@ -1098,7 +1098,7 @@ class PersonaMutator:
         try:
             # Remove Markdown code fences if present
             persona_yaml_clean = strip_markdown_fence(persona_yaml)
-            logger.warning(f"Persona YAML after stripping code fence: {persona_yaml_clean}")
+            #logger.warning(f"Persona YAML after stripping code fence: {persona_yaml_clean}")
             persona_details = yaml.safe_load(persona_yaml_clean)
             if not isinstance(persona_details, dict):
                 logger.warning(f"Parsed persona is not a dict. Got: {persona_details}")
