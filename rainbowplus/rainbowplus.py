@@ -30,7 +30,7 @@ from rainbowplus.utils import (
 )
 from rainbowplus.archive import Archive
 from rainbowplus.configs import ConfigurationLoader
-from rainbowplus.prompts import MUTATOR_PROMPT, TARGET_PROMPT, MUTATOR_PROMPT_V1, SELECTOR_PROMPT
+from rainbowplus.prompts import MUTATOR_PROMPT, TARGET_PROMPT, MUTATOR_PROMPT_V1#, SELECTOR_PROMPT
 from rainbowplus.configs.base import LLMConfig
 from rainbowplus.mutators.persona import PersonaMutator
 from rainbowplus.attack_memory import AttackMemory
