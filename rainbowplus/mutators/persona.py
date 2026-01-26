@@ -962,7 +962,7 @@ class PersonaMutator:
                 generated_personas.append((new_persona_title, new_persona_details))
 
             except Exception as e:
-                logger.warning(f"Lỗi khi sinh hoặc phân tích YAML, bỏ qua 1 ứng cử viên: {e}")
+                logger.info(f"Lỗi khi sinh hoặc phân tích YAML, bỏ qua 1 ứng cử viên: {e}")
 
         if not generated_personas:
             logger.error("Không thể sinh bất kỳ persona 'tiến hóa' (evolved) nào. Trả về persona gốc.")
@@ -974,7 +974,7 @@ class PersonaMutator:
         try:
             prompt_embedding = self.model.encode(prompt_old).reshape(1, -1)
         except Exception as e:
-            logger.error(f"Lỗi khi encode prompt_old: {e}. Chọn ngẫu nhiên 1 persona.")
+            #logger.error(f"Lỗi khi encode prompt_old: {e}. Chọn ngẫu nhiên 1 persona.")
             return random.choice(generated_personas)
 
         best_persona = None
@@ -991,7 +991,7 @@ class PersonaMutator:
                     max_similarity = sim
                     best_persona = (title, details)
             except Exception as e:
-                logger.warning(f"Lỗi khi tính similarity cho '{title}': {e}")
+                #logger.warning(f"Lỗi khi tính similarity cho '{title}': {e}")
                 continue
 
         if best_persona is None:
@@ -1021,7 +1021,7 @@ class PersonaMutator:
     
     def _generate_new_persona_rter(self, prompt: str, mutator_llm: BaseLLM, sampling_params: Dict[str, Any]) -> Tuple[str, Dict]:
         """Generate a new RedTeaming expert persona that fits the prompt context."""
-        print(f"DEBUG: _generate_new_persona_rter called with prompt: {prompt[:50]}...")
+        #print(f"DEBUG: _generate_new_persona_rter called with prompt: {prompt[:50]}...")
         persona_prompt = GENERATE_PERSONA_PROMPT_RTer.format(prompt=prompt)
         print(f"DEBUG: Using RedTeaming Expert prompt template")
         persona_yaml = mutator_llm.generate(persona_prompt, sampling_params)
@@ -1085,7 +1085,7 @@ class PersonaMutator:
     
     def _generate_new_persona_user(self, prompt: str, mutator_llm: BaseLLM, sampling_params: Dict[str, Any]) -> Tuple[str, Dict]:
         """Generate a new regular AI user persona that fits the prompt context."""
-        print(f"DEBUG: _generate_new_persona_user called with prompt: {prompt[:50]}...")
+        #print(f"DEBUG: _generate_new_persona_user called with prompt: {prompt[:50]}...")
         persona_prompt = GENERATE_PERSONA_PROMPT_User.format(prompt=prompt)
         print(f"DEBUG: Using Regular AI User prompt template")
         persona_yaml = mutator_llm.generate(persona_prompt, sampling_params)
