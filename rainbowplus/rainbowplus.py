@@ -484,7 +484,11 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
 
         if mutated_prompts:
             # Responses
-            target_prompts = [TARGET_PROMPT.format(prompt=p.strip()) for p in mutated_prompts]
+            target_prompts = []
+            for i, p in enumerate(mutated_prompts):
+                if not p or not p.strip():
+                    raise ValueError(f"Empty mutated_prompt at index {i}")
+                target_prompts.append(TARGET_PROMPT.format(prompt=p.strip()))
             target_model = config.target_llm.model_kwargs["model"]
             candidates = llms[target_model].batch_generate(target_prompts, config.target_llm.sampling_params)
 
