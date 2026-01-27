@@ -288,11 +288,13 @@ Merge the selected primitives into ONE unified cognitive strategy by:
 
 ### Output Requirements (STRICT):
 - Output ONLY the synthesized strategy as raw text.
+- Do not include your thought process, editing instructions, or meta-commentary. Output ONLY the final analysis.
 - Write a SINGLE cohesive paragraph.
 - Do NOT explain your reasoning.
 - Do NOT use bullet points, numbering, headings, or meta-language.
 - Do NOT answer like a instruction guide.
 - Do NOT mention the word "primitive" or refer to the analysis process.
+- Be concise. Limit analysis to 3 sentences. Focus strictly on the specific harm scenario provided
 Strategy: 
 """
 '''

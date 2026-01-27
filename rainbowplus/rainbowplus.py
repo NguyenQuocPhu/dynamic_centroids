@@ -16,7 +16,7 @@ import yaml
 import numpy as np
 from typing import Dict, List
 from copy import deepcopy
-
+from vllm import SamplingParams
 # --- Imports ---
 from rainbowplus.scores import BleuScoreNLTK, OpenAIGuard, LlamaGuard
 from rainbowplus.utils import (
@@ -459,8 +459,11 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
             persona_yaml_details=persona_yaml_string,
             prompt=prompt
         )
+        selector_sampling_params = config.mutator_llm.sampling_params.copy()
+        selector_sampling_params['temperature'] = 0.7
+        selector_sampling_params['repetition_penalty'] = 1.15
         cognitive_analysis = llms[config.mutator_llm.model_kwargs["model"]].generate(
-            selective_prompt, config.mutator_llm.sampling_params
+            selective_prompt, selector_sampling_params
         )
         
         logger.warning(f"Cognitive Analysis: {cognitive_analysis}")
