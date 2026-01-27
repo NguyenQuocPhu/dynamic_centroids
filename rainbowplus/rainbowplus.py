@@ -461,7 +461,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
         )
         selector_sampling_params = config.mutator_llm.sampling_params.copy()
         selector_sampling_params['temperature'] = 0.7
-        selector_sampling_params['repetition_penalty'] = 1.15
+        #selector_sampling_params['repetition_penalty'] = 1.15
         cognitive_analysis = llms[config.mutator_llm.model_kwargs["model"]].generate(
             selective_prompt, selector_sampling_params
         )
