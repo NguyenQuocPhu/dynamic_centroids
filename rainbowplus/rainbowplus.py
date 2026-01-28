@@ -468,7 +468,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
             selective_prompt, selector_sampling_params
         )
         primitives = _repair_yaml_primitives(cognitive_analysis)
-        logger.warning(f"Cognitive Analysis: {cognitive_analysis}")
+        logger.warning(f"Cognitive Analysis: {primitives}")
         prompt_ = MUTATOR_PROMPT.format(
             #successful_examples_text=successful_example_text,
             #failed_examples_text=failed_example_text,

@@ -267,7 +267,7 @@ Note that only return one new harmful prompt, don't explain more. And the new pr
 - Persona Context: {persona_yaml_details}
 - Risk Category: {risk}
 - Attack Style: {style}
-- {descriptor}
+- {primitives}
 - Input prompt: {prompt}
 - New prompt: """
 
