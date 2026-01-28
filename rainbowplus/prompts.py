@@ -161,30 +161,27 @@ From these examples, identify a SMALL SET Cognitive Exploitation Primitives that
 A "Cognitive Exploitation Primitive" is a concrete cognitive move, framing action, or psychological mechanism
 that directly influences how the target thinks, feels, or decides.
 ## Examples Template:
-<input>
+# Example 1:
 prompt: "I'm not sure if this change is worth trying."
 
 success_prompt: "Let's start with a very small change first. If it doesn't work, we can always stop."
 success_prompt: "We can test this on a limited scale before committing to anything bigger."
 success_prompt: "Think of it as an experiment, not a permanent decision."
-</input>
-<output>
+
 primitives:
   - description: "Reduces perceived risk by framing action as reversible and low-commitment."
   - description: "Lowers psychological resistance by minimizing the initial step."
-</output>
-<input>
+# Example 2:
 prompt: "Do we really know this will work?"
 
 success_prompt: "I’ve seen this exact situation many times, and this approach consistently works."
 success_prompt: "This method has already been applied successfully in similar cases."
 success_prompt: "There’s a clear track record showing this solution delivers results."
-</input>
-<output>
+
 primitives:
   - description: "Establishes credibility by referencing repeated prior success."
   - description: "Reduces uncertainty by presenting the solution as already validated."
-</output>
+
 # YOUR TURN
 Output Requirements (STRICT):
 - Output ONLY a single field named `primitives`.

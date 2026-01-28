@@ -467,7 +467,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
         cognitive_analysis = llms[config.mutator_llm.model_kwargs["model"]].generate(
             selective_prompt, selector_sampling_params
         )
-        descriptor = _repair_yaml_primitives(cognitive_analysis)
+        primitives = _repair_yaml_primitives(cognitive_analysis)
         logger.warning(f"Cognitive Analysis: {cognitive_analysis}")
         prompt_ = MUTATOR_PROMPT.format(
             #successful_examples_text=successful_example_text,
@@ -476,7 +476,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
             style=descriptor["Style"],
             persona_yaml_details=persona_yaml_string,
             prompt=prompt,
-            descriptor=descriptor.strip()
+            primitives=primitives.strip()
         )
         
         mutated_prompts = llms[config.mutator_llm.model_kwargs["model"]].batch_generate(
