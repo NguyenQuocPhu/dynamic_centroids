@@ -298,7 +298,7 @@ def format_example(entry: Dict[str, Any]) -> str:
     score_val = entry.get('score', '')
     ordered_data = {}
     if prompt_text:
-        ordered_data['Prompt:'] = prompt_text
+        ordered_data['success_prompt:'] = prompt_text
     
     #for key, value in details.items():
      #   ordered_data[key] = value
@@ -316,6 +316,70 @@ def format_example(entry: Dict[str, Any]) -> str:
     except Exception as e:
         return f"Error formatting persona: {e}"
     
+def _repair_yaml_primitives(yaml_str: str) -> str:
+    """
+    Sửa chữa YAML cho format primitives list.
+    
+    Format: 
+    primitives:
+      - description: "..."
+      - description: "..."
+    """
+    if not yaml_str or not yaml_str.strip():
+        return ""
+    
+    text = yaml_str.strip().replace("---", "")
+    lines = text.split('\n')
+    fixed_lines = []
+    in_yaml = False
+    
+    for line in lines:
+        s = line.strip()
+        
+        # Remove markdown fences
+        if s.startswith("```"):
+            continue
+        
+        # Start when see "primitives:"
+        if not in_yaml:
+            if s == "primitives:" or s.startswith("primitives:"):
+                in_yaml = True
+                fixed_lines.append(line)
+            continue
+        
+        # Skip empty lines or keep if already in YAML
+        if not s:
+            fixed_lines.append(line)
+            continue
+        
+        # Valid YAML lines: list items, keys with values, or indented content
+        if s.startswith('-') or ':' in s or line[0].isspace():
+            # Fix "description: value:" error
+            if s.endswith(':') and s.count(':') > 1:
+                line = line.rstrip()[:-1]
+            fixed_lines.append(line)
+        else:
+            # Invalid line - stop
+            break
+    
+    # Remove incomplete last line
+    if fixed_lines:
+        last = fixed_lines[-1].strip()
+        # Remove if incomplete: "- descri" or "description:" without value
+        if (last.startswith('-') and ':' not in last) or \
+           (last.endswith(':') and last.count(':') == 1 and not last.startswith('-')):
+            fixed_lines.pop()
+    
+    text = '\n'.join(fixed_lines)
+    
+    # Fix unmatched quotes
+    if text.count('"') % 2 != 0:
+        text += '"'
+    if text.count("'") % 2 != 0:
+        text += "'"
+    
+    return text
+
 def initialize_language_models(config: ConfigurationLoader):
     """Initialize language models from configuration."""
     model_configs = [

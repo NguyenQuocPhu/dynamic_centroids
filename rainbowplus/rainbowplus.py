@@ -27,6 +27,7 @@ from rainbowplus.utils import (
     save_ga_comprehensive_log,  # New logging function
     format_example,
     save_attack_memory_log,
+    _repair_yaml_primitives
 )
 from rainbowplus.archive import Archive
 from rainbowplus.configs import ConfigurationLoader
@@ -458,24 +459,24 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
             #risk=descriptor["Category"], # Adjust based on your config keys
             #style=descriptor["Style"],
             #persona_yaml_details=persona_yaml_string,
-            #prompt=prompt
+            prompt=prompt
         )
         selector_sampling_params = config.mutator_llm.sampling_params.copy()
-        selector_sampling_params['temperature'] = 0.5
+        selector_sampling_params['temperature'] = 0.7
         #selector_sampling_params['repetition_penalty'] = 1.15
         cognitive_analysis = llms[config.mutator_llm.model_kwargs["model"]].generate(
             selective_prompt, selector_sampling_params
         )
-        
+        descriptor = _repair_yaml_primitives(cognitive_analysis)
         logger.warning(f"Cognitive Analysis: {cognitive_analysis}")
         prompt_ = MUTATOR_PROMPT.format(
             #successful_examples_text=successful_example_text,
-            failed_examples_text=failed_example_text,
+            #failed_examples_text=failed_example_text,
             risk=descriptor["Category"], # Adjust based on your config keys
             style=descriptor["Style"],
             persona_yaml_details=persona_yaml_string,
             prompt=prompt,
-            descriptor=cognitive_analysis.strip()
+            descriptor=descriptor.strip()
         )
         
         mutated_prompts = llms[config.mutator_llm.model_kwargs["model"]].batch_generate(

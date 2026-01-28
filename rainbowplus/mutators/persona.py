@@ -683,68 +683,147 @@ class PersonaMutator:
             
     def _repair_yaml_string(self, yaml_str: str) -> str:
         """
-        Phiên bản Line-by-Line:
-        - Xử lý tốt trường hợp bị cắt cụt (thiếu đóng ```).
-        - Xử lý tốt các biến thể lạ như ``` ```yaml.
-        - Lọc bỏ văn bản rác.
+        Sửa chữa chuỗi YAML bị lỗi trước khi parse.
+        
+        Xử lý:
+        - Loại bỏ markdown code fences (```yaml, ```, etc.)
+        - Loại bỏ document separators (---)
+        - Loại bỏ preamble và postamble text
+        - Sửa lỗi truncation (dòng cuối bị cắt)
+        - Sửa lỗi quotes không đóng
+        - Sửa lỗi colon thừa
         """
+        if not yaml_str or not yaml_str.strip():
+            return ""
+        
         text = yaml_str.strip()
         
-        # 1. Xóa dấu phân cách document (---) gây lỗi "expected single document"
+        # 1. Loại bỏ document separators
         text = text.replace("---", "")
-
+        
         lines = text.split('\n')
         fixed_lines = []
-        found_start = False
-
+        yaml_started = False
+        yaml_ended = False
+        
         for line in lines:
             stripped = line.strip()
             
-            # --- [FIX QUAN TRỌNG NHẤT] ---
-            # Xóa triệt để các dòng chứa markdown fence
-            # Bất kể là ```yaml, ``` YAML, hay ``` ```yaml
-            if stripped.startswith("```"):
-                continue 
-            # -----------------------------
-
+            # Bỏ qua dòng trống
             if not stripped:
-                fixed_lines.append(line)
+                if yaml_started and not yaml_ended:
+                    fixed_lines.append(line)
                 continue
-
-            # Xác định dòng hợp lệ (Key-Value, List item, Comment)
-            is_valid_yaml_line = (":" in stripped) or (stripped.startswith("-")) or (stripped.startswith("#"))
-
-            if not found_start:
-                # Nếu chưa vào vùng YAML, chỉ chấp nhận dòng Key-Value (vd: title: ...)
-                # Bỏ qua mọi lời dẫn dắt như "Here is the persona:"
-                if is_valid_yaml_line and not stripped.startswith("-"):
-                    found_start = True
-                    fixed_lines.append(line)
-                else:
-                    continue # Bỏ qua rác đầu (Pre-amble)
-            else:
-                # Đã vào trong YAML
-                if is_valid_yaml_line:
-                    # Sửa lỗi dấu hai chấm thừa ở cuối (VD: "key: value:")
-                    if stripped.endswith(':') and stripped.count(':') > 1:
-                         line = line.rstrip()[:-1]
-                    fixed_lines.append(line)
-                # Nếu gặp dòng text không phải yaml ở giữa, bỏ qua luôn
-
-        # 3. Xử lý Cắt cụt (Truncation Fix)Greedy Max-Sum Distance.
-        # Nếu dòng cuối cùng là một key đang viết dở (kết thúc bằng :), xóa nó đi
-        if fixed_lines and fixed_lines[-1].strip().endswith(':'):
-            fixed_lines.pop()
-
-        # Lắp lại
-        text = '\n'.join(fixed_lines)
-
-        # 4. Fix Quotes
-        if text.count('"') % 2 != 0:
-            text += '"'
-        if text.count("'") % 2 != 0:
-            text += "'"
             
+            # 2. Loại bỏ markdown code fences
+            if stripped.startswith("```"):
+                continue
+            
+            # 3. Phát hiện và loại bỏ preamble/postamble
+            if not yaml_started:
+                # Dòng đầu tiên hợp lệ phải là key-value (không phải list item)
+                if self._is_yaml_key_value(stripped):
+                    yaml_started = True
+                    fixed_lines.append(line)
+                # Bỏ qua mọi text trước YAML
+                continue
+            
+            # Đã vào vùng YAML
+            if yaml_ended:
+                # Bỏ qua mọi text sau YAML
+                continue
+            
+            # 4. Validate từng dòng YAML
+            if self._is_valid_yaml_line(stripped):
+                # Sửa lỗi colon thừa ở cuối
+                if self._has_trailing_colon_error(stripped):
+                    line = line.rstrip()[:-1]
+                fixed_lines.append(line)
+            else:
+                # Gặp dòng không hợp lệ -> coi như kết thúc YAML
+                yaml_ended = True
+        
+        # 5. Xử lý truncation - loại bỏ dòng cuối nếu là key chưa hoàn thành
+        if fixed_lines:
+            last_line = fixed_lines[-1].strip()
+            if self._is_incomplete_key(last_line):
+                fixed_lines.pop()
+        
+        # 6. Ghép lại text
+        text = '\n'.join(fixed_lines)
+        
+        # 7. Sửa lỗi quotes không đóng
+        text = self._fix_unmatched_quotes(text)
+        
+        return text
+
+
+    def _is_yaml_key_value(self, line: str) -> bool:
+        """Kiểm tra dòng có phải key-value hợp lệ không"""
+        if not line or ':' not in line:
+            return False
+        # Không được bắt đầu bằng list item
+        if line.startswith('-'):
+            return False
+        # Phải có ít nhất 1 ký tự trước dấu :
+        colon_idx = line.index(':')
+        return colon_idx > 0 and line[:colon_idx].strip()
+
+
+    def _is_valid_yaml_line(self, line: str) -> bool:
+        """Kiểm tra dòng có phải YAML hợp lệ không"""
+        if not line:
+            return False
+        
+        # Key-value
+        if ':' in line:
+            return True
+        
+        # List item
+        if line.startswith('-'):
+            return True
+        
+        # Comment
+        if line.startswith('#'):
+            return True
+        
+        # Indented continuation (cho multi-line values)
+        if line[0].isspace() and len(line) > len(line.lstrip()):
+            return True
+        
+        return False
+
+
+    def _has_trailing_colon_error(self, line: str) -> bool:
+        """Kiểm tra lỗi colon thừa ở cuối: 'key: value:'"""
+        if not line.endswith(':'):
+            return False
+        # Phải có ít nhất 2 dấu : (1 cho key-value, 1 thừa ở cuối)
+        return line.count(':') > 1
+
+
+    def _is_incomplete_key(self, line: str) -> bool:
+        """Kiểm tra key chưa hoàn thành (chỉ có 'key:' mà không có value)"""
+        if not line.endswith(':'):
+            return False
+        # Loại bỏ indentation
+        line = line.lstrip()
+        # Nếu sau dấu : không có gì -> incomplete
+        return line.rstrip() == line.rstrip(':').rstrip() + ':'
+
+
+    def _fix_unmatched_quotes(self, text: str) -> str:
+        """Sửa lỗi quotes không đóng"""
+        # Double quotes
+        double_quote_count = text.count('"')
+        if double_quote_count % 2 != 0:
+            text += '"'
+        
+        # Single quotes
+        single_quote_count = text.count("'")
+        if single_quote_count % 2 != 0:
+            text += "'"
+        
         return text
     
     def _format_persona_description(self, persona_name: str, persona_details: Dict) -> str: 
