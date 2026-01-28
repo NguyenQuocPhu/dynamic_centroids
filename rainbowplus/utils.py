@@ -316,9 +316,10 @@ def format_example(entry: Dict[str, Any]) -> str:
     except Exception as e:
         return f"Error formatting persona: {e}"
     
-def _repair_yaml_primitives(yaml_str: str) -> str:
+def _repair_yaml_primitives(self, yaml_str: str) -> str:
     """
     Sửa chữa YAML cho format primitives list.
+    Chỉ lấy block YAML hợp lệ ĐẦU TIÊN, bỏ qua phần lặp lại.
     
     Format: 
     primitives:
@@ -332,8 +333,13 @@ def _repair_yaml_primitives(yaml_str: str) -> str:
     lines = text.split('\n')
     fixed_lines = []
     in_yaml = False
+    yaml_complete = False
     
     for line in lines:
+        # Nếu đã hoàn thành 1 block YAML -> dừng luôn
+        if yaml_complete:
+            break
+            
         s = line.strip()
         
         # Remove markdown fences
@@ -347,27 +353,36 @@ def _repair_yaml_primitives(yaml_str: str) -> str:
                 fixed_lines.append(line)
             continue
         
-        # Skip empty lines or keep if already in YAML
+        # Empty line inside YAML
         if not s:
             fixed_lines.append(line)
             continue
         
-        # Valid YAML lines: list items, keys with values, or indented content
+        # Detect duplicate "primitives:" -> previous block is complete
+        if s == "primitives:" or s.startswith("primitives:"):
+            yaml_complete = True
+            break
+        
+        # Valid YAML lines
         if s.startswith('-') or ':' in s or line[0].isspace():
             # Fix "description: value:" error
             if s.endswith(':') and s.count(':') > 1:
                 line = line.rstrip()[:-1]
             fixed_lines.append(line)
         else:
-            # Invalid line - stop
+            # Invalid line -> block complete
+            yaml_complete = True
             break
     
     # Remove incomplete last line
     if fixed_lines:
         last = fixed_lines[-1].strip()
-        # Remove if incomplete: "- descri" or "description:" without value
+        # Remove if incomplete
         if (last.startswith('-') and ':' not in last) or \
            (last.endswith(':') and last.count(':') == 1 and not last.startswith('-')):
+            fixed_lines.pop()
+        # Remove if truncated value (ends with quote without closing)
+        elif last.endswith('"') and last.count('"') % 2 != 0:
             fixed_lines.pop()
     
     text = '\n'.join(fixed_lines)
