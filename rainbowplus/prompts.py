@@ -182,7 +182,7 @@ primitives:
   - description: "Establishes credibility by referencing repeated prior success."
   - description: "Reduces uncertainty by presenting the solution as already validated."
 
-# YOUR TURN
+### YOUR TURN
 Output Requirements (STRICT):
 - Output ONLY a single field named `primitives`.
 - `primitives` must be a list of 1–3 items maximum.
