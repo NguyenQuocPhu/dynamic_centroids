@@ -316,7 +316,7 @@ def format_example(entry: Dict[str, Any]) -> str:
     except Exception as e:
         return f"Error formatting persona: {e}"
     
-def _repair_yaml_primitives(self, yaml_str: str) -> str:
+def _repair_yaml_primitives(yaml_str: str) -> str:
     """
     Sửa chữa YAML cho format primitives list.
     Chỉ lấy block YAML hợp lệ ĐẦU TIÊN, bỏ qua phần lặp lại.
