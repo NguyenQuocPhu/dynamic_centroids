@@ -316,15 +316,13 @@ def format_example(entry: Dict[str, Any]) -> str:
     except Exception as e:
         return f"Error formatting persona: {e}"
     
+
 def _repair_yaml_primitives(yaml_str: str) -> str:
     """
     Sửa chữa YAML cho format primitives list.
-    Chỉ lấy block YAML hợp lệ ĐẦU TIÊN, bỏ qua phần lặp lại.
-    
-    Format: 
-    primitives:
-      - description: "..."
-      - description: "..."
+    - Chấp nhận BẤT KỲ key nào trong list items
+    - Loại bỏ duplicate theo VALUE (không phụ thuộc key name)
+    - Dừng khi gặp key không phải list item
     """
     if not yaml_str or not yaml_str.strip():
         return ""
@@ -334,12 +332,12 @@ def _repair_yaml_primitives(yaml_str: str) -> str:
     fixed_lines = []
     in_yaml = False
     yaml_complete = False
-    
+    seen_values = set()  # Track values để loại duplicate
+    same_part = None
     for line in lines:
-        # Nếu đã hoàn thành 1 block YAML -> dừng luôn
         if yaml_complete:
             break
-            
+                    
         s = line.strip()
         
         # Remove markdown fences
@@ -358,31 +356,52 @@ def _repair_yaml_primitives(yaml_str: str) -> str:
             fixed_lines.append(line)
             continue
         
-        # Detect duplicate "primitives:" -> previous block is complete
+        # Detect duplicate "primitives:" -> block complete
         if s == "primitives:" or s.startswith("primitives:"):
             yaml_complete = True
             break
         
-        # Valid YAML lines
-        if s.startswith('-') or ':' in s or line[0].isspace():
-            # Fix "description: value:" error
+        # List item: "- any_key: value"
+        if ':' in s:
+            # Extract value để check duplicate (bỏ qua key name)
+            value_part = s.split(':', 1)[1].strip()
+            key_part = s.split(':', 1)[0].strip()
+            if same_part is None:
+                same_part = key_part
+            elif key_part != same_part:
+                yaml_complete = True
+                break
+
+            # Skip nếu value trùng lặp
+            if value_part in seen_values:
+                continue
+            
+            if value_part:
+                seen_values.add(value_part)
+            
+            # Fix "key: value:" error
             if s.endswith(':') and s.count(':') > 1:
                 line = line.rstrip()[:-1]
+            
             fixed_lines.append(line)
+        
+        # Indented continuation hoặc nested content
+        elif line[0].isspace():
+            fixed_lines.append(line)
+
+        
+        # Invalid line -> dừng
         else:
-            # Invalid line -> block complete
             yaml_complete = True
             break
     
     # Remove incomplete last line
     if fixed_lines:
         last = fixed_lines[-1].strip()
-        # Remove if incomplete
         if (last.startswith('-') and ':' not in last) or \
-           (last.endswith(':') and last.count(':') == 1 and not last.startswith('-')):
+           (last.endswith(':') and last.count(':') == 1):
             fixed_lines.pop()
-        # Remove if truncated value (ends with quote without closing)
-        elif last.endswith('"') and last.count('"') % 2 != 0:
+        elif last.count('"') % 2 != 0 or last.count("'") % 2 != 0:
             fixed_lines.pop()
     
     text = '\n'.join(fixed_lines)
