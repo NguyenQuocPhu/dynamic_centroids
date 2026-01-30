@@ -599,7 +599,7 @@ def find_log_files(directory):
 def main():
     parser = argparse.ArgumentParser(description="Analyze comprehensive RainbowPlus logs")
     # SỬA: Thêm type=int
-    parser.add_argument("--top-k", type=int, default=100, help="Number of top-k to compare 2 methods")
+    parser.add_argument("--top-k", type=int, default=5, help="Number of top-k to compare 2 methods")
     parser.add_argument("directory", help="Directory containing log files")
     parser.add_argument("--output", help="Output file for analysis results")
     args = parser.parse_args()
@@ -610,7 +610,7 @@ def main():
         print(f"GA Log:       {comprehensive_ga_log}")
         print(f"Attack Memory: {memory_log}")
         print("-" * 40)
-            
+        
     except Exception as e:
         print(f"Error finding logs: {e}")
         return
@@ -631,7 +631,7 @@ def main():
             # SỬA: Load trực tiếp file, không load chồng chéo
             ga_data = load_comprehensive_log(comprehensive_ga_log)
             ga = build_archive_risk_style(ga_data)
-            calculate_metrics(model, ga, 'GA', k = 5)
+            calculate_metrics(model, ga, 'GA', args.top_k)
             
             ga_state = ga_data.get('ga_state', {})
             centroids = ga_state.get('centroids', [])
@@ -678,7 +678,7 @@ def main():
         try:
             std_data = load_comprehensive_log(comprehensive_log)
             persona = build_archive_risk_style(std_data)
-            calculate_metrics(model, persona, 'PersonaTeaming', k =5)
+            calculate_metrics(model, persona, 'PersonaTeaming', args.top_k)
             
             all_prompts = std_data.get('all_prompts', {})
             all_scores = std_data.get('all_scores', {})
