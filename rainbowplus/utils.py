@@ -320,8 +320,8 @@ def format_example(entry: Dict[str, Any]) -> str:
 def _repair_yaml_primitives(yaml_str: str) -> str:
     """
     Sửa chữa YAML cho format primitives list.
-    - Chấp nhận BẤT KỲ key nào trong list items
-    - Loại bỏ duplicate theo VALUE (không phụ thuộc key name)
+    - MERGE tất cả blocks "primitives:" thành 1 block duy nhất
+    - Loại bỏ duplicate theo VALUE
     - Dừng khi gặp key không phải list item
     """
     if not yaml_str or not yaml_str.strip():
@@ -329,73 +329,79 @@ def _repair_yaml_primitives(yaml_str: str) -> str:
     
     text = yaml_str.strip().replace("---", "")
     lines = text.split('\n')
-    fixed_lines = []
-    in_yaml = False
-    yaml_complete = False
-    seen_values = set()  # Track values để loại duplicate
-    same_part = None
+    
+    # Phase 1: Collect all primitives items from ALL blocks
+    all_items = []
+    seen_values = set()
+    in_primitives = False
+    expected_key = None
+    
     for line in lines:
-        if yaml_complete:
-            break
-                    
         s = line.strip()
         
         # Remove markdown fences
         if s.startswith("```"):
             continue
         
-        # Start when see "primitives:"
-        if not in_yaml:
-            if s == "primitives:" or s.startswith("primitives:"):
-                in_yaml = True
-                fixed_lines.append(line)
+        # Detect "primitives:" header (có thể lặp lại)
+        if "primitives:" in s:
+            in_primitives = True
             continue
         
-        # Empty line inside YAML
+        if not in_primitives:
+            continue
+        
+        # Empty line - skip
         if not s:
-            fixed_lines.append(line)
             continue
         
-        # Detect duplicate "primitives:" -> block complete
-        if s == "primitives:" or s.startswith("primitives:"):
-            yaml_complete = True
-            break
-        
-        # List item: "- any_key: value"
+        # List item: "- key: value"
         if ':' in s:
-            # Extract value để check duplicate (bỏ qua key name)
-            value_part = s.split(':', 1)[1].strip()
             key_part = s.split(':', 1)[0].strip().lstrip('-').strip()
+            value_part = s.split(':', 1)[1].strip()
             
-            same_part = key_part if same_part is None else same_part
-            if key_part != same_part:
-                break
-
-            # Skip nếu value trùng lặp
+            # Check key consistency
+            if expected_key is None:
+                expected_key = key_part
+            elif key_part != expected_key:
+                # Key khác -> reset và tiếp tục (có thể là block mới)
+                continue
+            
+            # Skip duplicate values
             if value_part in seen_values:
                 continue
             
             if value_part:
                 seen_values.add(value_part)
-            
-            # Fix "key: value:" error
-            if s.endswith(':') and s.count(':') > 1:
-                line = line.rstrip()[:-1]
-            
-            fixed_lines.append(line)
+                
+                # Fix "key: value:" error
+                cleaned_line = line
+                if s.endswith(':') and s.count(':') > 1:
+                    cleaned_line = line.rstrip()[:-1]
+                
+                all_items.append(cleaned_line)
         
-        # Indented continuation hoặc nested content
+        # Indented continuation (multi-line values)
         elif line[0].isspace():
-            fixed_lines.append(line)
-
+            all_items.append(line)
         
-        # Invalid line -> dừng
+        # Non-list key or invalid line -> stop collecting from this block
+        elif ':' in s and not s.startswith('-'):
+            in_primitives = False
+            expected_key = None  # Reset để cho phép block mới
         else:
-            yaml_complete = True
-            break
+            in_primitives = False
+            expected_key = None
+    
+    # Phase 2: Reconstruct YAML with single "primitives:" header
+    if not all_items:
+        return ""
+    
+    fixed_lines = ["primitives:"]
+    fixed_lines.extend(all_items)
     
     # Remove incomplete last line
-    if fixed_lines:
+    if fixed_lines and len(fixed_lines) > 1:
         last = fixed_lines[-1].strip()
         if (last.startswith('-') and ':' not in last) or \
            (last.endswith(':') and last.count(':') == 1):
