@@ -436,7 +436,7 @@ def build_archive_risk_style(log_data):
 
     return grouped_data
 
-def plot_fixed_grid_heatmap(data_frame, metric = 'max_fitness', k = 1):
+def plot_fixed_grid_heatmap(data_frame, metric='max_fitness', k=1):
     df_grouped = []
     qd_score = 0
     for key, elite in data_frame.items():
@@ -451,47 +451,61 @@ def plot_fixed_grid_heatmap(data_frame, metric = 'max_fitness', k = 1):
             'Value': sum(current_sum)
         })
         qd_score += sum(current_sum)
+    
     df_grouped = pd.DataFrame(df_grouped)
     if df_grouped.empty:
         print(f"Warning: No data available for Heatmap ({metric}). Skipping.")
         return
-    heatmap_data = df_grouped.pivot(index='Risk Category', columns='Attack Style', values='Value')
     
-    # Điền 0 vào các ô không có dữ liệu
+    heatmap_data = df_grouped.pivot(index='Risk Category', columns='Attack Style', values='Value')
     heatmap_data = heatmap_data.fillna(0)
 
-    plt.figure(figsize=(12, 8))
+    # Tính toán vmin/vmax để cải thiện contrast
+    data_values = heatmap_data.values.flatten()
+    non_zero_values = data_values[data_values > 0]
+    
+    if len(non_zero_values) > 0:
+        vmin = 0
+        vmax = non_zero_values.max()
+    else:
+        vmin, vmax = 0, 1
+
+    plt.figure(figsize=(14, 9))  # Tăng kích thước để dễ đọc hơn
     
     ax = sns.heatmap(
         heatmap_data,
-        cmap='viridis',        # Viridis - chuẩn MAP-Elites
-        annot=False,
-        fmt='.2f',             # Format số nếu bật annot
-        linewidths=0.5,        # Đường viền mỏng hơn cho đẹp
+        cmap='viridis',
+        annot=True,              # BẬT hiển thị số để dễ đánh giá
+        fmt='.1f',               # 1 chữ số thập phân
+        annot_kws={'size': 8},   # Cỡ chữ vừa phải
+        linewidths=1.5,          # Đường viền rõ hơn
         linecolor='white',
         square=True,
         cbar_kws={
             'label': f'{metric.replace("_", " ").title()}',
-            'shrink': 0.8      # Thu nhỏ colorbar 1 chút cho cân đối
+            'shrink': 0.75
         },
-        vmin=0                 # Đặt min=0 để màu tối nhất là ô trống (quan trọng!)
+        vmin=vmin,
+        vmax=vmax,
+        # Thêm mask cho các ô = 0 nếu muốn
+        # mask=(heatmap_data == 0)  # Ẩn các ô trống
     )
 
     ax.xaxis.tick_top() 
     ax.xaxis.set_label_position('top') 
     
-    plt.xticks(rotation=45, ha='left')
-    plt.yticks(rotation=0)
+    plt.xticks(rotation=45, ha='left', fontsize=10)
+    plt.yticks(rotation=0, fontsize=10)
     
-    plt.title(f"Risk Category vs Attack Style ({metric}) | QD Score: {qd_score:.2f}", 
-              y=1.08, fontsize=14, weight='bold')
-    plt.xlabel("")
-    plt.ylabel("")
+    plt.title(
+        f"Risk Category vs Attack Style ({metric}) | QD Score: {qd_score:.2f}", 
+        y=1.05, fontsize=16, weight='bold', pad=20
+    )
     
     plt.tight_layout()
     
     filename = f"fixed_grid_heatmap_{metric}_top{k}.png"
-    plt.savefig(filename, dpi=300, bbox_inches='tight')
+    plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
     print(f"✅ Đã lưu Heatmap: {filename}")
     plt.close()
 
