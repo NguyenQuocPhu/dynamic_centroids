@@ -460,49 +460,54 @@ def plot_fixed_grid_heatmap(data_frame, metric='max_fitness', k=1):
     heatmap_data = df_grouped.pivot(index='Risk Category', columns='Attack Style', values='Value')
     heatmap_data = heatmap_data.fillna(0)
 
-    # Tính toán vmin/vmax để cải thiện contrast
+    # Tính vmin/vmax
     data_values = heatmap_data.values.flatten()
     non_zero_values = data_values[data_values > 0]
-    
-    if len(non_zero_values) > 0:
-        vmin = 0
-        vmax = non_zero_values.max()
-    else:
-        vmin, vmax = 0, 1
+    vmin = 0
+    vmax = non_zero_values.max() if len(non_zero_values) > 0 else 1
 
-    plt.figure(figsize=(14, 9))  # Tăng kích thước để dễ đọc hơn
+    # Tăng figsize và điều chỉnh spacing
+    fig, ax = plt.subplots(figsize=(16, 10))
     
-    ax = sns.heatmap(
+    sns.heatmap(
         heatmap_data,
         cmap='viridis',
-        annot=True,              # BẬT hiển thị số để dễ đánh giá
-        fmt='.1f',               # 1 chữ số thập phân
-        annot_kws={'size': 8},   # Cỡ chữ vừa phải
-        linewidths=1.5,          # Đường viền rõ hơn
+        annot=True,
+        fmt='.1f',
+        annot_kws={'size': 9, 'weight': 'bold'},
+        linewidths=1.5,
         linecolor='white',
         square=True,
         cbar_kws={
             'label': f'{metric.replace("_", " ").title()}',
-            'shrink': 0.75
+            'shrink': 0.75,
+            'pad': 0.02  # Khoảng cách colorbar
         },
         vmin=vmin,
         vmax=vmax,
-        # Thêm mask cho các ô = 0 nếu muốn
-        # mask=(heatmap_data == 0)  # Ẩn các ô trống
+        ax=ax
     )
 
-    ax.xaxis.tick_top() 
-    ax.xaxis.set_label_position('top') 
+    # Di chuyển xlabel lên trên
+    ax.xaxis.tick_top()
+    ax.xaxis.set_label_position('top')
+    ax.set_xlabel('Attack Style', fontsize=12, weight='bold', labelpad=10)
+    ax.set_ylabel('Risk Category', fontsize=12, weight='bold', labelpad=10)
     
+    # Xoay labels
     plt.xticks(rotation=45, ha='left', fontsize=10)
     plt.yticks(rotation=0, fontsize=10)
     
+    # Title với khoảng cách đủ lớn
     plt.title(
-        f"Risk Category vs Attack Style ({metric}) | QD Score: {qd_score:.2f}", 
-        y=1.05, fontsize=16, weight='bold', pad=20
+        f"Risk Category vs Attack Style ({metric}) | QD Score: {qd_score:.2f}",
+        fontsize=14,
+        weight='bold',
+        pad=50  # QUAN TRỌNG: Tăng khoảng cách title
     )
     
-    plt.tight_layout()
+    # Điều chỉnh layout để không bị cắt
+    plt.tight_layout(rect=[0, 0, 1, 0.96])  # Để chỗ cho title
     
     filename = f"fixed_grid_heatmap_{metric}_top{k}.png"
     plt.savefig(filename, dpi=300, bbox_inches='tight', facecolor='white')
