@@ -365,11 +365,10 @@ def _repair_yaml_primitives(yaml_str: str) -> str:
         if ':' in s:
             # Extract value để check duplicate (bỏ qua key name)
             value_part = s.split(':', 1)[1].strip()
-            key_part = s.split(':', 1)[0].strip()
-            if same_part is None:
-                same_part = key_part
-            elif key_part != same_part:
-                yaml_complete = True
+            key_part = s.split(':', 1)[0].strip().lstrip('-').strip()
+            
+            same_part = key_part if same_part is None else same_part
+            if key_part != same_part:
                 break
 
             # Skip nếu value trùng lặp
