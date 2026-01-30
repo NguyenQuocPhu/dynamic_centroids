@@ -34,10 +34,10 @@ class EvaluationProcessor:
         self.llm = vLLM(self.config.judge_llm.model_kwargs)
         self.algo = self.config.algo
 
-    def _save_eval_log(self, file_name: str, archive_instances: List[Archive]) -> None:
+    def _save_eval_log(self, file_name: str, archive_instances: List[Archive], k: int = 5) -> None:
         """Save evaluation logs to a JSON file."""
         base_name = Path(file_name).stem
-        log_path = f"{base_name}_eval.json"
+        log_path = f"{base_name}_eval_{k}.json"
 
         log_data = {
             archive.name: {str(key): value for key, value in archive._archive.items()}
@@ -181,7 +181,7 @@ class EvaluationProcessor:
             processed_archives = self._process(final_prompts, final_personas, final_responses, final_scores, final_similarities, final_reasons)
 
             # Save evaluation log
-            self._save_eval_log(log_files[idx], list(processed_archives.values()))
+            self._save_eval_log(log_files[idx], list(processed_archives.values()), k)
 
 
 def main():
