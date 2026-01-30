@@ -460,40 +460,39 @@ def plot_fixed_grid_heatmap(data_frame, metric = 'max_fitness', k = 1):
     # Điền 0 vào các ô không có dữ liệu
     heatmap_data = heatmap_data.fillna(0)
 
-    # --- BƯỚC 2: VẼ HEATMAP (Visualization) ---
-    plt.figure(figsize=(12, 8)) # Kích thước ảnh
+    plt.figure(figsize=(12, 8))
     
-    # Tùy chọn màu sắc giống ảnh mẫu
-    # cmap='Reds' (Đỏ), 'OrRd' (Cam-Đỏ), 'YlOrRd' (Vàng-Cam-Đỏ)
-    # Mẹo: Dùng 'Reds' cho số lượng (như ảnh mẫu), 'viridis' hoặc 'magma' cho Fitness (nhìn ngầu hơn)
-
     ax = sns.heatmap(
         heatmap_data,
-        cmap='viridis',           # Màu đỏ giống ảnh mẫu
-        annot=False,           # False: Không hiện số trong ô (giống ảnh mẫu)
-        linewidths=1,          # ĐƯỜNG VIỀN TRẮNG (Quan trọng)
-        linecolor='white',     # Màu đường viền
-        square=True,           # Ép các ô thành hình vuông
-        cbar_kws={'label': f'{metric.replace("_", " ").title()}'} # Nhãn thanh màu
+        cmap='viridis',        # Viridis - chuẩn MAP-Elites
+        annot=False,
+        fmt='.2f',             # Format số nếu bật annot
+        linewidths=0.5,        # Đường viền mỏng hơn cho đẹp
+        linecolor='white',
+        square=True,
+        cbar_kws={
+            'label': f'{metric.replace("_", " ").title()}',
+            'shrink': 0.8      # Thu nhỏ colorbar 1 chút cho cân đối
+        },
+        vmin=0                 # Đặt min=0 để màu tối nhất là ô trống (quan trọng!)
     )
 
-    # --- BƯỚC 3: TINH CHỈNH GIAO DIỆN (Styling) ---
-    
-    # Đưa trục X (Style) lên trên đầu (giống ảnh mẫu)
     ax.xaxis.tick_top() 
     ax.xaxis.set_label_position('top') 
     
-    # Xoay chữ trục X cho dễ đọc
     plt.xticks(rotation=45, ha='left')
     plt.yticks(rotation=0)
     
-    plt.title(f"Risk Category vs Attack Style ({metric}) and QD_score: {qd_score:.2f}", y=1.1, fontsize=15)
-    plt.xlabel("") # Bỏ nhãn trục X vì đã đưa lên title hoặc tự hiểu
-    plt.ylabel("") # Bỏ nhãn trục Y cho gọn
-    # Lưu file
-    filename = f"fixed_grid_heatmap_{metric}{k}.png"
+    plt.title(f"Risk Category vs Attack Style ({metric}) | QD Score: {qd_score:.2f}", 
+              y=1.08, fontsize=14, weight='bold')
+    plt.xlabel("")
+    plt.ylabel("")
+    
+    plt.tight_layout()
+    
+    filename = f"fixed_grid_heatmap_{metric}_top{k}.png"
     plt.savefig(filename, dpi=300, bbox_inches='tight')
-    print(f"✅ Đã lưu Heatmap Lưới: {filename}")
+    print(f"✅ Đã lưu Heatmap: {filename}")
     plt.close()
 
 def calculate_metrics(model, evaluation, method = 'GA', k = 5):
