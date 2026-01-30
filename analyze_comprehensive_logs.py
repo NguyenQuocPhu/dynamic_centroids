@@ -469,7 +469,7 @@ def plot_fixed_grid_heatmap(data_frame, metric = 'max_fitness', k = 1):
 
     ax = sns.heatmap(
         heatmap_data,
-        cmap='Reds',           # Màu đỏ giống ảnh mẫu
+        cmap='viridis',           # Màu đỏ giống ảnh mẫu
         annot=False,           # False: Không hiện số trong ô (giống ảnh mẫu)
         linewidths=1,          # ĐƯỜNG VIỀN TRẮNG (Quan trọng)
         linecolor='white',     # Màu đường viền
