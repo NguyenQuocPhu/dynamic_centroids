@@ -556,7 +556,6 @@ def calculate_metrics(model, evaluation, method = 'GA', k = 5):
     plot_fixed_grid_heatmap(evaluation, metric = method , k = k)
 
     # Diversity
-    '''
     self_bleu = calculate_self_bleu(prompts, 1)
     distinct_n = calculate_distinct_n(prompts)
     embedding_diversity = calculate_embedding_diversity(model.encode(prompts))
@@ -565,7 +564,7 @@ def calculate_metrics(model, evaluation, method = 'GA', k = 5):
     print(f"Distinct N-Grams {method}: {distinct_n:.4f}")
     print(f"Embedding Diversity {method}: {embedding_diversity:.4f}")
     print(f"Vendi Score {method}: {vendi_score:.4f}")
-    '''
+    
 
 
 def find_log_files(directory):
