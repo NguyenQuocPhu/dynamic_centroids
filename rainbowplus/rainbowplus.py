@@ -440,6 +440,13 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
                 descriptor[key] = random.choice(values)
 
         log_key = tuple(descriptor.values())
+        # Create unique key for this descriptor set
+        #key = tuple(descriptor.values())
+
+        # Prepare descriptor string for prompt mutation
+        descriptor_str = "- " + "- ".join(
+            [f"{key}: {value}\n" for key, value in descriptor.items()]
+        )
 
         # Format YAML string securely
         persona_name, persona_details = selected_persona
@@ -470,14 +477,15 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
         primitives = _repair_yaml_primitives(cognitive_analysis)
         logger.warning(f"Cognitive Analysis Raw: {cognitive_analysis}")
         logger.warning(f"Cognitive Analysis Repaired: {primitives}")
-        prompt_ = MUTATOR_PROMPT.format(
+        prompt_ = MUTATOR_PROMPT_V1.format(
             #successful_examples_text=successful_example_text,
             #failed_examples_text=failed_example_text,
-            risk=descriptor["Category"], # Adjust based on your config keys
-            style=descriptor["Style"],
-            persona_yaml_details=persona_yaml_string,
+        #    risk=descriptor["Category"], # Adjust based on your config keys
+        #    style=descriptor["Style"],
+        #    persona_yaml_details=persona_yaml_string,
             prompt=prompt,
-            primitives=primitives.strip()
+            descriptor=descriptor_str,
+        #    primitives=primitives.strip()
         )
         
         mutated_prompts = llms[config.mutator_llm.model_kwargs["model"]].batch_generate(
