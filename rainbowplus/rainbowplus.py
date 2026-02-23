@@ -103,7 +103,8 @@ class EmbeddingSpace:
 
     def _update_space(self) -> None:
         """Execute PCA, K-means, and update cluster capacity."""
-        if len(self.individuals) < self.n_clusters:
+        min_required_samples = max(self.n_clusters, self.n_components)
+        if len(self.individuals) < min_required_samples:
             # Not enough data for clustering
             self.clusters[0] = sorted(
                 self.individuals, 
@@ -115,11 +116,8 @@ class EmbeddingSpace:
         embeddings = np.array([ind.embedding for ind in self.individuals])
 
         # 1. Dimensionality reduction with PCA
-        if not self.is_pca_fitted:
-            pca_embs = self.pca.fit_transform(embeddings)
-            self.is_pca_fitted = True
-        else:
-            pca_embs = self.pca.transform(embeddings)
+        pca_embs = self.pca.fit_transform(embeddings)
+        self.is_pca_fitted = True
 
         for i, ind in enumerate(self.individuals):
             ind.pca_embedding = pca_embs[i]
@@ -179,7 +177,6 @@ def parse_arguments():
     parser.add_argument("--config_file", type=str, default="./configs/base.yml")
     parser.add_argument("--log_dir", type=str, help="Log directory")
     parser.add_argument("--log_interval", type=int, help="Iterations between logs")
-    parser.add_argument("--seed_memory", type=str, help="Path to seed prompts")
     parser.add_argument("--dataset", type=str, help="Dataset name")
     parser.add_argument("--shuffle", action="store_true", help="Shuffle seeds")
     parser.add_argument("--threshold_bot_memory", type=float, default=0.4)
@@ -207,7 +204,6 @@ def merge_config_with_args(config, args):
     merged.shuffle = config.shuffle
     merged.threshold_bot_memory = config.threshold_bot_memory
     merged.threshold_top_memory = config.threshold_top_memory
-    merged.seed_memory = config.seed_memory or "configs/seed_memory.yml"
     merged.number_example_prompts = config.number_example_prompts
     merged.k_elites = config.k_elites
     merged.dataset = config.sample_prompts or "./data/do-not-answer.json"
