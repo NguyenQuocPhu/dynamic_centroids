@@ -236,11 +236,14 @@ def save_ga_comprehensive_log(
     for cell_id, space_list in adv_prompts_space._archive.items():
         embedding_space = space_list[0]
 
-        space["elites"][str(cell_id)] = [
-            embedding_space.clusters[c].prompt
+        space["elites"][str(cell_id)] = {
+            str(c): [
+                ind.prompt
+                for ind in embedding_space.clusters[c]
+            ]
             for c in range(embedding_space.n_clusters)
-            if c in embedding_space.clusters and embedding_space.clusters[c]
-        ]
+            if embedding_space.clusters[c]  # tránh cluster rỗng
+        }
 
     # 3. Combine Data
     full_log_data = {
