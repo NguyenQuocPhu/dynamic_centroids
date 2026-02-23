@@ -231,16 +231,16 @@ def save_ga_comprehensive_log(
     if all_seed_ids is not None:
         history_data["all_seed_ids"] = {str(k): v for k, v in all_seed_ids._archive.items()}
 
-    space = {
-        "elites": {
-            str(cell_id): [
-                elite_data.clusters[c][0].prompt
-                for c in range(elite_data.n_clusters)
-                if c in elite_data.clusters and elite_data.clusters[c]  # Tránh lỗi list rỗng
-            ]
-            for cell_id, elite_data in adv_prompts_space._archive.items()
-        }
-    }
+    space = {"elites": {}}
+
+    for cell_id, space_list in adv_prompts_space._archive.items():
+        embedding_space = space_list[0]
+
+        space["elites"][str(cell_id)] = [
+            embedding_space.clusters[c].prompt
+            for c in range(embedding_space.n_clusters)
+            if c in embedding_space.clusters and embedding_space.clusters[c]
+        ]
 
     # 3. Combine Data
     full_log_data = {
