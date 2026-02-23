@@ -67,7 +67,7 @@ k_elites: 10
 buffer_size: 6
 selection_k: 5
 n_cells: 100
-max_iters: 10
+max_iters: 20
 sim_threshold: 0.6
 num_mutations: 10
 fitness_threshold: 0.6
