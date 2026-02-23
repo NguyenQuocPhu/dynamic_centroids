@@ -193,7 +193,7 @@ def save_ga_iteration_log(
 
 def save_ga_comprehensive_log(
     log_dir, 
-    ga_instance,
+    adv_prompts_space,
     all_prompts, 
     all_responses, 
     all_scores, 
@@ -231,51 +231,27 @@ def save_ga_comprehensive_log(
     if all_seed_ids is not None:
         history_data["all_seed_ids"] = {str(k): v for k, v in all_seed_ids._archive.items()}
 
-    # 2. Extract GA State
-    active_centroids = ga_instance.centroids[:ga_instance.n_centroids]
-    
-    ga_state = {
-        "n_centroids": ga_instance.n_centroids,
-        "centroids": _convert_numpy_types(active_centroids),
-        "elites": {}
+    space = {
+        "elites": {
+            str(cell_id): [
+                elite_data.clusters[c][0].prompt
+                for c in range(elite_data.n_clusters)
+                if c in elite_data.clusters and elite_data.clusters[c]  # Tránh lỗi list rỗng
+            ]
+            for cell_id, elite_data in adv_prompts_space._archive.items()
+        }
     }
-    
-    # --- SỬA LỖI LOGIC MULTI-ELITE ---
-    # Collect prompts specifically from GA elites for diversity calculation
-    all_ga_prompts = []
-    
-    for cell_id, elite_data in ga_instance.elites.items():
-        ga_state["elites"][str(cell_id)] = _convert_numpy_types(elite_data)
-        
-        # Nếu là Multi-Elite (elite_data là list)
-        if isinstance(elite_data, list):
-            for item in elite_data:
-                if isinstance(item, dict) and "prompt" in item:
-                    all_ga_prompts.append(item["prompt"])
-        # Nếu là Single-Elite (elite_data là dict - code cũ)
-        elif isinstance(elite_data, dict) and "prompt" in elite_data:
-            all_ga_prompts.append(elite_data["prompt"])
 
     # 3. Combine Data
     full_log_data = {
         **history_data, 
-        "ga_state": ga_state
+        **space
     }
     
-    # Calculate diversity metrics for GA elites
-    try:
-        diversity = calculate_lexical_diversity_from_list(all_ga_prompts) 
-        embedding_diversity = calculate_embedding_diversity_from_list(all_ga_prompts)
-        
-        full_log_data["ga_diversity"] = diversity
-        full_log_data["ga_embedding_diversity"] = embedding_diversity
-    except Exception as e:
-        logger.warning(f"Skipping diversity calculation in log save: {e}")
 
     with open(log_path, "w", encoding="utf-8") as f:
         json.dump(full_log_data, f, indent=2, ensure_ascii=False)
 
-    logger.info(f"Comprehensive GA log saved to {log_path}")
 
 def save_attack_memory_log(log_dir, attack_memory, timestamp):
     """Save the Attack Memory to a YAML file."""
@@ -296,6 +272,7 @@ def format_example(entry: Dict[str, Any]) -> str:
     #details = entry.get('persona', {})
     prompt_text = entry.get('prompt', '').strip()
     score_val = entry.get('score', '')
+
     ordered_data = {}
     if prompt_text:
         ordered_data['success_prompt:'] = prompt_text

@@ -13,6 +13,7 @@ import numpy as np
 T = TypeVar("T")
 
 
+
 class Archive(Generic[T]):
     """
     A flexible archive class for storing and manipulating collections of data.

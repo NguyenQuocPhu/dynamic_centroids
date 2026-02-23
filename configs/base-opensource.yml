@@ -29,7 +29,7 @@ mutator_llm:
     model: meta-llama/Llama-3.1-8B-Instruct
     trust_remote_code: True
     gpu_memory_utilization: 0.35
-    max_model_len: 4096
+    max_model_len: 5120
     enforce_eager: true
   sampling_params:
     temperature: 1
@@ -64,8 +64,10 @@ number_example_prompts: 3
 
 delta: 0.35
 k_elites: 10
+buffer_size: 6
+selection_k: 5
 n_cells: 100
-max_iters: 50
+max_iters: 1
 sim_threshold: 0.6
 num_mutations: 10
 fitness_threshold: 0.6
