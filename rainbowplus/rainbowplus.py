@@ -338,6 +338,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
                     mutation_flag = parent_individual.flag
                     history_buffer = parent_individual.history[-args.buffer_size:]
                     temp_response = parent_individual.response
+                    logger.warning(f"Selected Parent Prompt ID: {parent_individual.prompt_id}, Fitness: {parent_individual.fitness}")
                     current_parent_id = parent_individual.prompt_id
                     current_seed_id = parent_individual.seed_id
                 else:
@@ -358,7 +359,6 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
         
 
         if mutation_flag == 0:
-
             strategy_analysis = ""
             if history_buffer:
                 history_text = "\n".join(
