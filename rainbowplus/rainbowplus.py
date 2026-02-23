@@ -360,39 +360,27 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
             args.number_example_prompts
         )
         
-        selective_prompt = SELECTOR_PROMPT.format(
-            successful_examples_text=success_ex,
-            prompt=base_prompt
-        )
-        
-        selector_params = config.mutator_llm.sampling_params.copy()
-        selector_params['temperature'] = 0.7
-        
-        cognitive_analysis_raw = llms[config.mutator_llm.model_kwargs["model"]].generate(
-            selective_prompt, selector_params
-        )
-        cognitive_primitives = _repair_yaml_primitives(cognitive_analysis_raw)
-        
-        logger.info(f"Cognitive Analysis: {cognitive_primitives}")
-        
-        
-        strategy_analysis = ""
-        if history_buffer:
-            history_text = "\n".join(
-                f"Strategy {i+1}: {text}" for i, text in enumerate(history_buffer)
-            )
-            
-            analysis_prompt = ANALYZER_PROMPT.format(
-                history=history_text,
-                prompt=base_prompt,
-                response=temp_response
-            )
-            
-            strategy_analysis = llms[config.mutator_llm.model_kwargs["model"]].generate(
-                analysis_prompt, selector_params
-            )
 
         if mutation_flag == 0:
+
+            strategy_analysis = ""
+            if history_buffer:
+                history_text = "\n".join(
+                    f"Strategy {i+1}: {text}" for i, text in enumerate(history_buffer)
+                )
+                
+                analysis_prompt = ANALYZER_PROMPT.format(
+                    history=history_text,
+                    prompt=base_prompt,
+                    response=temp_response
+                )
+
+                selector_params = config.mutator_llm.sampling_params.copy()
+                selector_params['temperature'] = 0.7
+                strategy_analysis = llms[config.mutator_llm.model_kwargs["model"]].generate(
+                    analysis_prompt, selector_params
+                )
+
             mutation_prompt = MUTATOR_PROMPT_V1.format(
                 risk=descriptor["Category"],
                 style=descriptor["Style"],
@@ -400,6 +388,21 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
                 strategy=strategy_analysis
             )
         else:
+            selective_prompt = SELECTOR_PROMPT.format(
+                successful_examples_text=success_ex,
+                prompt=base_prompt
+            )
+            
+            selector_params = config.mutator_llm.sampling_params.copy()
+            selector_params['temperature'] = 0.7
+            
+            cognitive_analysis_raw = llms[config.mutator_llm.model_kwargs["model"]].generate(
+                selective_prompt, selector_params
+            )
+            cognitive_primitives = _repair_yaml_primitives(cognitive_analysis_raw)
+            
+            logger.info(f"Cognitive Analysis: {cognitive_primitives}")
+
             mutation_prompt = MUTATOR_PROMPT.format(
                 risk=descriptor["Category"],
                 style=descriptor["Style"],
@@ -431,7 +434,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
             sim_scores = [similarity_fn.score(p, prompt) for p in mutated_prompts]
             
             # Embeddings (All prompts)
-            all_behaviors = embedding_model.model.encode(mutated_prompts)
+            all_behaviors = embedding_model.encode(mutated_prompts)
 
             batch_prompt_ids = []
             batch_reasons = []
