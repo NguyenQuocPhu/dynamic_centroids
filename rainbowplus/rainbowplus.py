@@ -376,6 +376,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
                 strategy_analysis = llms[config.mutator_llm.model_kwargs["model"]].generate(
                     analysis_prompt, selector_params
                 )
+                logger.warning(f"Strategy Analysis: {strategy_analysis}")
 
             mutation_prompt = MUTATOR_PROMPT_V1.format(
                 risk=descriptor["Category"],
@@ -397,7 +398,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
             )
             cognitive_primitives = _repair_yaml_primitives(cognitive_analysis_raw)
             
-            logger.info(f"Cognitive Analysis: {cognitive_primitives}")
+            logger.warning(f"Cognitive Analysis: {cognitive_primitives}")
 
             mutation_prompt = MUTATOR_PROMPT.format(
                 risk=descriptor["Category"],
