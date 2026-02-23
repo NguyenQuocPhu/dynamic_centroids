@@ -277,7 +277,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
     # Initialize Embedding
     embedding_model = SentenceTransformer('BAAI/bge-m3')
     # Initialize Growing Archive
-    behavior_dim = 2
+    behavior_dim = 80
     adv_prompts = Archive[EmbeddingSpace]("adv_prompts")
     
     # Initialize attack memory
