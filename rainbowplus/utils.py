@@ -231,12 +231,16 @@ def save_ga_comprehensive_log(
     if all_seed_ids is not None:
         history_data["all_seed_ids"] = {str(k): v for k, v in all_seed_ids._archive.items()}
 
-    space = {"elites": {}}
+    state = {
+        "elites": {}
+    }
+    space = {"prompt": {},
+             "fitness": []}
 
     for cell_id, space_list in adv_prompts_space._archive.items():
         embedding_space = space_list[0]
 
-        space["elites"][str(cell_id)] = {
+        space["prompt"][str(cell_id)] = {
             str(c): [
                 ind.prompt
                 for ind in embedding_space.clusters[c]
@@ -244,11 +248,20 @@ def save_ga_comprehensive_log(
             for c in range(embedding_space.n_clusters)
             if embedding_space.clusters[c]  # tránh cluster rỗng
         }
+        space["fitness"][str(cell_id)] = {
+            str(c): [
+                ind.fitness
+                for ind in embedding_space.clusters[c]
+            ]
+            for c in range(embedding_space.n_clusters)
+            if embedding_space.clusters[c]  # tránh cluster rỗng
+        }
 
     # 3. Combine Data
+    state["elites"] = space
     full_log_data = {
         **history_data, 
-        **space
+        "state": state
     }
     
 

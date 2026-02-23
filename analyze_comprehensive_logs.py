@@ -651,9 +651,7 @@ def main():
             ga = build_archive_risk_style(ga_data)
             calculate_metrics(model, ga, 'GA', args.top_k)
             
-            ga_state = ga_data.get('ga_state', {})
-            centroids = ga_state.get('centroids', [])
-            print(ga_state.get('n_centroids', 0))
+            ga_state = ga_data.get('state', {})
             print(f"#######################")
             elites = ga_state.get('elites', {})
             
