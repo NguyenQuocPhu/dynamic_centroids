@@ -235,7 +235,7 @@ def save_ga_comprehensive_log(
         "elites": {}
     }
     space = {"prompt": {},
-             "fitness": []}
+             "fitness": {}}
 
     for cell_id, space_list in adv_prompts_space._archive.items():
         embedding_space = space_list[0]
