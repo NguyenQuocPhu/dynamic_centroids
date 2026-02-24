@@ -736,7 +736,7 @@ def main():
     
     print("-" * 40)
 
-    #plot_fitness_distribution(ga_scores, persona_scores)
+    plot_fitness_distribution(ga_scores, persona_scores)
     #analyze_convex_hull_simple(centroids, "Centroids")
     #visualize_structure_and_fitness(centroids, elites_emb, elites_scores)
 
