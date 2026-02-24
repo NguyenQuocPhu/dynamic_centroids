@@ -335,59 +335,51 @@ def visualize_structure_and_fitness(centroids_emb, elites_emb, elites_scores, me
         
     else:
         print("Không đủ dữ liệu để vẽ.")
-def plot_fitness_distribution(scores_ga, scores_pt, output_filename="fitness_dist.png"):
-
+def plot_fitness_distribution(scores, method_name="Method", output_filename="fitness_dist.png"):
     """
-    Vẽ biểu đồ phân bố điểm số (Fitness) của 2 phương pháp.
+    Vẽ biểu đồ phân bố điểm Fitness của 1 phương pháp duy nhất.
     
     Args:
-        scores_ga (list): Danh sách điểm số của Growing Archive (VD: [0.9, 0.8, 1.0...])
-        scores_pt (list): Danh sách điểm số của Persona Teaming
+        scores (list hoặc numpy array): Danh sách điểm số
+        method_name (str): Tên phương pháp (để hiện trên tiêu đề)
+        output_filename (str): Tên file ảnh lưu lại
     """
+
     print("\n[Viz] Đang vẽ biểu đồ phân bố Fitness...")
 
-    # BƯỚC 1: Chuẩn bị dữ liệu cho "ngăn nắp"
-    # Chúng ta tạo một cái bảng (DataFrame) để máy dễ vẽ
-    # Cột 1: Phương pháp (Tên lớp học)
-    # Cột 2: Điểm số (Fitness)
-    data = []
-    
-    for s in scores_ga:
-        data.append({"Method": "GrowingArchive", "Fitness": s})
-    
-    for s in scores_pt:
-        data.append({"Method": "PersonaTeaming", "Fitness": s})
-        
-    df = pd.DataFrame(data)
+    # --- BƯỚC 1: Làm sạch dữ liệu ---
+    scores = np.array(scores).flatten()          # đảm bảo 1 chiều
+    scores = [float(s) for s in scores if s is not None]
 
-    # BƯỚC 2: Vẽ biểu đồ
-    plt.figure(figsize=(10, 6)) # Tạo khung tranh kích thước 10x6
-    
-    # Dùng hàm histplot (Histogram Plot)
-    # x="Fitness": Trục ngang là điểm số
-    # hue="Method": Tô màu khác nhau cho từng phương pháp
-    # kde=True: Vẽ thêm đường cong mềm mại để dễ nhìn xu hướng
-    # bins=20: Chia điểm số thành 20 cái giỏ nhỏ
+    if len(scores) == 0:
+        print("❌ Không có dữ liệu để vẽ")
+        return
+
+    df = pd.DataFrame({"Fitness": scores})
+
+    print("Số lượng điểm:", len(scores))
+
+    # --- BƯỚC 2: Vẽ ---
+    plt.figure(figsize=(10, 6))
+
     sns.histplot(
-        data=df, 
-        x="Fitness", 
-        hue="Method", 
-        kde=True, 
+        data=df,
+        x="Fitness",
+        kde=True,      # vẽ đường cong mượt
         bins=20,
-        palette={'PersonaTeaming': '#FF4B4B', 'GrowingArchive': '#1F9D89'}, # Màu Đỏ vs Xanh
-        alpha=0.6 # Độ trong suốt (để nếu chồng lên nhau vẫn nhìn thấy)
+        color="#1F9D89",
+        alpha=0.7
     )
-    
-    # Trang trí cho đẹp
-    plt.title("So sánh Phân Bố Điểm Số (Fitness Distribution)", fontsize=15)
+
+    plt.title(f"Phân Bố Điểm Số - {method_name}", fontsize=15)
     plt.xlabel("Điểm Fitness (Càng cao càng tốt)", fontsize=12)
-    plt.ylabel("Số lượng Prompt (Tần suất)", fontsize=12)
-    plt.grid(axis='y', linestyle='--', alpha=0.3) # Kẻ dòng mờ mờ cho dễ dóng
-    
-    # BƯỚC 3: Lưu thành file ảnh (để xem trên Kaggle)
+    plt.ylabel("Tần suất", fontsize=12)
+    plt.grid(axis='y', linestyle='--', alpha=0.3)
+
+    # --- BƯỚC 3: Lưu file ---
     plt.savefig(output_filename, dpi=300, bbox_inches='tight')
     print(f"✅ Đã lưu biểu đồ vào file: {output_filename}")
-    plt.close() # Đóng lại cho đỡ tốn RAM
+    plt.close()
 
 
 import ast
@@ -664,7 +656,7 @@ def main():
                         ga_scores.append(elite['fitness'])
                         elites_scores.append(elite['fitness'])
                         ga_evaluations.append(elite)
-            
+            plot_fitness_distribution(elites_scores, method_name="Growing Archive")
             # print(f"[GrowingArchive] Loaded {len(ga_prompts)} prompts.")
             # stats = get_top_k_data(ga_evaluations, args.top_k, 'highest')
             # scores = [e['fitness'] for e in stats]
@@ -736,7 +728,7 @@ def main():
     
     print("-" * 40)
 
-    plot_fitness_distribution(ga_scores, persona_scores)
+    #plot_fitness_distribution(ga_scores, persona_scores)
     #analyze_convex_hull_simple(centroids, "Centroids")
     #visualize_structure_and_fitness(centroids, elites_emb, elites_scores)
 

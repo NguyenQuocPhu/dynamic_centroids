@@ -460,7 +460,8 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
                         parent_id=current_parent_id,
                         seed_id=current_seed_id
                     )
-                    
+                    if fit < args.fitness_threshold:
+                        status = "rejected_fitness_low"
                     # Add to archive
                     if not adv_prompts.exists(log_key_tuple):
                         new_space = EmbeddingSpace(
