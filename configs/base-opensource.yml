@@ -63,7 +63,7 @@ threshold_top: 0.8
 number_example_prompts: 3
 
 delta: 0.35
-k_elites: 10
+k_elites: 5
 buffer_size: 6
 selection_k: 5
 n_cells: 100
