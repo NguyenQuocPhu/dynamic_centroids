@@ -360,24 +360,22 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
 
         if mutation_flag == 0:
             strategy_analysis = ""
-            if history_buffer:
-                history_text = "\n".join(
-                    f"Strategy {i+1}: {text}" for i, text in enumerate(history_buffer)
-                )
-                
-                analysis_prompt = ANALYZER_PROMPT.format(
-                    history=history_text,
-                    prompt=base_prompt,
-                    response=temp_response
-                )
+            history_text = "\n".join(
+                f"Strategy {i+1}: {text}" for i, text in enumerate(history_buffer)
+            )
+            
+            analysis_prompt = ANALYZER_PROMPT.format(
+                history=history_text,
+                prompt=base_prompt,
+                response=temp_response
+            )
 
-                selector_params = config.mutator_llm.sampling_params.copy()
-                selector_params['temperature'] = 0.7
-                strategy_analysis = llms[config.mutator_llm.model_kwargs["model"]].generate(
-                    analysis_prompt, selector_params
-                )
-                logger.warning(f"Strategy Analysis: {strategy_analysis}")
-            logger.warning(f"@@@@")
+            selector_params = config.mutator_llm.sampling_params.copy()
+            selector_params['temperature'] = 0.7
+            strategy_analysis = llms[config.mutator_llm.model_kwargs["model"]].generate(
+                analysis_prompt, selector_params
+            )
+            logger.warning(f"Strategy Analysis: {strategy_analysis}")
             mutation_prompt = MUTATOR_PROMPT_V1.format(
                 risk=descriptor["Category"],
                 style=descriptor["Style"],
