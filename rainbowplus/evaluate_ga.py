@@ -137,14 +137,14 @@ class EvaluationProcessor:
                 scores_list = all_scores.get(key, [])
                 similarities_list = all_similarities.get(key, [])
                 reasons_list = rejection_reasons.get(key, [])
-                personas_list = [log_key[2]] * len(list_prompts)
+                #personas_list = [log_key[2]] * len(list_prompts)
 
                 def update_archive(archive_obj, k, data):
                     if not archive_obj.exists(k): archive_obj.add(k, data)
                     else: archive_obj.extend(k, data)
                 
                 update_archive(adv_prompts, group_key, list_prompts)
-                update_archive(personas, group_key, personas_list)
+                #update_archive(personas, group_key, personas_list)
                 update_archive(responses, group_key, responses_list)
                 update_archive(scores, group_key, scores_list)
                 update_archive(similarities, group_key, similarities_list)
