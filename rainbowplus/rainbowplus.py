@@ -357,7 +357,7 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
             args.number_example_prompts
         )
         
-
+        '''
         if mutation_flag == 0:
             strategy_analysis = ""
             history_text = "\n".join(
@@ -404,7 +404,13 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
                 prompt=base_prompt,
                 primitives=cognitive_primitives.strip()
             )
-        
+        '''
+        mutation_prompt = MUTATOR_PROMPT_V1.format(
+            risk=descriptor["Category"],
+            style=descriptor["Style"],
+            strategy="",
+            prompt=base_prompt
+        )
         mutated_prompts = llms[config.mutator_llm.model_kwargs["model"]].batch_generate(
             [mutation_prompt] * args.num_mutations, config.mutator_llm.sampling_params
         )
@@ -447,7 +453,8 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
 
                 if status == "accepted":
                     # Create new individual
-                    new_history = history_buffer + [strategy_analysis] if strategy_analysis else history_buffer
+                    new_history = history_buffer 
+                    #new_history = history_buffer + [strategy_analysis] if strategy_analysis else history_buffer
                     
                     ind = Individual(
                         embedding=behavior,
