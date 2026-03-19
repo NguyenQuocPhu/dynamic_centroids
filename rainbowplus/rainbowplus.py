@@ -39,6 +39,8 @@ from rainbowplus.prompts import MUTATOR_PROMPT, TARGET_PROMPT, MUTATOR_PROMPT_V1
 from rainbowplus.configs.base import LLMConfig
 from rainbowplus.mutators.persona import PersonaMutator
 from rainbowplus.attack_memory import AttackMemory
+
+
 # Set fixed random seed
 RANDOM_SEED = 15
 random.seed(RANDOM_SEED)
@@ -53,124 +55,12 @@ logger = logging.getLogger(__name__)
 
 
 
-@dataclass
-class Individual:
-    """Enhanced Individual with metadata tracking."""
-    embedding: np.ndarray
-    fitness: float
-    prompt: str
-    response: str = ""
-    history: List[str] = field(default_factory=list)
-    flag: int = 0
-    pca_embedding: Optional[np.ndarray] = None
-    
-    # Lineage tracking
-    prompt_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    parent_id: Optional[str] = None
-    seed_id: Optional[str] = None
-    
-    def __post_init__(self):
-        """Ensure embedding is numpy array."""
-        self.embedding = np.array(self.embedding)
-        if self.pca_embedding is not None:
-            self.pca_embedding = np.array(self.pca_embedding)
 
-class EmbeddingSpace:
-    """Manages independent embedding space with PCA and clustering."""
-    
-    def __init__(
-        self, 
-        n_components: int, 
-        n_clusters: int, 
-        cluster_capacity: int = 10,
-    ):
-        self.n_components = n_components
-        self.n_clusters = n_clusters
-        self.cluster_capacity = cluster_capacity
-        
-        self.individuals: List[Individual] = []
-        self.clusters: Dict[int, List[Individual]] = {i: [] for i in range(n_clusters)}
-        
-        # ML Models
-        self.pca = PCA(n_components=n_components)
-        self.kmeans = KMeans(n_clusters=n_clusters, n_init="auto", random_state=42)
-        self.is_pca_fitted = False
-
-    def add_individual(self, individual: Individual) -> None:
-        """Add individual to space and update clustering."""
-        self.individuals.append(individual)
-        self._update_space()
-
-    def _update_space(self) -> None:
-        """Execute PCA, K-means, and update cluster capacity."""
-        min_required_samples = max(self.n_clusters, self.n_components)
-        if len(self.individuals) < min_required_samples:
-            # Not enough data for clustering
-            self.clusters[0] = sorted(
-                self.individuals, 
-                key=lambda x: x.fitness, 
-                reverse=True
-            )[:self.cluster_capacity]
-            return
-
-        embeddings = np.array([ind.embedding for ind in self.individuals])
-
-        # 1. Dimensionality reduction with PCA
-        pca_embs = self.pca.fit_transform(embeddings)
-        self.is_pca_fitted = True
-
-        for i, ind in enumerate(self.individuals):
-            ind.pca_embedding = pca_embs[i]
-
-        # 2. K-means clustering
-        self.kmeans.fit(pca_embs)
-        labels = self.kmeans.labels_
-        
-        temp_clusters = {c: [] for c in range(self.n_clusters)}
-        for i, ind in enumerate(self.individuals):
-            temp_clusters[labels[i]].append(ind)
-
-        # 3. Keep only top individuals per cluster
-        self.clusters = {}
-        for c in range(self.n_clusters):
-            if not temp_clusters[c]:
-                continue
-            cluster_inds = sorted(
-                temp_clusters[c], 
-                key=lambda x: x.fitness, 
-                reverse=True
-            )
-            self.clusters[c] = cluster_inds[:self.cluster_capacity]
-
-        # Update main buffer
-        self.individuals = []
-        for c_list in self.clusters.values():
-            self.individuals.extend(c_list)
-
-    def select_random(self, k: int = 1) -> Optional[Individual]:
-        """
-        Select random individual from random cluster's top-k.
-        
-        Args:
-            k: Select from top-k individuals (1 = best only)
-        
-        Returns:
-            Selected Individual or None
-        """
-        active_clusters = [c for c in self.clusters.values() if len(c) > 0]
-        if not active_clusters:
-            return None
-            
-        selected_cluster = random.choice(active_clusters)
-        actual_k = min(k, len(selected_cluster))
-        top_k = selected_cluster[:actual_k]
-        
-        return random.choice(top_k)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Adversarial Prompt Generation")
     parser.add_argument("--num_samples", type=int, help="Number of initial seed prompts")
-    parser.add_argument("--max_iters", type=int, help="Maximum number of iterations")
+    parser.add_argument("--tree_depth", type=int, help="Maximum depth of the search tree")
     parser.add_argument("--sim_threshold", type=float, help="Similarity threshold")
     parser.add_argument("--num_mutations", type=int, help="Mutations per iteration")
     parser.add_argument("--fitness_threshold", type=float, help="Minimum fitness score")
@@ -194,22 +84,17 @@ def merge_config_with_args(config, args):
     merged = type('Args', (), {})()
     
     # Set defaults from config
+    merged.max_iterations = config.max_iterations
     merged.num_samples = config.num_samples
-    merged.max_iters = config.max_iters
+    merged.tree_depth = config.tree_depth
     merged.sim_threshold = config.sim_threshold
     merged.num_mutations = config.num_mutations
     merged.fitness_threshold = config.fitness_threshold
     merged.log_dir = config.log_dir
     merged.log_interval = config.log_interval
     merged.shuffle = config.shuffle
-    merged.threshold_bot_memory = config.threshold_bot_memory
-    merged.threshold_top_memory = config.threshold_top_memory
-    merged.number_example_prompts = config.number_example_prompts
-    merged.k_elites = config.k_elites
     merged.dataset = config.sample_prompts or "./data/do-not-answer.json"
     merged.config_file = args.config_file
-    merged.buffer_size = getattr(config, 'buffer_size', 5)
-    merged.selection_k = getattr(config, 'selection_k', 2)
     
     # Override with CLI args
     for key in vars(args):
@@ -222,13 +107,7 @@ def merge_config_with_args(config, args):
 def load_descriptors(config):
     descriptors = {}
     for path, descriptor in zip(config.archive["path"], config.archive["descriptor"]):
-        if path.endswith('.yml'):
-            with open(path, 'r') as f:
-                data = yaml.safe_load(f)
-                if descriptor == "Persona":
-                    descriptors[descriptor] = list(data['personas'].keys())
-        else:
-            descriptors[descriptor] = load_txt(path)
+        descriptors[descriptor] = load_txt(path)
     return descriptors
 
 def update_archive(archive_obj: Archive, key: Tuple, data: List) -> None:
@@ -238,18 +117,32 @@ def update_archive(archive_obj: Archive, key: Tuple, data: List) -> None:
     else:
         archive_obj.extend(key, data)
 
+import copy
+from tqdm import tqdm
+import easyjailbreak
+from easyjailbreak.attacker import AttackerBase
+from easyjailbreak.datasets import JailbreakDataset
+from easyjailbreak.datasets.instance import Instance
+from easyjailbreak.loggers.logger import Logger
+from easyjailbreak.models.huggingface_model import HuggingfaceModel
+from easyjailbreak.models.openai_model import OpenaiModel
 
-def prepare_few_shot_examples(attack_memory, num_examples: int) -> Tuple[str, str]:
-    """Prepare few-shot examples from attack memory."""
-    sample_top = attack_memory.get_prompts_top(num_examples)
-    sample_bot = attack_memory.get_prompts_bot(num_examples)
-    
-    failed_examples = "\n".join([format_example(e) for e in sample_top])
-    success_examples = "\n".join([format_example(e) for e in sample_bot])
-    
-    return failed_examples, success_examples
+####### 4 major components #######
+from easyjailbreak.seed.seed_template import SeedTemplate
+# from easyjailbreak.mutation.generation.IntrospectGeneration import IntrospectGeneration
+from easyjailbreak.constraint.DeleteOffTopic import DeleteOffTopic
+from easyjailbreak.metrics.Evaluator.Evaluator_GenerativeGetScore import EvaluatorGenerativeGetScore
+from easyjailbreak.selector.SelectBasedOnScores import SelectBasedOnScores
+from easyjailbreak.models.huggingface_model import from_pretrained
+from easyjailbreak.datasets import JailbreakDataset, Instance
 
-def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, similarity_fn=None):
+from gap_easyjailbreak.util.model_utils import count_calls
+from gap_easyjailbreak.models.bedrock_mistral_model import MistralModel
+from gap_easyjailbreak.models.bedrock_claude_model import ClaudeModel
+from gap_easyjailbreak.mutation.generation.IntrospectGenerationAggregateMaxConcatenate import IntrospectGenerationAggregateMaxConcatenate as IntrospectGeneration
+
+
+def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_model=None, fitness_fn=None, similarity_fn=None):
     """Main RainbowPlus algorithm."""
     
     # Load seed prompts
@@ -270,278 +163,80 @@ def run_rainbowplus(args, config, seed_prompts=[], llms=None, fitness_fn=None, s
     all_similarities = Archive("all_similarities")
     rejection_reasons = Archive("rejection_reasons")
     
-    all_prompt_ids = Archive("all_prompt_ids")
-    all_parent_ids = Archive("all_parent_ids")
-    all_seed_ids = Archive("all_seed_ids")
-
-    # Initialize Embedding
-    embedding_model = SentenceTransformer('BAAI/bge-m3')
-    # Initialize Growing Archive
-    behavior_dim = 80
-    adv_prompts = Archive[EmbeddingSpace]("adv_prompts")
-    
-    # Initialize attack memory
-    attack_memory = AttackMemory(
-        args.threshold_bot_memory, 
-        args.threshold_top_memory
-    )
-
     # Setup logging
     dataset_name = Path(config.sample_prompts).stem
-    target_model_name = config.target_llm.model_kwargs["model"]
-    log_dir = Path(args.log_dir) / target_model_name / dataset_name
+    log_dir = Path(args.log_dir) / target_model.model_name / dataset_name
     log_dir.mkdir(parents=True, exist_ok=True)
 
+    archive_by_depth = Archive[Instance]("map-elites")
     # Prepare seed metadata
-    seed_metadata = []
-    for idx, prompt in enumerate(seed_prompts):
-        pid = f"seed_{idx}"
-        seed_metadata.append({
-            "prompt": prompt,
-            "seed_id": pid,
-            "prompt_id": pid
-        })
+    seed_prompts = []
+    for seed in seed_prompts:
+        desc = {key: random.choice(value) for key, value in descriptors.items()}
+        seed.attack_attrs['cell_key'] = tuple(desc.values())
+        seed.query = "\n".join([f"{k}: {v}" for k, v in desc.items()])
 
-    # --- MAIN LOOP ---
-    for iteration in range(args.max_iters):
-        logger.warning(f"#####ITERATION: {iteration}")
+        target_key = seed.attack_attrs['cell_key']
+        update_archive(archive_by_depth, target_key, [seed])
+    global_context = []
+    for iteration in range(1, args.max_iterations):
+        branchs = archive_by_depth.flatten_values()
+        if not branchs:
+            break
+        sample_size = min(len(branchs), args.num_samples)
+        selected_branchs = random.sample(branchs, sample_size)
 
-        # --- Step 1: Selection ---
-        current_parent_id = None
-        current_seed_id = None
-        mutation_flag = 0
-        history_buffer = []
-        temp_response = ""
-        
-        if iteration < len(seed_prompts):
-            # Phase 1: Seeding
-            selection = seed_metadata[iteration]
-            base_prompt = selection["prompt"]
-            current_parent_id = selection["prompt_id"]
-            current_seed_id = selection["seed_id"]
+        batch_instances = []
+        for branch in selected_branchs:
+            # Sample random descriptors
+            descriptor = {key: random.choice(value) for key, value in descriptors.items()}
+
+            # Create unique key for this descriptor set
+            key = tuple(descriptor.values())
+
+            # Prepare descriptor string for prompt mutation
+            descriptor_str = "\n".join([f"{k}: {v}" for k, v in descriptor.items()])
+            new_instance = Instance(
+                query=descriptor_str, 
+                jailbreak_prompt=branch.jailbreak_prompt
+            )
+            new_instance.attack_attrs['cell_key'] = key
+            if 'conv' in branch.attack_attrs:
+                new_instance.attack_attrs['conv'] = copy.deepcopy(branch.attack_attrs['conv'])
+            batch_instances.append(new_instance)
+
+        dataset = JailbreakDataset(batch_instances)
+        attacker = GAP (attack_model=attack_model,
+                        target_model=target_model,
+                        eval_model=fitness_fn,
+                        jailbreak_datasets=dataset,
+                        tree_width=10,
+                        tree_depth=args.tree_depth,
+                        root_num=1,
+                        branching_factor=4,
+                        keep_last_n=3,
+                        max_n_attack_attempts=5,
+                        template_file='../easyjailbreak/seed/seed_template.json',
+                        logging_filename=dataset_name,
+                        conversation_history=global_context)
+        for instance in tqdm(attacker.jailbreak_datasets, desc=f"Processing instances in {iteration}"):
+            new_dataset_obj = attacker.single_attack(instance)
+                    
+            target_key = instance.attack_attrs['cell_key']
+            update_archive(archive_by_depth, target_key, list(new_dataset_obj))
+            current_list_data = archive_by_depth.get(target_key)
+            archive_by_depth.delete(target_key)
             
-        else:
-            # Phase 2: Evolution from archive
-            all_spaces = adv_prompts.flatten_values()
-            if not all_spaces:
-                logger.warning("No spaces in archive, using fallback seed")
-                selection = random.choice(seed_metadata)
-                base_prompt = selection["prompt"]
-                current_parent_id = selection["prompt_id"]
-                current_seed_id = selection["seed_id"]
+            temp_dataset = JailbreakDataset(current_list_data)
+            if len(current_list_data) > 1:
+                pruned_dataset_obj = attacker.selector.select(temp_dataset)
             else:
-                random_space = random.choice(all_spaces)
-                parent_individual = random_space.select_random(k=args.selection_k)
-                
-                if parent_individual:
-                    base_prompt = parent_individual.prompt
-                    mutation_flag = parent_individual.flag
-                    history_buffer = parent_individual.history[-args.buffer_size:]
-                    temp_response = parent_individual.response
-                    logger.warning(f"Selected Parent Prompt ID: {parent_individual.prompt_id}, Fitness: {parent_individual.fitness}")
-                    current_parent_id = parent_individual.prompt_id
-                    current_seed_id = parent_individual.seed_id
-                else:
-                    logger.warning("Empty space selected, using fallback")
-                    selection = random.choice(seed_metadata)
-                    base_prompt = selection["prompt"]
-                    current_parent_id = selection["prompt_id"]
-                    current_seed_id = selection["seed_id"]
-
-
-        descriptor = {key: random.choice(values) for key, values in descriptors.items()}
-        log_key_tuple = (descriptor.get("Category"), descriptor.get("Style"))
-
-        failed_ex, success_ex = prepare_few_shot_examples(
-            attack_memory, 
-            args.number_example_prompts
-        )
+                pruned_dataset_obj = temp_dataset
+            update_archive(archive_by_depth, target_key, list(pruned_dataset_obj))
         
-        '''
-        if mutation_flag == 0:
-            strategy_analysis = ""
-            history_text = "\n".join(
-                f"Strategy {i+1}: {text}" for i, text in enumerate(history_buffer)
-            )
-            
-            analysis_prompt = ANALYZER_PROMPT.format(
-                history=history_text,
-                prompt=base_prompt,
-                response=temp_response
-            )
-
-            selector_params = config.mutator_llm.sampling_params.copy()
-            selector_params['temperature'] = 0.7
-            strategy_analysis = llms[config.mutator_llm.model_kwargs["model"]].generate(
-                analysis_prompt, selector_params
-            )
-            logger.warning(f"Strategy Analysis: {strategy_analysis}")
-            mutation_prompt = MUTATOR_PROMPT_V1.format(
-                risk=descriptor["Category"],
-                style=descriptor["Style"],
-                prompt=base_prompt,
-                strategy=strategy_analysis
-            )
-        else:
-            selective_prompt = SELECTOR_PROMPT.format(
-                successful_examples_text=success_ex,
-                prompt=base_prompt
-            )
-            
-            selector_params = config.mutator_llm.sampling_params.copy()
-            selector_params['temperature'] = 0.7
-            
-            cognitive_analysis_raw = llms[config.mutator_llm.model_kwargs["model"]].generate(
-                selective_prompt, selector_params
-            )
-            cognitive_primitives = _repair_yaml_primitives(cognitive_analysis_raw)
-            
-            logger.warning(f"Cognitive Analysis: {cognitive_primitives}")
-
-            mutation_prompt = MUTATOR_PROMPT.format(
-                risk=descriptor["Category"],
-                style=descriptor["Style"],
-                prompt=base_prompt,
-                primitives=cognitive_primitives.strip()
-            )
-        '''
-        mutation_prompt = MUTATOR_PROMPT_V1.format(
-            risk=descriptor["Category"],
-            style=descriptor["Style"],
-            strategy="",
-            prompt=base_prompt
-        )
-        mutated_prompts = llms[config.mutator_llm.model_kwargs["model"]].batch_generate(
-            [mutation_prompt] * args.num_mutations, config.mutator_llm.sampling_params
-        )
-
-        # Filter by similarity
-        mutated_prompts = [
-            p for p in mutated_prompts if similarity_fn.score(p, base_prompt) < args.sim_threshold
-        ]
-
-        if mutated_prompts:
-            # Responses
-            target_prompts = []
-            for i, p in enumerate(mutated_prompts):
-                if not p or not p.strip():
-                    raise ValueError(f"Empty mutated_prompt at index {i}")
-                target_prompts.append(TARGET_PROMPT.format(prompt=p.strip()))
-            target_model = config.target_llm.model_kwargs["model"]
-            candidates = llms[target_model].batch_generate(target_prompts, config.target_llm.sampling_params)
-
-            # Scores
-            fitness_scores = fitness_fn.batch_score(mutated_prompts, candidates, config.fitness_llm.sampling_params)
-            sim_scores = [similarity_fn.score(p, prompt) for p in mutated_prompts]
-            
-            # Embeddings (All prompts)
-            all_behaviors = embedding_model.encode(mutated_prompts)
-
-            batch_prompt_ids = []
-            batch_reasons = []
-            
-            # NOTE: We use log_key based on descriptors for archiving, not for GA logic
-            log_key_tuple = (descriptor.get("Category"), descriptor.get("Style"))
-
-            for idx, (m_prompt, response, fit, sim, behavior) in enumerate(zip(mutated_prompts, candidates, fitness_scores, sim_scores, all_behaviors)):
-                new_pid = str(uuid.uuid4())
-                batch_prompt_ids.append(new_pid)
-                
-                status = "accepted"
-                if sim > args.sim_threshold:
-                    status = "similarity_too_high"
-
-                if status == "accepted":
-                    # Create new individual
-                    new_history = history_buffer 
-                    #new_history = history_buffer + [strategy_analysis] if strategy_analysis else history_buffer
-                    
-                    ind = Individual(
-                        embedding=behavior,
-                        fitness=fit,
-                        prompt=m_prompt,
-                        response=response,
-                        history=new_history,
-                        flag=1 if fit >= args.fitness_threshold else 0,
-                        prompt_id=new_pid,
-                        parent_id=current_parent_id,
-                        seed_id=current_seed_id
-                    )
-                    if fit < args.fitness_threshold:
-                        status = "rejected_fitness_low"
-                    # Add to archive
-                    if not adv_prompts.exists(log_key_tuple):
-                        new_space = EmbeddingSpace(
-                            n_components=behavior_dim,
-                            n_clusters=args.k_elites,
-                            cluster_capacity=10
-                        )
-                        adv_prompts.add(log_key_tuple, [new_space])
-                    
-                    local_space = adv_prompts.get(log_key_tuple)[0]
-                    local_space.add_individual(ind)
-                    
-                    # Add to attack memory
-                    attack_memory.add({
-                        "behavior": behavior,
-                        "prompt": m_prompt,
-                        "score": fit
-                    })
-
-                batch_reasons.append(status)
-
-            # --- Step 4: Update Archives (using Archive Objects) ---
-            def update_archive(archive_obj, k, data):
-                if not archive_obj.exists(k): archive_obj.add(k, data)
-                else: archive_obj.extend(k, data)
-
-            # Update Content Archives
-            update_archive(all_prompts, log_key_tuple, mutated_prompts)
-            update_archive(all_responses, log_key_tuple, candidates)
-            update_archive(all_scores, log_key_tuple, fitness_scores)
-            update_archive(all_similarities, log_key_tuple, sim_scores)
-            update_archive(rejection_reasons, log_key_tuple, batch_reasons)
-            #update_archive(all_iters, log_key_tuple, [i] * len(mutated_prompts)
-            
-            # Update Lineage Archives (Pipeline of IDs)
-            update_archive(all_prompt_ids, log_key_tuple, batch_prompt_ids)
-            update_archive(all_parent_ids, log_key_tuple, [current_parent_id] * len(mutated_prompts))
-            update_archive(all_seed_ids, log_key_tuple, [current_seed_id] * len(mutated_prompts))
-
-            # Also update legacy archives for backward compatibility
-            # (Optional: filter only successful ones here if needed, but let's keep simple)
-            
-            '''
-            if (i + 1) % args.log_interval == 0 or (i + 1) == args.max_iters:
-                timestamp = time.strftime(r"%Y%m%d-%H%M%S")
-                
-                # Save GA State (Centroids)
-                save_ga_iteration_log(
-                    log_dir, GA, timestamp, iteration=i, max_iters=args.max_iters
-                )
-                
-                # Save Comprehensive Log (All History + Lineage + GA State)
-            '''    
-                
-                
-
-    # Final Save
-    final_ts = time.strftime(r"%Y%m%d-%H%M%S")
-    #save_ga_iteration_log(log_dir, GA, final_ts, iteration=-1, max_iters=args.max_iters)
     
-    save_attack_memory_log(log_dir, attack_memory, final_ts)
-    
-    save_ga_comprehensive_log(
-        log_dir, 
-        adv_prompts,
-        all_prompts, all_responses, all_scores, all_similarities, rejection_reasons,
-        final_ts, iteration=-1,
-        all_prompt_ids=all_prompt_ids,
-        all_parent_ids=all_parent_ids,
-        all_seed_ids=all_seed_ids,
-        max_iters=args.max_iters
-    )
-    return adv_prompts
+
+
 
 if __name__ == "__main__":
     args = parse_arguments()
@@ -550,8 +245,19 @@ if __name__ == "__main__":
     if not config.sample_prompts:
         config.sample_prompts = merged_args.dataset
 
-    llms = initialize_language_models(config)
-    fitness_fn = LlamaGuard(config.fitness_llm.model_kwargs)
+    #llms = initialize_language_models(config)
+    attack_model = from_pretrained(
+        config.mutator_llm.model_kwargs["model"],
+        model_name = config.mutator_llm.model_kwargs["model"]
+    )
+    target_model = from_pretrained(
+        config.target_llm.model_kwargs["model"],
+        model_name = config.target_llm.model_kwargs["model"]
+    )
+    eval_model = from_pretrained(
+        config.fitness_llm.model_kwargs["model"],
+        model_name = config.fitness_llm.model_kwargs["model"]
+    )
     similarity_fn = BleuScoreNLTK()
 
     print(config)
@@ -560,7 +266,8 @@ if __name__ == "__main__":
         merged_args,
         config,
         seed_prompts=[],
-        llms=llms,
-        fitness_fn=fitness_fn,
+        attack_model=attack_model,
+        target_model=target_model,
+        fitness_fn=eval_model,
         similarity_fn=similarity_fn,
     )
