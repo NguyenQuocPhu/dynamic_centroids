@@ -136,11 +136,11 @@ from easyjailbreak.selector.SelectBasedOnScores import SelectBasedOnScores
 from easyjailbreak.models.huggingface_model import from_pretrained
 from easyjailbreak.datasets import JailbreakDataset, Instance
 
-from gap_easyjailbreak.util.model_utils import count_calls
-from gap_easyjailbreak.models.bedrock_mistral_model import MistralModel
-from gap_easyjailbreak.models.bedrock_claude_model import ClaudeModel
-from gap_easyjailbreak.mutation.generation.IntrospectGenerationAggregateMaxConcatenate import IntrospectGenerationAggregateMaxConcatenate as IntrospectGeneration
-
+from graph_easyjailbreak.model_utils import count_calls
+#from gap_easyjailbreak.models.bedrock_mistral_model import MistralModel
+#from gap_easyjailbreak.models.bedrock_claude_model import ClaudeModel
+from graph_easyjailbreak.IntrospectGenerationAggregateMaxConcatenate import IntrospectGenerationAggregateMaxConcatenate as IntrospectGeneration
+from graph_easyjailbreak.GAP import GAP
 
 def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_model=None, fitness_fn=None, similarity_fn=None):
     """Main RainbowPlus algorithm."""
@@ -216,7 +216,6 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         branching_factor=4,
                         keep_last_n=3,
                         max_n_attack_attempts=5,
-                        template_file='../easyjailbreak/seed/seed_template.json',
                         logging_filename=dataset_name,
                         conversation_history=global_context)
         for instance in tqdm(attacker.jailbreak_datasets, desc=f"Processing instances in {iteration}"):
@@ -235,7 +234,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             update_archive(archive_by_depth, target_key, list(pruned_dataset_obj))
         
     
-
+    print("Done!")
 
 
 if __name__ == "__main__":

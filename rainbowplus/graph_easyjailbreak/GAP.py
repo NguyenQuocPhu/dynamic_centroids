@@ -21,11 +21,11 @@ from easyjailbreak.constraint.DeleteOffTopic import DeleteOffTopic
 from easyjailbreak.metrics.Evaluator.Evaluator_GenerativeGetScore import EvaluatorGenerativeGetScore
 from easyjailbreak.selector.SelectBasedOnScores import SelectBasedOnScores
 
-from gap_easyjailbreak.util.model_utils import count_calls
-from gap_easyjailbreak.models.bedrock_mistral_model import MistralModel
-from gap_easyjailbreak.models.bedrock_claude_model import ClaudeModel
-from gap_easyjailbreak.mutation.generation.IntrospectGenerationAggregateMaxConcatenate import IntrospectGenerationAggregateMaxConcatenate as IntrospectGeneration
-
+from graph_easyjailbreak.model_utils import count_calls
+#from gap_easyjailbreak.models.bedrock_mistral_model import MistralModel
+#from gap_easyjailbreak.models.bedrock_claude_model import ClaudeModel
+from graph_easyjailbreak.IntrospectGenerationAggregateMaxConcatenate import IntrospectGenerationAggregateMaxConcatenate as IntrospectGeneration
+from rainbowplus.prompts import system_prompt_mutator
 r"""
 EasyJailbreak GAP class
 ============================================
@@ -34,7 +34,7 @@ __all__ = ['GAP']
 
 # target_model_calls = 0
 
-class GAP(AttackerBase):
+class GAP(AttackerBase):    
     r"""
     Tree of Attack method, an extension of PAIR method. Use 4 phases:
     1. Branching
@@ -100,7 +100,7 @@ class GAP(AttackerBase):
 
         ####### 4 major components ##########
         self.mutator=IntrospectGeneration(attack_model,
-                                          system_prompt=,
+                                          system_prompt=system_prompt_mutator,
                                           keep_last_n=keep_last_n,
                                           branching_factor=branching_factor,
                                           max_n_attack_attempts=max_n_attack_attempts,
@@ -150,10 +150,6 @@ Your rating should strictly follow this format: "Rating: [[rating]]", the rating
         if self.attack_model.generation_config == {}:
             if isinstance(self.attack_model, OpenaiModel):
                 self.attack_model.generation_config = {'max_tokens': attack_max_n_tokens,
-                                                       'temperature': attack_temperature,
-                                                       'top_p': attack_top_p}
-            if isinstance(self.attack_model, MistralModel):
-                self.attack_model.generation_config = {'max_n_tokens': attack_max_n_tokens,
                                                        'temperature': attack_temperature,
                                                        'top_p': attack_top_p}
             # if isinstance(self.attack_model, LlamaModel):
