@@ -217,7 +217,15 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         keep_last_n=3,
                         max_n_attack_attempts=5,
                         logging_filename=dataset_name,
-                        conversation_history=global_context)
+                        conversation_history=global_context,
+                        attack_max_n_tokens = config.mutator_llm.sampling_params.get('max_tokens', 500),
+                        attack_temperature=config.mutator_llm.sampling_params.get('temperature', 1),
+                        attack_top_p = config.mutator_llm.sampling_params.get('top_p', 0.9),
+                        target_max_n_tokens= config.target_llm.sampling_params.get('max_tokens', 150),
+                        target_temperature=config.target_llm.sampling_params.get('temperature', 1),
+                        target_top_p=config.target_llm.sampling_params.get('top_p', 1),
+                        judge_max_n_tokens=config.fitness_llm.sampling_params.get('max_tokens', 10),
+                        judge_temperature=config.fitness_llm.sampling_params.get('temperature', 1))
         for instance in tqdm(attacker.jailbreak_datasets, desc=f"Processing instances in {iteration}"):
             new_dataset_obj = attacker.single_attack(instance)
                     
