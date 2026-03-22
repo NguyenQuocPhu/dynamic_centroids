@@ -171,10 +171,13 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     # Prepare seed metadata
     for seed in seed_prompts:
         desc = {key: random.choice(value) for key, value in descriptors.items()}
-        seed.attack_attrs['cell_key'] = tuple(desc.values())
-        seed.query = "\n".join([f"{k}: {v}" for k, v in desc.items()])
+        seed_query = "\n".join([f"{k}: {v}" for k, v in desc.items()])
+        seed_instance = Instance(
+            query=seed_query, 
+            jailbreak_prompt=seed)
+        seed_instance.attack_attrs['cell_key'] = tuple(desc.values())
 
-        target_key = seed.attack_attrs['cell_key']
+        target_key = seed_instance.attack_attrs['cell_key']
         update_archive(archive_by_depth, target_key, [seed])
     global_context = []
     for iteration in range(1, args.max_iterations):
