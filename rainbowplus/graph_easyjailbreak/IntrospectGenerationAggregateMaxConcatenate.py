@@ -137,7 +137,7 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
 
         return new_instance_list
 
-    def get_attack(self, model, conv, prompt, query, reference_response):
+    def get_attack(self, model, conv, prompt, query):
         r"""
         Generates responses for a batch of conversations and prompts using a language model.
         Only valid outputs in proper JSON format are returned. If an output isn't generated
