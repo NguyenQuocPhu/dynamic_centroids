@@ -122,7 +122,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         seed_prompts = load_json(
             config.sample_prompts, 
             field="question", 
-            num_samples=args.num_samples, 
+            num_samples=100, 
             shuffle=args.shuffle
         )
     
