@@ -180,7 +180,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         target_key = seed_instance.attack_attrs['cell_key']
         update_archive(archive_by_depth, target_key, [seed])
     global_context = []
-    for iteration in range(1, args.max_iterations):
+    for iteration in range(1, args.max_iters):
         branchs = archive_by_depth.flatten_values()
         if not branchs:
             break
