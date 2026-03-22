@@ -27,6 +27,7 @@ from rainbowplus.utils import (
     load_txt,
     load_json,
     initialize_language_models,
+    save_comprehensive_logs,
     save_ga_iteration_log,      # New logging function
     save_ga_comprehensive_log,  # New logging function
     format_example,
@@ -248,7 +249,16 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 pruned_dataset_obj = temp_dataset
             update_archive(archive_by_depth, target_key, list(pruned_dataset_obj))
         
+    current_ts = time.strftime(r"%Y%m%d-%H%M%S")
     
+    save_comprehensive_logs(
+        log_dir=log_dir,
+        archive=archive_by_depth,
+        global_context=global_context,
+        timestamp=current_ts,
+        iteration="FINAL", # Đánh dấu đây là file chốt cuối cùng
+        max_iters=args.max_iterations
+    )
     print("Done!")
 
 
