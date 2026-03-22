@@ -182,7 +182,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         seed_instance.attack_attrs['cell_key'] = tuple(desc.values())
 
         target_key = seed_instance.attack_attrs['cell_key']
-        update_archive(archive_by_depth, target_key, [seed])
+        update_archive(archive_by_depth, target_key, [seed_instance])
     global_context = []
     for iteration in range(1, args.max_iters):
         branchs = archive_by_depth.flatten_values()
@@ -207,7 +207,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 jailbreak_prompt=branch.jailbreak_prompt
             )
             attack_model.set_system_message(transfer_prompt)
-            transferred_prompt = attack_model.generate(branch.jailbreak_prompt, max_new_tokens=300, temperature=0.7)
+            transferred_prompt = attack_model.generate(branch.jailbreak_prompt, max_new_tokens=500, temperature=0.7)
             attack_model.set_system_message("")
             new_instance = Instance(
                 query=descriptor_str, 
