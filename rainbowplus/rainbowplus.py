@@ -59,23 +59,16 @@ logger = logging.getLogger(__name__)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Adversarial Prompt Generation")
+    parser.add_argument("--max_iterations", type=int, default=10, help="Maximum number of iterations")  
     parser.add_argument("--num_samples", type=int, help="Number of initial seed prompts")
-    parser.add_argument("--tree_depth", type=int, help="Maximum depth of the search tree")
+    parser.add_argument("--tree_depth", type=int, default=1, help="Maximum depth of the search tree")
     parser.add_argument("--sim_threshold", type=float, help="Similarity threshold")
-    parser.add_argument("--num_mutations", type=int, help="Mutations per iteration")
-    parser.add_argument("--fitness_threshold", type=float, help="Minimum fitness score")
     parser.add_argument("--config_file", type=str, default="./configs/base.yml")
     parser.add_argument("--log_dir", type=str, help="Log directory")
     parser.add_argument("--log_interval", type=int, help="Iterations between logs")
     parser.add_argument("--dataset", type=str, help="Dataset name")
     parser.add_argument("--shuffle", action="store_true", help="Shuffle seeds")
-    parser.add_argument("--threshold_bot_memory", type=float, default=0.4)
-    parser.add_argument("--threshold_top_memory", type=float, default=0.6)
-    parser.add_argument("--number_example_prompts", type=int, help="Few-shot examples")
-    
-    parser.add_argument("--k_elites", type=int, help="Elites per cluster")
-    parser.add_argument("--buffer_size", type=int, default=5, help="History buffer size")
-    parser.add_argument("--selection_k", type=int, default=2, help="Top-k for selection")
+
     return parser.parse_args()
 
 
@@ -88,8 +81,6 @@ def merge_config_with_args(config, args):
     merged.num_samples = config.num_samples
     merged.tree_depth = config.tree_depth
     merged.sim_threshold = config.sim_threshold
-    merged.num_mutations = config.num_mutations
-    merged.fitness_threshold = config.fitness_threshold
     merged.log_dir = config.log_dir
     merged.log_interval = config.log_interval
     merged.shuffle = config.shuffle
@@ -170,7 +161,6 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 
     archive_by_depth = Archive[Instance]("map-elites")
     # Prepare seed metadata
-    seed_prompts = []
     for seed in seed_prompts:
         desc = {key: random.choice(value) for key, value in descriptors.items()}
         seed.attack_attrs['cell_key'] = tuple(desc.values())
@@ -196,13 +186,19 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 
             # Prepare descriptor string for prompt mutation
             descriptor_str = "\n".join([f"{k}: {v}" for k, v in descriptor.items()])
-            new_instance = Instance(
-                query=descriptor_str, 
+            transfer_prompt = MUTATOR_PROMPT_V1.format(
+                risk = key[0],
+                style = key[1],
                 jailbreak_prompt=branch.jailbreak_prompt
             )
+            attack_model.set_system_message(transfer_prompt)
+            transferred_prompt = attack_model.generate(branch.jailbreak_prompt, max_new_tokens=300, temperature=0.7)
+            attack_model.set_system_message("")
+            new_instance = Instance(
+                query=descriptor_str, 
+                jailbreak_prompt=transferred_prompt
+            )
             new_instance.attack_attrs['cell_key'] = key
-            if 'conv' in branch.attack_attrs:
-                new_instance.attack_attrs['conv'] = copy.deepcopy(branch.attack_attrs['conv'])
             batch_instances.append(new_instance)
 
         dataset = JailbreakDataset(batch_instances)
@@ -255,15 +251,15 @@ if __name__ == "__main__":
     #llms = initialize_language_models(config)
     attack_model = from_pretrained(
         config.mutator_llm.model_kwargs["model"],
-        model_name = config.mutator_llm.model_kwargs["model"]
+        model_name = "vicuna"
     )
     target_model = from_pretrained(
         config.target_llm.model_kwargs["model"],
-        model_name = config.target_llm.model_kwargs["model"]
+        model_name = "qwen"
     )
     eval_model = from_pretrained(
         config.fitness_llm.model_kwargs["model"],
-        model_name = config.fitness_llm.model_kwargs["model"]
+        model_name = "llama-2"
     )
     similarity_fn = BleuScoreNLTK()
 
