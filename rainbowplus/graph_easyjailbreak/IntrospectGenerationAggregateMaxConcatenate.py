@@ -55,7 +55,7 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
         :param  str attr_name: name of the object that you want to mutate (e.g. "jailbreak_prompt" or "query")
         :param  format str prompt_format: a template string for asking the attack model to generate a new jailbreak prompt
         """
-        super().__init__(model,system_prompt, branching_factor, keep_last_n, max_n_attack_attempts, attr_name, prompt_format, selection_strategy)
+        #super().__init__(model,system_prompt, branching_factor, keep_last_n, max_n_attack_attempts, attr_name, prompt_format, selection_strategy)
         self.model = model
         self.system_prompt = system_prompt
         self.keep_last_n = keep_last_n
