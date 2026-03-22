@@ -59,18 +59,45 @@ logger = logging.getLogger(__name__)
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Adversarial Prompt Generation")
-    parser.add_argument("--max_iterations", type=int, default=10, help="Maximum number of iterations")  
-    parser.add_argument("--num_samples", type=int, help="Number of initial seed prompts")
-    parser.add_argument("--tree_depth", type=int, default=1, help="Maximum depth of the search tree")
-    parser.add_argument("--sim_threshold", type=float, help="Similarity threshold")
-    parser.add_argument("--config_file", type=str, default="./configs/base.yml")
-    parser.add_argument("--log_dir", type=str, help="Log directory")
-    parser.add_argument("--log_interval", type=int, help="Iterations between logs")
+    parser.add_argument(
+        "--num_samples", type=int, default=50, help="Number of initial seed prompts"
+    )
+    parser.add_argument(
+        "--max_iters", type=int, default=1, help="Maximum number of iteration steps"
+    )
+    parser.add_argument(
+        "--sim_threshold",
+        type=float,
+        default=0.6,
+        help="Similarity threshold for prompt mutation",
+    )
+    parser.add_argument(
+        "--fitness_threshold",
+        type=float,
+        default=0.5,
+        help="Minimum fitness score to add prompt to archive",
+    )
+    parser.add_argument(
+        "--config_file",
+        type=str,
+        default="./configs/base-opensource.yml",
+        help="Path to configuration file",
+    )
+    parser.add_argument(
+        "--log_dir", type=str, default="./logs", help="Directory for storing logs"
+    )
+    parser.add_argument(
+        "--log_interval",
+        type=int,
+        default=50,
+        help="Number of iterations between log saves",
+    )
     parser.add_argument(
         "--dataset", type=str, default="./data/do-not-answer.json", help="Dataset name"
     )
-    parser.add_argument("--shuffle", action="store_true", help="Shuffle seeds")
-
+    parser.add_argument(
+        "--shuffle", type=bool, default=True, help="Shuffle seed prompts"
+    )
     return parser.parse_args()
 
 
