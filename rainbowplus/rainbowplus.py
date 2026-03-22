@@ -257,7 +257,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         global_context=global_context,
         timestamp=current_ts,
         iteration="FINAL", # Đánh dấu đây là file chốt cuối cùng
-        max_iters=args.max_iterations
+        max_iters=args.max_iters
     )
     print("Done!")
 
