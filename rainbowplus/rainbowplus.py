@@ -178,7 +178,8 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         seed_query = "\n".join([f"{k}: {v}" for k, v in desc.items()])
         seed_instance = Instance(
             query=seed_query, 
-            jailbreak_prompt=seed)
+            jailbreak_prompt=seed,
+            reference_responses=[""])
         seed_instance.attack_attrs['cell_key'] = tuple(desc.values())
 
         target_key = seed_instance.attack_attrs['cell_key']
@@ -211,7 +212,8 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             attack_model.set_system_message("")
             new_instance = Instance(
                 query=descriptor_str, 
-                jailbreak_prompt=transferred_prompt
+                jailbreak_prompt=transferred_prompt,
+                reference_responses=[""]
             )
             new_instance.attack_attrs['cell_key'] = key
             batch_instances.append(new_instance)
