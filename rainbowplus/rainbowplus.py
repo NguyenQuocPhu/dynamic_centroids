@@ -127,11 +127,11 @@ from easyjailbreak.selector.SelectBasedOnScores import SelectBasedOnScores
 from easyjailbreak.models.huggingface_model import from_pretrained
 from easyjailbreak.datasets import JailbreakDataset, Instance
 
-from graph_easyjailbreak.model_utils import count_calls
+from rainbowplus.graph_easyjailbreak.model_utils import count_calls
 #from gap_easyjailbreak.models.bedrock_mistral_model import MistralModel
 #from gap_easyjailbreak.models.bedrock_claude_model import ClaudeModel
-from graph_easyjailbreak.IntrospectGenerationAggregateMaxConcatenate import IntrospectGenerationAggregateMaxConcatenate as IntrospectGeneration
-from graph_easyjailbreak.GAP import GAP
+from rainbowplus.graph_easyjailbreak.IntrospectGenerationAggregateMaxConcatenate import IntrospectGenerationAggregateMaxConcatenate as IntrospectGeneration
+from rainbowplus.graph_easyjailbreak.GAP import GAP
 
 def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_model=None, fitness_fn=None, similarity_fn=None):
     """Main RainbowPlus algorithm."""

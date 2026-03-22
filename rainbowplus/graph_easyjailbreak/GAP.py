@@ -21,10 +21,10 @@ from easyjailbreak.constraint.DeleteOffTopic import DeleteOffTopic
 from easyjailbreak.metrics.Evaluator.Evaluator_GenerativeGetScore import EvaluatorGenerativeGetScore
 from easyjailbreak.selector.SelectBasedOnScores import SelectBasedOnScores
 
-from graph_easyjailbreak.model_utils import count_calls
+from rainbowplus.graph_easyjailbreak.model_utils import count_calls
 #from gap_easyjailbreak.models.bedrock_mistral_model import MistralModel
 #from gap_easyjailbreak.models.bedrock_claude_model import ClaudeModel
-from graph_easyjailbreak.IntrospectGenerationAggregateMaxConcatenate import IntrospectGenerationAggregateMaxConcatenate as IntrospectGeneration
+from rainbowplus.graph_easyjailbreak.IntrospectGenerationAggregateMaxConcatenate import IntrospectGenerationAggregateMaxConcatenate as IntrospectGeneration
 from rainbowplus.prompts import system_prompt_mutator
 r"""
 EasyJailbreak GAP class
