@@ -204,7 +204,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             transfer_prompt = MUTATOR_PROMPT_V1.format(
                 risk = key[0],
                 style = key[1],
-                jailbreak_prompt=branch.jailbreak_prompt
+                prompt=branch.jailbreak_prompt
             )
             attack_model.set_system_message(transfer_prompt)
             transferred_prompt = attack_model.generate(branch.jailbreak_prompt, max_new_tokens=500, temperature=0.7)
