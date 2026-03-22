@@ -35,7 +35,7 @@ mutator_llm:
 # Fitness LLM Configuration (Judge Model)
 fitness_llm: 
   model_kwargs:
-    model: meta-llama/Meta-Llama-Guard-2-8B
+    model: thu-coai/ShieldLM-7B-qwen
     
   sampling_params:
     temperature: 1          # override judge_temperature
