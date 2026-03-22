@@ -66,7 +66,9 @@ def parse_arguments():
     parser.add_argument("--config_file", type=str, default="./configs/base.yml")
     parser.add_argument("--log_dir", type=str, help="Log directory")
     parser.add_argument("--log_interval", type=int, help="Iterations between logs")
-    parser.add_argument("--dataset", type=str, help="Dataset name")
+    parser.add_argument(
+        "--dataset", type=str, default="./data/do-not-answer.json", help="Dataset name"
+    )
     parser.add_argument("--shuffle", action="store_true", help="Shuffle seeds")
 
     return parser.parse_args()
@@ -224,9 +226,6 @@ if __name__ == "__main__":
     args = parse_arguments()
     config = ConfigurationLoader.load(args.config_file)
 
-    # Update configuration based on command-line arguments
-    config.target_llm.model_kwargs["model"] = args.target_llm
-    config.sample_prompts = args.dataset
 
 
 
