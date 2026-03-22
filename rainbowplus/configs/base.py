@@ -13,7 +13,6 @@ from typing import Dict, Any
 class LLMConfig:
     """Configuration for a Language Model."""
 
-    type_: str
     api_key: str = None
     base_url: str = None
     model_kwargs: Dict[str, Any] = field(default_factory=dict)
