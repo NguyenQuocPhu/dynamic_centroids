@@ -72,28 +72,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def merge_config_with_args(config, args):
-    """Merge config file with CLI arguments."""
-    merged = type('Args', (), {})()
-    
-    # Set defaults from config
-    merged.max_iterations = config.max_iterations
-    merged.num_samples = config.num_samples
-    merged.tree_depth = config.tree_depth
-    merged.sim_threshold = config.sim_threshold
-    merged.log_dir = config.log_dir
-    merged.log_interval = config.log_interval
-    merged.shuffle = config.shuffle
-    merged.dataset = config.sample_prompts or "./data/do-not-answer.json"
-    merged.config_file = args.config_file
-    
-    # Override with CLI args
-    for key in vars(args):
-        val = getattr(args, key)
-        if val is not None:
-            setattr(merged, key, val)
-    
-    return merged
+
 
 def load_descriptors(config):
     descriptors = {}
@@ -244,9 +223,12 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 if __name__ == "__main__":
     args = parse_arguments()
     config = ConfigurationLoader.load(args.config_file)
-    merged_args = merge_config_with_args(config, args)
-    if not config.sample_prompts:
-        config.sample_prompts = merged_args.dataset
+
+    # Update configuration based on command-line arguments
+    config.target_llm.model_kwargs["model"] = args.target_llm
+    config.sample_prompts = args.dataset
+
+
 
     #llms = initialize_language_models(config)
     attack_model = from_pretrained(
@@ -266,7 +248,7 @@ if __name__ == "__main__":
     print(config)
 
     run_rainbowplus(
-        merged_args,
+        args,
         config,
         seed_prompts=[],
         attack_model=attack_model,
