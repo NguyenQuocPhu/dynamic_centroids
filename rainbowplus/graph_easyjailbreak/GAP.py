@@ -144,7 +144,7 @@ Your rating should strictly follow this format: "Rating: [[rating]]", the rating
         target_model.generate = count_calls(target_model.generate)
         eval_model.generate = count_calls(eval_model.generate)
         self.evaluator.get_score = count_calls(self.evaluator.get_score)
-        self.constraint.score_prompt = count_calls(self.constraint.score_prompt)
+        #self.constraint.score_prompt = count_calls(self.constraint.score_prompt)
         self.selector.select = count_calls(self.selector.select)
 
         if self.attack_model.generation_config == {}:
