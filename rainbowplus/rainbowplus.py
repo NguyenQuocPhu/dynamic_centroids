@@ -236,7 +236,7 @@ if __name__ == "__main__":
     )
     target_model = from_pretrained(
         config.target_llm.model_kwargs["model"],
-        model_name = "qwen"
+        model_name = "qwen-7b-chat"
     )
     eval_model = from_pretrained(
         config.fitness_llm.model_kwargs["model"],
