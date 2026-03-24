@@ -168,6 +168,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         inst = instance.copy()
         desc = {key: random.choice(value) for key, value in descriptors.items()}
         seed_query = "\n".join([f"{k}: {v}" for k, v in desc.items()])
+        inst.jailbreak_prompt = inst.query
         inst.query = seed_query
         inst.reference_responses = [""]
 
@@ -202,6 +203,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             attack_model.set_system_message(transfer_prompt)
             transferred_prompt = attack_model.generate(branch.jailbreak_prompt, max_new_tokens=500, temperature=1, do_sample = True)
             attack_model.set_system_message("")
+
             new_instance = branch.copy()
             new_instance.query = descriptor_str
             new_instance.jailbreak_prompt = transferred_prompt
