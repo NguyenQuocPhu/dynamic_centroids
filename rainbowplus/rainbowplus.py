@@ -168,7 +168,6 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         inst = instance.copy()
         desc = {key: random.choice(value) for key, value in descriptors.items()}
         seed_query = "\n".join([f"{k}: {v}" for k, v in desc.items()])
-        inst.eval_results = [0]
         inst.jailbreak_prompt = inst.query
         inst.query = seed_query
         inst.reference_responses = [""]
@@ -244,7 +243,14 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             
             temp_dataset = JailbreakDataset(current_list_data)
             if len(current_list_data) > 1:
-                pruned_dataset_obj = attacker.selector.select(temp_dataset)
+                current_list_data.sort(
+                    key=lambda x: x.eval_results[-1] if len(x.eval_results) > 0 else 0, 
+                    reverse=True
+                )
+                # Cắt lấy top phần tử xuất sắc nhất (thư viện EasyJailbreak dùng biến tree_width để quyết định số lượng giữ lại)
+                top_k = attacker.tree_width 
+                current_list_data = current_list_data[:top_k]
+                pruned_dataset_obj = JailbreakDataset(current_list_data)
             else:
                 pruned_dataset_obj = temp_dataset
             update_archive(archive_by_depth, target_key, list(pruned_dataset_obj))
