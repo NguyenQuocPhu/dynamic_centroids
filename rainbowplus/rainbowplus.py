@@ -168,6 +168,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         inst = instance.copy()
         desc = {key: random.choice(value) for key, value in descriptors.items()}
         seed_query = "\n".join([f"{k}: {v}" for k, v in desc.items()])
+        inst.eval_results = [0]
         inst.jailbreak_prompt = inst.query
         inst.query = seed_query
         inst.reference_responses = [""]
