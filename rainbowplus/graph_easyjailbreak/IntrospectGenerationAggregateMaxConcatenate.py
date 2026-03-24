@@ -178,7 +178,6 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
         max_n_attack_attempts = self.max_n_attack_attempts
         for _ in range(max_n_attack_attempts):
             # Subset conversations based on indices to regenerate
-            print("\n\nFull Prompt\n{}\n".format(full_prompt))
             output = model.generate(full_prompt)
             if isinstance(model, HuggingfaceModel):
                 output = init_message + output

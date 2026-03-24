@@ -264,11 +264,7 @@ Your rating should strictly follow this format: "Rating: [[rating]]", the rating
         """
         # global target_model_calls
         batch=[JailbreakDataset([instance.copy()]) for _ in range(self.root_num)]
-        find_flag = 0
-        print("************************************************************************************")
-        print("**************************************NEW SEED**************************************")
-        print("************************************************************************************")
-        print(f"QUERY:{'='*20}\n{instance.query}")
+        print(f"QUERY:{'='*20}\n{instance.jailbreak_prompt}\n{'='*20}\n", flush=True)
         for iteration in range(1, self.tree_depth + 1):
             print(f"""\n{'=' * 36}\nTree-depth is: {iteration}\n{'=' * 36}\n""", flush=True)
             dataset_list = []
@@ -281,7 +277,7 @@ Your rating should strictly follow this format: "Rating: [[rating]]", the rating
 
                 ############# prune off-topic jailbreak_prompt ################
                 new_dataset = self.constraint(new_dataset)
-
+                print(f"Length of new_dataset: {len(new_dataset)}")
                 ############# attack ################
                 self.target_model.conversation.messages = []
                 for instance in new_dataset:
@@ -301,6 +297,7 @@ Your rating should strictly follow this format: "Rating: [[rating]]", the rating
                                                     temperature=self.target_temperature, do_sample=True,
                                                     top_p=self.target_top_p,
                                                     eos_token_id=self.target_model.tokenizer.eos_token_id)]
+                    print("\n\nJailbreak Prompt:\n{}\n".format(instance.jailbreak_prompt))
                     print("\n\nOutput:\n{}\n????????????????????????????\n\n".format(instance.target_responses))
                     self.target_model_calls+=1
 
