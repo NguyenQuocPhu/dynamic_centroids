@@ -318,7 +318,6 @@ Your rating should strictly follow this format: "Rating: [[rating]]", the rating
                         self.conversation_history.append({
                             "conversation": conversation[-2:],
                             "score": score[-1],
-                            "id": instance.instance_name,
                             "query": instance.query
                         })
                         print("\n\n<<<<Refinement: Score={}, Prompt={}, Messages={}>>>>\n\n".format(score[-1], instance.query, conversation[-2:]))
