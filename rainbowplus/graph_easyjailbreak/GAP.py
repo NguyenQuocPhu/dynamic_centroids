@@ -311,7 +311,7 @@ class GAP(AttackerBase):
                 for instance in new_dataset:
                     conversation = instance.attack_attrs['conv'].messages 
                     score = instance.eval_results
-                    print("\n\nConversation:{}".format(str(conversation)))
+                    #print("\n\nConversation:{}".format(str(conversation)))
                     print("\n\nScore:{}".format(score[-1]))
                     if score[-1] > 4:
                         # Append conversation and score to the global list
@@ -320,7 +320,7 @@ class GAP(AttackerBase):
                             "score": score[-1],
                             "query": instance.query
                         })
-                        print("\n\n<<<<Refinement: Score={}, Prompt={}, Messages={}>>>>\n\n".format(score[-1], instance.query, conversation[-2:]))
+                        #print("\n\n<<<<Refinement: Score={}, Prompt={}, Messages={}>>>>\n\n".format(score[-1], instance.query, conversation[-2:]))
                 new_dataset = self.selector.select(new_dataset)
                 batch[i] = new_dataset
                 ############# attack successful ################
