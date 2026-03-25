@@ -210,6 +210,13 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             new_instance.jailbreak_prompt = transferred_prompt
             new_instance.reference_responses = [""]
             new_instance.attack_attrs['cell_key'] = key
+            
+            new_instance.eval_results = []       # Xóa điểm cũ, đưa về trạng thái mầm (Seed)
+            new_instance.target_responses = []   # Xóa câu trả lời của mục tiêu cũ
+            if 'conv' in new_instance.attack_attrs:
+                del new_instance.attack_attrs['conv']
+
+            new_instance.attack_attrs['cell_key'] = key
             batch_instances.append(new_instance)
 
         dataset = JailbreakDataset(batch_instances)
