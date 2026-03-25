@@ -202,7 +202,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 prompt=branch.jailbreak_prompt
             )
             attack_model.set_system_message(transfer_prompt)
-            transferred_prompt = attack_model.generate(branch.jailbreak_prompt, max_new_tokens=500, temperature=1, do_sample = True)
+            transferred_prompt = attack_model.generate(branch.jailbreak_prompt)
             attack_model.set_system_message("")
 
             new_instance = branch.copy()
