@@ -35,7 +35,7 @@ mutator_llm:
 # Fitness LLM Configuration (Judge Model)
 fitness_llm: 
   model_kwargs:
-    model: Qwen/Qwen2.5-7B-Instruct
+    model: Qwen/Qwen2.5-14B-Instruct
     
   sampling_params:
     temperature: 1          # override judge_temperature
