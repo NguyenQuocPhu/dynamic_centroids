@@ -61,13 +61,13 @@ logger = logging.getLogger(__name__)
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Adversarial Prompt Generation")
     parser.add_argument(
-        "--num_samples", type=int, default=4, help="Number of initial seed prompts"
+        "--num_samples", type=int, default=5, help="Number of initial seed prompts"
     )
     parser.add_argument(
         "--max_iters", type=int, default=30, help="Maximum number of iteration steps"
     )
     parser.add_argument(
-        "--tree_depth", type=int, default=3, help="Depth of the attack tree"
+        "--tree_depth", type=int, default=4, help="Depth of the attack tree"
     )
     parser.add_argument(
         "--sim_threshold",
@@ -162,6 +162,8 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     log_dir = Path(args.log_dir) / target_model.model_name / dataset_name
     log_dir.mkdir(parents=True, exist_ok=True)
     seed_prompts = JailbreakDataset("AdvBench")
+
+    seed_prompts = random.sample(seed_prompts, 25)
     archive_by_depth = Archive[Instance]("map-elites")
     # Prepare seed metadata
     for i, instance in enumerate(seed_prompts):
