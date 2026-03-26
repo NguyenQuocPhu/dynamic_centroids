@@ -64,7 +64,7 @@ def parse_arguments():
         "--num_samples", type=int, default=5, help="Number of initial seed prompts"
     )
     parser.add_argument(
-        "--max_iters", type=int, default=30, help="Maximum number of iteration steps"
+        "--max_iters", type=int, default=20, help="Maximum number of iteration steps"
     )
     parser.add_argument(
         "--tree_depth", type=int, default=4, help="Depth of the attack tree"
@@ -184,12 +184,12 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         target_model=target_model,
                         eval_model=fitness_fn,
                         jailbreak_datasets=seed_prompts,
-                        tree_width=4,
+                        tree_width=10,
                         tree_depth=args.tree_depth,
                         root_num=1,
                         branching_factor=3,
                         keep_last_n=3,
-                        max_n_attack_attempts=5,
+                        max_n_attack_attempts=4,
                         logging_filename=dataset_name,
                         conversation_history=global_context,
                         attack_max_n_tokens = config.mutator_llm.sampling_params.get('max_tokens', 500),
