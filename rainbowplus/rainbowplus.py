@@ -163,7 +163,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     log_dir.mkdir(parents=True, exist_ok=True)
     seed_prompts = JailbreakDataset("AdvBench")
 
-    seed_prompts = random.sample(seed_prompts, 25)
+    seed_prompts = random.sample(list(seed_prompts), 25)
     archive_by_depth = Archive[Instance]("map-elites")
     # Prepare seed metadata
     for i, instance in enumerate(seed_prompts):
