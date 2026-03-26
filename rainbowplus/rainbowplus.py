@@ -183,7 +183,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     attacker = GAP (attack_model=attack_model,
                         target_model=target_model,
                         eval_model=fitness_fn,
-                        jailbreak_datasets=None,
+                        jailbreak_datasets=seed,
                         tree_width=5,
                         tree_depth=args.tree_depth,
                         root_num=1,
