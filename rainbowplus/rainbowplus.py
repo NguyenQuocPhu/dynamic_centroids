@@ -184,7 +184,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         target_model=target_model,
                         eval_model=fitness_fn,
                         jailbreak_datasets=seed_prompts,
-                        tree_width=10,
+                        tree_width=5,
                         tree_depth=args.tree_depth,
                         root_num=1,
                         branching_factor=3,
