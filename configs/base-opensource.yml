@@ -17,7 +17,7 @@ target_llm:
   sampling_params:
     temperature: 1          # override target_temperature
     top_p: 1                # override target_top_p
-    max_tokens: 150         # override target_max_n_tokens
+    max_tokens: 500         # override target_max_n_tokens
 
 
 # Mutator LLM Configuration (Attacker Model)
