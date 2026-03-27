@@ -98,8 +98,8 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
             sampled_conversations_messages = [conv['conversation'] for conv in sampled_conversations]
             sampled_conversations_messages_flattened = [x for sublist in sampled_conversations_messages for x in sublist]
 
-            print(sampled_conversations_messages_flattened)
-            print(conv.messages)
+            #print(sampled_conversations_messages_flattened)
+            #print(conv.messages)
             if len(sampled_conversations_messages_flattened)>0:
                 print("GAP filtering...sampling")
                 conv.messages = sampled_conversations_messages_flattened + conv.messages[-self.keep_last_n*2:] ## msg-last  # conv.messages = [conv.messages[-self.keep_last_n*2] + sampled_conversations_messages_flattened] ## msg-first
