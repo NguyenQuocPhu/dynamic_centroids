@@ -279,9 +279,6 @@ if __name__ == "__main__":
     args = parse_arguments()
     config = ConfigurationLoader.load(args.config_file)
 
-
-
-
     #llms = initialize_language_models(config)
     attack_model = from_pretrained(
         config.mutator_llm.model_kwargs["model"],
