@@ -250,6 +250,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             dummy_node.add_migrant_tree(instance)
             for i in range(args.total):
                 leaf = dummy_node.select_leaf()
+                print(f"Selected leaf with prompt: {leaf.instance.jailbreak_prompt} and score: {leaf.max_score}")
                 if getattr(leaf, 'is_terminal', False):
                     continue
                 new_instances = attacker.single_attack(leaf.instance)
