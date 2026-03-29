@@ -28,8 +28,7 @@ from rainbowplus.utils import (
     load_json,
     initialize_language_models,
     save_comprehensive_logs,
-    save_ga_iteration_log,      # New logging function
-    save_ga_comprehensive_log,  # New logging function
+    save_all_instances,
     format_example,
     save_attack_memory_log,
     _repair_yaml_primitives
@@ -119,7 +118,7 @@ def update_archive(archive_obj: Archive, key: Tuple, data: List) -> None:
         archive_obj.add(key, data)
     else:
         archive_obj.extend(key, data)
-
+import itertools
 import copy
 from tqdm import tqdm
 import easyjailbreak
@@ -144,6 +143,7 @@ from rainbowplus.graph_easyjailbreak.model_utils import count_calls
 #from gap_easyjailbreak.models.bedrock_claude_model import ClaudeModel
 from rainbowplus.graph_easyjailbreak.IntrospectGenerationAggregateMaxConcatenate import IntrospectGenerationAggregateMaxConcatenate as IntrospectGeneration
 from rainbowplus.graph_easyjailbreak.GAP import GAP
+from rainbowplus.graph_easyjailbreak.Tree import Forest, MCTSNode
 
 def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_model=None, fitness_fn=None, similarity_fn=None):
     """Main RainbowPlus algorithm."""
@@ -156,36 +156,27 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     all_scores = Archive("all_scores")
     all_similarities = Archive("all_similarities")
     rejection_reasons = Archive("rejection_reasons")
-    
+    archive_by_depth = Archive[Forest]("map-elites")
+    keys = list(descriptors.keys())
+    all_combinations = list(itertools.product(*[descriptors[k] for k in keys]))
+
+    for combo in all_combinations:
+        archive_by_depth.add(combo, [Forest()]) 
+
     # Setup logging
     dataset_name = Path(config.sample_prompts).stem
     log_dir = Path(args.log_dir) / target_model.model_name / dataset_name
     log_dir.mkdir(parents=True, exist_ok=True)
+
     seed = JailbreakDataset("AdvBench")
-    seed.shuffle() # Shuffle seed prompts to ensure randomness
-    seed_prompts = seed[:100] # Take only the required number of samples
-    archive_by_depth = Archive[Instance]("map-elites")
-    # Prepare seed metadata
-    for i, instance in enumerate(seed_prompts):
-        inst = instance.copy()
-        desc = {key: random.choice(value) for key, value in descriptors.items()}
-        seed_query = "\n".join([f"{k}: {v}" for k, v in desc.items()])
-        inst.jailbreak_prompt = inst.query
-        inst.query = seed_query
-        inst.reference_responses = [""]
-
-        inst.attack_attrs['cell_key'] = tuple(desc.values())
-        target_key = inst.attack_attrs['cell_key']
-
-        update_archive(archive_by_depth, target_key, [inst])
 
     global_context = []
     attacker = GAP (attack_model=attack_model,
                         target_model=target_model,
                         eval_model=fitness_fn,
                         jailbreak_datasets=seed,
-                        tree_width=5,
-                        tree_depth=args.tree_depth,
+                        tree_width=999,
+                        tree_depth=1,
                         root_num=1,
                         branching_factor=3,
                         keep_last_n=3,
@@ -203,36 +194,49 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     
     for iteration in range(1, args.max_iters):
         print(f"\n\n=== Iteration {iteration} ===\n\n")
-        branchs = archive_by_depth.flatten_values()
-        if not branchs:
-            break
-        sample_size = min(len(branchs), args.num_samples)
-        selected_branchs = random.sample(branchs, sample_size)
+        keys = archive_by_depth.keys()
+        selected_keys = random.sample(keys, 5)
+        nodes = []
+        for key in selected_keys:
+            root = archive_by_depth.get(key)
+            if len(root.children) == 0:
+                instance = random.choice(seed_prompts)
+                inst = instance.copy()
+                inst.jailbreak_prompt = inst.query
+                inst.reference_responses = [""]
+                new_node = MCTSNode(instance=inst)
+                nodes.append(new_node)
+            else:
+                nodes.append(root.select_leaf())
 
         batch_instances = []
 
         # 1. Gom tất cả prompt lại
-        for branch in selected_branchs:
+        for node in nodes:
             descriptor = {key: random.choice(value) for key, value in descriptors.items()}
             key = tuple(descriptor.values())
-            
+
             descriptor_str = "\n".join([f"{k}: {v}" for k, v in descriptor.items()])
-            
+
             transfer_prompt = MUTATOR_PROMPT_V1.format(
                 risk = key[0],
                 style = key[1],
-                prompt=branch.jailbreak_prompt
+                prompt=node.instance.jailbreak_prompt
             )
-            attack_model.set_system_message(transfer_prompt)
-            transferred_prompt = attack_model.generate(branch.jailbreak_prompt)
-            attack_model.set_system_message("")
+            attacker.attack_model.set_system_message(transfer_prompt)
+            transferred_prompt = attacker.attack_model.generate(node.instance.jailbreak_prompt)
+            attacker.attack_model.set_system_message("")
 
-            new_instance = branch.copy()
+            new_instance = node.instance.copy()
             new_instance.query = descriptor_str
             new_instance.jailbreak_prompt = transferred_prompt
             new_instance.reference_responses = [""]
-            new_instance.eval_results = []       
-            new_instance.target_responses = []   
+
+            target_response = attacker.target_model.generate(transferred_prompt)
+            new_instance.target_responses = [target_response]
+
+            attacker.evaluator([new_instance])
+
             if 'conv' in new_instance.attack_attrs:
                 del new_instance.attack_attrs['conv']
             new_instance.attack_attrs['cell_key'] = key
@@ -240,37 +244,33 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 
         dataset = JailbreakDataset(batch_instances)
         attacker.jailbreak_datasets = dataset
-        for instance in tqdm(attacker.jailbreak_datasets, desc=f"Processing instances in {iteration}"):
-            new_dataset_obj = attacker.single_attack(instance)
-                    
-            target_key = instance.attack_attrs['cell_key']
-            update_archive(archive_by_depth, target_key, list(new_dataset_obj))
-            current_list_data = archive_by_depth.get(target_key)
-            archive_by_depth.delete(target_key)
-            
-            temp_dataset = JailbreakDataset(current_list_data)
-            if len(current_list_data) > 1:
-                current_list_data.sort(
-                    key=lambda x: x.eval_results[-1] if len(x.eval_results) > 0 else 0, 
-                    reverse=True
-                )
-                # Cắt lấy top phần tử xuất sắc nhất (thư viện EasyJailbreak dùng biến tree_width để quyết định số lượng giữ lại)
-                top_k = attacker.tree_width 
-                current_list_data = current_list_data[:top_k]
-                pruned_dataset_obj = JailbreakDataset(current_list_data)
-            else:
-                pruned_dataset_obj = temp_dataset
-            update_archive(archive_by_depth, target_key, list(pruned_dataset_obj))
+
+        for instance in tqdm(dataset, desc="Processing evolved instances"):
+            dummy_node = archive_by_depth.get(instance.attack_attrs['cell_key'])
+            dummy_node.add_migrant_tree(instance)
+            for i in range(args.total):
+                leaf = dummy_node.select_leaf()
+                if getattr(leaf, 'is_terminal', False):
+                    continue
+                new_instances = attacker.single_attack(leaf.instance)
+                new_children = []
+
+                for data in new_instances: 
+                    for inst in data:
+                        child = MCTSNode(instance=inst, parent=leaf)
+                    leaf.children.append(child) 
+                    new_children.append(child)
+
+                if new_children:
+                    dummy_node.backpropagate(leaf, new_children)
+
         
     current_ts = time.strftime(r"%Y%m%d-%H%M%S")
     
-    save_comprehensive_logs(
+    save_all_instances(
+        archive_by_depth=archive_by_depth,
         log_dir=log_dir,
-        archive=archive_by_depth,
-        global_context=global_context,
-        timestamp=current_ts,
-        iteration="FINAL", # Đánh dấu đây là file chốt cuối cùng
-        max_iters=args.max_iters
+        filename=current_ts
     )
     print("Done!")
 

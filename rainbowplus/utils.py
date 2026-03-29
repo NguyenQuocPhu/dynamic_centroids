@@ -270,82 +270,70 @@ def save_comprehensive_logs(log_dir, archive, global_context, timestamp, iterati
     # In ra console cho dễ theo dõi tiến độ
     print(f"[+] Iter {iteration} | ASR: {round(asr_percentage, 2)}% ({successful_instances}/{total_instances}) | Saved: {filename.name}")
     
-def save_ga_comprehensive_log(
-    log_dir, 
-    adv_prompts_space,
-    all_prompts, 
-    all_responses, 
-    all_scores, 
-    all_similarities,
-    rejection_reasons,
-    timestamp, 
-    iteration=-1,
-    all_prompt_ids=None,
-    all_parent_ids=None,
-    all_seed_ids=None,
-    max_iters=None
-):
-    """
-    Save comprehensive log including BOTH history archives AND Growing Archive state.
-    """
-    if iteration == -1:
-        log_path = log_dir / f"comprehensive_ga_log_{timestamp}.json"
-    else:
-        log_path = log_dir / f"comprehensive_ga_log_{timestamp}_epoch_{iteration+1}.json"
+import json
+import pickle
+from pathlib import Path
 
-    # 1. Extract History Archives
-    history_data = {
-        "max_iters": max_iters,
-        "all_prompts": {str(k): v for k, v in all_prompts._archive.items()},
-        "all_responses": {str(k): v for k, v in all_responses._archive.items()},
-        "all_scores": {str(k): v for k, v in all_scores._archive.items()},
-        "all_similarities": {str(k): v for k, v in all_similarities._archive.items()},
-        "rejection_reasons": {str(k): v for k, v in rejection_reasons._archive.items()},
-    }
+import json
+import pickle
+from pathlib import Path
 
-    if all_prompt_ids is not None:
-        history_data["all_prompt_ids"] = {str(k): v for k, v in all_prompt_ids._archive.items()}
-    if all_parent_ids is not None:
-        history_data["all_parent_ids"] = {str(k): v for k, v in all_parent_ids._archive.items()}
-    if all_seed_ids is not None:
-        history_data["all_seed_ids"] = {str(k): v for k, v in all_seed_ids._archive.items()}
-
-    state = {
-        "elites": {}
-    }
-    space = {"prompt": {},
-             "fitness": {}}
-
-    for cell_id, space_list in adv_prompts_space._archive.items():
-        embedding_space = space_list[0]
-
-        space["prompt"][str(cell_id)] = {
-            str(c): [
-                ind.prompt
-                for ind in embedding_space.clusters[c]
-            ]
-            for c in range(embedding_space.n_clusters)
-            if embedding_space.clusters[c]  # tránh cluster rỗng
-        }
-        space["fitness"][str(cell_id)] = {
-            str(c): [
-                ind.fitness
-                for ind in embedding_space.clusters[c]
-            ]
-            for c in range(embedding_space.n_clusters)
-            if embedding_space.clusters[c]  # tránh cluster rỗng
-        }
-
-    # 3. Combine Data
-    state["elites"] = space
-    full_log_data = {
-        **history_data, 
-        "state": state
-    }
+def save_all_instances(archive, save_dir, filename="all_jailbreak_instances"):
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
     
+    all_instances_data = {}
+    total_count = 0
+    
+    keys = list(archive.keys()) if hasattr(archive, 'keys') else list(archive.archive.keys())
+    
+    for key in keys:
+        forest = archive.get(key)
+        
+        if forest is None or len(forest.dummy_root.children) == 0:
+            continue
+            
+        def get_all_nodes(node, depth=0):
+            nodes = [(node, depth)]
+            for child in node.children:
+                nodes.extend(get_all_nodes(child, depth + 1))
+            return nodes
+            
+        all_nodes_with_depth = get_all_nodes(forest.dummy_root)
+        
+        cell_instances = []
+        
+        for node, depth in all_nodes_with_depth:
+            if node.instance is None:
+                continue
+                
+            inst = node.instance
+            
+            instance_data = {
+                "tree_depth": depth,
+                "eval_score": inst.eval_results[-1] if inst.eval_results else 0,
+                "mcts_visits": node.visits,
+                "is_terminal": getattr(node, 'is_terminal', False),
+                "jailbreak_prompt": inst.jailbreak_prompt,
+                "target_response": inst.target_responses[0] if inst.target_responses else "N/A"
+            }
+            cell_instances.append(instance_data)
+            total_count += 1
+            
+        if cell_instances:
+            all_instances_data[str(key)] = cell_instances
 
-    with open(log_path, "w", encoding="utf-8") as f:
-        json.dump(full_log_data, f, indent=2, ensure_ascii=False)
+    json_path = save_dir / f"{filename}.json"
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(all_instances_data, f, indent=4, ensure_ascii=False)
+        
+    pkl_path = save_dir / f"{filename}.pkl"
+    with open(pkl_path, 'wb') as f:
+        pickle.dump(archive, f)
+        
+    print(f"\n[+] SAVE THÀNH CÔNG!")
+    print(f"    - Đã xuất TỔNG CỘNG {total_count} instances (thuộc {len(all_instances_data)} cells) ra file: {json_path}")
+    print(f"    - Đã sao lưu Archive ra file: {pkl_path}")
 
 
 def save_attack_memory_log(log_dir, attack_memory, timestamp):

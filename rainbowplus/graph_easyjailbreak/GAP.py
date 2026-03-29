@@ -337,7 +337,7 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                 new_dataset = self.selector.select(new_dataset)
                 batch[i] = new_dataset
                 ############# attack successful ################
-        return new_dataset
+        return batch
 
     def update(self, Dataset: JailbreakDataset):
         r"""
