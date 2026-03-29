@@ -269,7 +269,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     current_ts = time.strftime(r"%Y%m%d-%H%M%S")
     
     save_all_instances(
-        archive_by_depth=archive_by_depth,
+        archive=archive_by_depth,
         log_dir=log_dir,
         filename=current_ts
     )
