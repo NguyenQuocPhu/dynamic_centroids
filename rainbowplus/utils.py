@@ -288,7 +288,7 @@ def save_all_instances(archive, save_dir, filename="all_jailbreak_instances"):
     keys = list(archive.keys()) if hasattr(archive, 'keys') else list(archive.archive.keys())
     
     for key in keys:
-        forest = archive.get(key)
+        forest = archive.get(key)[0]
         
         if forest is None or len(forest.dummy_root.children) == 0:
             continue
