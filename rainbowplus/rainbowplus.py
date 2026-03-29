@@ -199,7 +199,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         nodes = []
         for key in selected_keys:
             root = archive_by_depth.get(key)
-            if len(root.children) == 0:
+            if len(root.dummy_root.children) == 0:
                 instance = random.choice(seed)
                 inst = instance.copy()
                 inst.jailbreak_prompt = inst.query
@@ -258,8 +258,8 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 for data in new_instances: 
                     for inst in data:
                         child = MCTSNode(instance=inst, parent=leaf)
-                    leaf.children.append(child) 
-                    new_children.append(child)
+                        leaf.children.append(child) 
+                        new_children.append(child)
 
                 if new_children:
                     dummy_node.backpropagate(leaf, new_children)
