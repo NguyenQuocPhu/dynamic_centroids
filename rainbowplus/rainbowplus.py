@@ -164,7 +164,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     all_combinations = list(itertools.product(*[descriptors[k] for k in keys]))
 
     for combo in all_combinations:
-        archive_by_depth.add(combo, Forest()) 
+        archive_by_depth.add(combo, [Forest()]) 
 
     # Setup logging
     dataset_name = Path(config.sample_prompts).stem
@@ -201,7 +201,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         selected_keys = random.sample(keys, 5)
         nodes = []
         for key in selected_keys:
-            root = archive_by_depth.get(key)
+            root = archive_by_depth.get(key)[0]
             if len(root.dummy_root.children) == 0:
                 instance = random.choice(seed)
                 inst = instance.copy()
@@ -249,7 +249,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         attacker.jailbreak_datasets = dataset
 
         for instance in tqdm(dataset, desc="Processing evolved instances"):
-            dummy_node = archive_by_depth.get(instance.attack_attrs['cell_key'])
+            dummy_node = archive_by_depth.get(instance.attack_attrs['cell_key'])[0]
             dummy_node.add_migrant_tree(instance)
             for i in range(args.total):
                 leaf = dummy_node.select_leaf()
