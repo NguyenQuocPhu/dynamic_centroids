@@ -164,7 +164,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     all_combinations = list(itertools.product(*[descriptors[k] for k in keys]))
 
     for combo in all_combinations:
-        archive_by_depth.add(combo, [Forest()]) 
+        archive_by_depth.add(combo, Forest()) 
 
     # Setup logging
     dataset_name = Path(config.sample_prompts).stem
