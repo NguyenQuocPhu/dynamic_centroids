@@ -270,7 +270,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     
     save_all_instances(
         archive=archive_by_depth,
-        log_dir=log_dir,
+        save_dir=log_dir,
         filename=current_ts
     )
     print("Done!")
