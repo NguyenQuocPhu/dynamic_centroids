@@ -257,7 +257,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         dataset = JailbreakDataset(batch_instances)
         attacker.jailbreak_datasets = dataset
 
-        for instance in tqdm(dataset, desc="Processing evolved instances"):
+        for instance in tqdm(dataset, desc=f"Processing evolved instances in iteration {iteration}"):
             dummy_node = archive_by_depth.get(instance.attack_attrs['cell_key'])[0]
             dummy_node.add_migrant_tree(instance)
             for i in range(args.total):
