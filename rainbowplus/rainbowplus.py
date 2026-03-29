@@ -200,7 +200,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         for key in selected_keys:
             root = archive_by_depth.get(key)
             if len(root.children) == 0:
-                instance = random.choice(seed_prompts)
+                instance = random.choice(seed)
                 inst = instance.copy()
                 inst.jailbreak_prompt = inst.query
                 inst.reference_responses = [""]
