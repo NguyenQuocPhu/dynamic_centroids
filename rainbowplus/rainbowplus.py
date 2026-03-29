@@ -257,12 +257,12 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         dataset = JailbreakDataset(batch_instances)
         attacker.jailbreak_datasets = dataset
 
-        for instance in tqdm(dataset, desc="\n\nProcessing evolved instances\n\n"):
+        for instance in tqdm(dataset, desc="Processing evolved instances"):
             dummy_node = archive_by_depth.get(instance.attack_attrs['cell_key'])[0]
             dummy_node.add_migrant_tree(instance)
             for i in range(args.total):
                 leaf = dummy_node.select_leaf()
-                print(f"Selected leaf with prompt: {leaf.instance.jailbreak_prompt} and score: {leaf.max_score * 9.0 + 1}\n\n")
+                print(f"\n\nSelected leaf with prompt: {leaf.instance.jailbreak_prompt} and score: {leaf.max_score * 9.0 + 1}\n\n")
                 if getattr(leaf, 'is_terminal', False):
                     continue
                 new_instances = attacker.single_attack(leaf.instance)
