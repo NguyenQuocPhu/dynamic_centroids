@@ -63,10 +63,10 @@ def parse_arguments():
         "--num_samples", type=int, default=5, help="Number of initial seed prompts"
     )
     parser.add_argument(
-        "--max_iters", type=int, default=1, help="Maximum number of iteration steps"
+        "--max_iters", type=int, default=60, help="Maximum number of iteration steps"
     )
     parser.add_argument(
-        "--total", type=int, default=1, help="Total number of attacks per leaf node"
+        "--total", type=int, default=20, help="Total number of attacks per leaf node"
     )
     parser.add_argument(
         "--sim_threshold",
@@ -219,28 +219,40 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             descriptor_str = "\n".join([f"{k}: {v}" for k, v in descriptor.items()])
 
             transfer_prompt = MUTATOR_PROMPT_V1.format(
-                risk = key[0],
-                style = key[1],
+                risk=key[0],
+                style=key[1],
                 prompt=node.instance.jailbreak_prompt
             )
             attacker.attack_model.set_system_message(transfer_prompt)
-            transferred_prompt = attacker.attack_model.generate(node.instance.jailbreak_prompt)
+
+            K = 3 
+            best_instance = None
+            best_score = -1
+            for _ in range(K):
+                transferred_prompt = attacker.attack_model.generate(node.instance.jailbreak_prompt)
+                
+                temp_instance = node.instance.copy()
+                temp_instance.query = descriptor_str
+                temp_instance.jailbreak_prompt = transferred_prompt
+                temp_instance.reference_responses = [""]
+                
+                target_response = attacker.target_model.generate(transferred_prompt)
+                temp_instance.target_responses = [target_response]
+                
+                attacker.evaluator([temp_instance])
+                
+                current_score = temp_instance.eval_results[-1] if temp_instance.eval_results else 0
+                
+                if current_score > best_score:
+                    best_score = current_score
+                    best_instance = temp_instance
+
             attacker.attack_model.set_system_message("")
 
-            new_instance = node.instance.copy()
-            new_instance.query = descriptor_str
-            new_instance.jailbreak_prompt = transferred_prompt
-            new_instance.reference_responses = [""]
-
-            target_response = attacker.target_model.generate(transferred_prompt)
-            new_instance.target_responses = [target_response]
-
-            attacker.evaluator([new_instance])
-
-            if 'conv' in new_instance.attack_attrs:
-                del new_instance.attack_attrs['conv']
-            new_instance.attack_attrs['cell_key'] = key
-            batch_instances.append(new_instance)
+            if 'conv' in best_instance.attack_attrs:
+                del best_instance.attack_attrs['conv']
+            best_instance.attack_attrs['cell_key'] = key
+            batch_instances.append(best_instance)
 
         dataset = JailbreakDataset(batch_instances)
         attacker.jailbreak_datasets = dataset
