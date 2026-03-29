@@ -6,7 +6,11 @@ class MCTSNode:
         self.parent = parent
         self.children = []
         self.visits = 0
-        self.max_score = (instance.eval_results[-1] - 1) / 9.0 if instance.eval_results else 0.0
+        self.max_score = (
+            (instance.eval_results[-1] - 1) / 9.0
+            if instance is not None and instance.eval_results
+            else 0.0
+        )
         self.is_terminal = self.max_score >= 1.0
 
 class Forest:
