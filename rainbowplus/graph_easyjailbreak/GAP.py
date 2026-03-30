@@ -279,12 +279,12 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
         """
         # global target_model_calls
         batch=[JailbreakDataset([instance.copy()]) for _ in range(self.root_num)]
-        print(f"QUERY:{'='*20}\n{instance.jailbreak_prompt}\n{'='*20}\n", flush=True)
+        #print(f"QUERY:{instance.jailbreak_prompt}\n", flush=True)
         for iteration in range(1, self.tree_depth + 1):
-            print(f"""\n{'=' * 36}\nTree-depth is: {iteration}\n{'=' * 36}\n""", flush=True)
+            #print(f"""\n{'=' * 36}\nTree-depth is: {iteration}\n{'=' * 36}\n""", flush=True)
             dataset_list = []
             for i,stream in enumerate(batch):
-                print(f"BATCH:{i}")
+                #print(f"BATCH:{i}")
                 new_dataset = stream
 
                 ############# generate jailbreak_prompts by branching ################
@@ -313,8 +313,8 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                                                     temperature=self.target_temperature, do_sample=True,
                                                     top_p=self.target_top_p,
                                                     eos_token_id=self.target_model.tokenizer.eos_token_id)]
-                    print("\n\nJailbreak Prompt:\n{}\n".format(instance.jailbreak_prompt))
-                    print("\n\nOutput:\n{}\n????????????????????????????\n\n".format(instance.target_responses))
+                    print("\nJailbreak Prompt:{}\n".format(instance.jailbreak_prompt))
+                    print("\nOutput:\n{}\n????????????????????????????\n".format(instance.target_responses))
                     self.target_model_calls+=1
 
                 ############# prune not-jailbroken jailbreak_prompt ################
@@ -325,7 +325,7 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                     conversation = instance.attack_attrs['conv'].messages 
                     score = instance.eval_results
                     #print("\n\nConversation:{}".format(str(conversation)))
-                    print("\n\nScore:{}".format(score[-1]))
+                    print("\nScore:{}".format(score[-1]))
                     if score[-1] > 4:
                         # Append conversation and score to the global list
                         self.conversation_history.append({

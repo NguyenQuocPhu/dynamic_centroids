@@ -60,10 +60,10 @@ logger = logging.getLogger(__name__)
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Adversarial Prompt Generation")
     parser.add_argument(
-        "--num_samples", type=int, default=5, help="Number of initial seed prompts"
+        "--num_samples", type=int, default=1, help="Number of initial seed prompts"
     )
     parser.add_argument(
-        "--max_iters", type=int, default=20, help="Maximum number of iteration steps"
+        "--max_iters", type=int, default=50, help="Maximum number of iteration steps"
     )
     parser.add_argument(
         "--total", type=int, default=10, help="Total number of attacks per leaf node"
@@ -193,7 +193,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         judge_temperature=config.fitness_llm.sampling_params.get('temperature', 1))
     
     for iteration in range(1, args.max_iters):
-        print(f"\n\n=== Iteration {iteration} ===\n\n")
+        print(f"=== Iteration {iteration} ===\n")
         keys = archive_by_depth.keys()
         selected_keys = random.sample(keys, 5)
         nodes = []
@@ -225,7 +225,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             )
             attacker.attack_model.set_system_message(transfer_prompt)
 
-            K = 3 
+            K = 1
             best_instance = None
             best_score = -1
             for _ in range(K):
@@ -240,6 +240,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 temp_instance.target_responses = [target_response]
                 
                 attacker.evaluator([temp_instance])
+                print(attacker.evaluator.system_prompt)
                 
                 current_score = temp_instance.eval_results[-1] if temp_instance.eval_results else 0
                 
@@ -257,12 +258,12 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         dataset = JailbreakDataset(batch_instances)
         attacker.jailbreak_datasets = dataset
 
-        for instance in tqdm(dataset, desc=f"Processing evolved instances in iteration {iteration}"):
+        for instance in tqdm(dataset, desc=f"Processing evolved instances in iteration {iteration}\n"):
             dummy_node = archive_by_depth.get(instance.attack_attrs['cell_key'])[0]
             dummy_node.add_migrant_tree(instance)
             for i in range(args.total):
                 leaf = dummy_node.select_leaf()
-                print(f"\n\n=== Selected leaf with prompt in step {i}: {leaf.instance.jailbreak_prompt} and score: {leaf.max_score * 9.0 + 1} ===\n\n")
+                print(f"===Selected leaf with prompt in step {i}==\n")
                 if getattr(leaf, 'is_terminal', False):
                     continue
                 new_instances = attacker.single_attack(leaf.instance)
