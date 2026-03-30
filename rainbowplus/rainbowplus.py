@@ -195,7 +195,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     for iteration in range(1, args.max_iters):
         print(f"=== Iteration {iteration} ===\n")
         keys = archive_by_depth.keys()
-        selected_keys = random.sample(keys, 5)
+        selected_keys = random.sample(keys, args.num_samples)
         nodes = []
         for key in selected_keys:
             root = archive_by_depth.get(key)[0]
