@@ -240,7 +240,6 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 temp_instance.target_responses = [target_response]
                 
                 attacker.evaluator([temp_instance])
-                print(attacker.evaluator.system_prompt)
                 
                 current_score = temp_instance.eval_results[-1] if temp_instance.eval_results else 0
                 
