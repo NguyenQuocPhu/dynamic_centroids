@@ -28,8 +28,7 @@ from rainbowplus.utils import (
     load_json,
     initialize_language_models,
     save_comprehensive_logs,
-    save_ga_iteration_log,      # New logging function
-    save_ga_comprehensive_log,  # New logging function
+    save_iteration_logs,
     format_example,
     save_attack_memory_log,
     _repair_yaml_primitives
@@ -93,7 +92,7 @@ def parse_arguments():
     parser.add_argument(
         "--log_interval",
         type=int,
-        default=50,
+        default=5,
         help="Number of iterations between log saves",
     )
     parser.add_argument(
@@ -261,7 +260,16 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             else:
                 pruned_dataset_obj = temp_dataset
             update_archive(archive_by_depth, target_key, list(pruned_dataset_obj))
-        
+        if iteration % args.log_interval == 0:
+            current_ts = time.strftime(r"%Y%m%d-%H%M%S")
+            save_iteration_logs(
+                log_dir=log_dir,
+                archive=archive_by_depth,
+                global_context=global_context,
+                timestamp=current_ts,
+                iteration=iteration,
+                max_iters=args.max_iters
+            )
     current_ts = time.strftime(r"%Y%m%d-%H%M%S")
     
     save_comprehensive_logs(
@@ -290,7 +298,7 @@ if __name__ == "__main__":
     )
     eval_model = from_pretrained(
         config.fitness_llm.model_kwargs["model"],
-        model_name = "llama-2"
+        model_name = "qwen-7b-chat"
     )
     similarity_fn = BleuScoreNLTK()
 
