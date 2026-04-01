@@ -63,7 +63,7 @@ def parse_arguments():
         "--num_samples", type=int, default=5, help="Number of initial seed prompts"
     )
     parser.add_argument(
-        "--max_iters", type=int, default=20, help="Maximum number of iteration steps"
+        "--max_iters", type=int, default=50, help="Maximum number of iteration steps"
     )
     parser.add_argument(
         "--tree_depth", type=int, default=4, help="Depth of the attack tree"
@@ -187,18 +187,18 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         tree_depth=args.tree_depth,
                         root_num=1,
                         branching_factor=3,
-                        keep_last_n=10,
+                        keep_last_n=3,
                         max_n_attack_attempts=2,
                         logging_filename=dataset_name,
                         conversation_history=global_context,
                         attack_max_n_tokens = config.mutator_llm.sampling_params.get('max_tokens', 500),
-                        attack_temperature=config.mutator_llm.sampling_params.get('temperature', 0.7),
+                        attack_temperature=config.mutator_llm.sampling_params.get('temperature', 1),
                         attack_top_p = config.mutator_llm.sampling_params.get('top_p', 0.9),
                         target_max_n_tokens= config.target_llm.sampling_params.get('max_tokens', 150),
-                        target_temperature=config.target_llm.sampling_params.get('temperature', 0.7),
-                        target_top_p=config.target_llm.sampling_params.get('top_p', 0.9),
+                        target_temperature=config.target_llm.sampling_params.get('temperature', 1),
+                        target_top_p=config.target_llm.sampling_params.get('top_p', 1),
                         judge_max_n_tokens=config.fitness_llm.sampling_params.get('max_tokens', 10),
-                        judge_temperature=config.fitness_llm.sampling_params.get('temperature', 0.7))
+                        judge_temperature=config.fitness_llm.sampling_params.get('temperature', 1))
     
     for iteration in range(1, args.max_iters):
         print(f"\n\n=== Iteration {iteration} ===\n\n")
