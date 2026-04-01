@@ -92,7 +92,7 @@ def parse_arguments():
     parser.add_argument(
         "--log_interval",
         type=int,
-        default=50,
+        default=5,
         help="Number of iterations between log saves",
     )
     parser.add_argument(
@@ -189,7 +189,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         judge_temperature=config.fitness_llm.sampling_params.get('temperature', 1))
     attacker.attack_model.generate = count_calls(attack_model.generate)
     attacker.target_model.generate = count_calls(target_model.generate)
-    #attacker.eval_model.generate = count_calls(eval_model.generate)
+    attacker.eval_model.generate = count_calls(eval_model.generate)
     attacker.evaluator.get_score = count_calls(attacker.evaluator.get_score)
     attacker.constraint.process_output_on_topic_score = count_calls(attacker.constraint.process_output_on_topic_score)
     attacker.selector.select = count_calls(attacker.selector.select)
@@ -284,7 +284,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     call_counts = {
         "attack_model_generate": attacker.attack_model.generate.calls,
         "target_model_generate": attacker.target_model.generate.calls,
-        #"eval_model_generate": attacker.eval_model.generate.calls,
+        "eval_model_generate": attacker.eval_model.generate.calls,
         "evaluator_get_score": attacker.evaluator.get_score.calls,
         "constraint_process_output_on_topic_score": attacker.constraint.process_output_on_topic_score.calls,
         "selector_select": attacker.selector.select.calls,
