@@ -179,6 +179,11 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                                                  'max_new_tokens': self.judge_max_n_tokens,
                                                  'temperature': self.judge_temperature}
 
+    def attack(self, save_path='GAP_attack_result.jsonl'):
+        r"""
+        Execute the attack process using provided prompts.
+        """
+        
 
     def single_attack(self, instance) -> JailbreakDataset:
         r"""
