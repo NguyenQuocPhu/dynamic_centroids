@@ -299,7 +299,7 @@ if __name__ == "__main__":
     )
     eval_model = from_pretrained(
         config.fitness_llm.model_kwargs["model"],
-        model_name = "qwen-7b-chat"
+        model_name = "llama-2"
     )
     similarity_fn = BleuScoreNLTK()
 
