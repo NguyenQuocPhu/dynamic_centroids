@@ -60,13 +60,13 @@ logger = logging.getLogger(__name__)
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Adversarial Prompt Generation")
     parser.add_argument(
-        "--num_samples", type=int, default=1, help="Number of initial seed prompts"
+        "--num_samples", type=int, default=5, help="Number of initial seed prompts"
     )
     parser.add_argument(
-        "--max_iters", type=int, default=5, help="Maximum number of iteration steps"
+        "--max_iters", type=int, default=50, help="Maximum number of iteration steps"
     )
     parser.add_argument(
-        "--total", type=int, default=10, help="Total number of attacks per leaf node"
+        "--total", type=int, default=8, help="Total number of attacks per leaf node"
     )
     parser.add_argument(
         "--sim_threshold",
@@ -189,7 +189,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         judge_temperature=config.fitness_llm.sampling_params.get('temperature', 1))
     attacker.attack_model.generate = count_calls(attack_model.generate)
     attacker.target_model.generate = count_calls(target_model.generate)
-    attacker.eval_model.generate = count_calls(eval_model.generate)
+    #attacker.eval_model.generate = count_calls(eval_model.generate)
     attacker.evaluator.get_score = count_calls(attacker.evaluator.get_score)
     attacker.constraint.process_output_on_topic_score = count_calls(attacker.constraint.process_output_on_topic_score)
     attacker.selector.select = count_calls(attacker.selector.select)
@@ -284,7 +284,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     call_counts = {
         "attack_model_generate": attacker.attack_model.generate.calls,
         "target_model_generate": attacker.target_model.generate.calls,
-        "eval_model_generate": attacker.eval_model.generate.calls,
+        #"eval_model_generate": attacker.eval_model.generate.calls,
         "evaluator_get_score": attacker.evaluator.get_score.calls,
         "constraint_process_output_on_topic_score": attacker.constraint.process_output_on_topic_score.calls,
         "selector_select": attacker.selector.select.calls,
