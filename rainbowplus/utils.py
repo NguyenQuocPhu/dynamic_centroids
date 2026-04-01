@@ -278,7 +278,7 @@ import json
 import pickle
 from pathlib import Path
 
-def save_all_instances(archive, save_dir, filename="all_jailbreak_instances"):
+def save_all_instances(archive, save_dir, filename="all_jailbreak_instances", call_counts=None):
     save_dir = Path(save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
     
@@ -311,7 +311,7 @@ def save_all_instances(archive, save_dir, filename="all_jailbreak_instances"):
             
             instance_data = {
                 "tree_depth": depth,
-                "eval_score": inst.eval_results[-1] if inst.eval_results else 0,
+                "score": inst.eval_results[-1] if inst.eval_results else 0,
                 "mcts_visits": node.visits,
                 "is_terminal": getattr(node, 'is_terminal', False),
                 "jailbreak_prompt": inst.jailbreak_prompt,
@@ -323,9 +323,18 @@ def save_all_instances(archive, save_dir, filename="all_jailbreak_instances"):
         if cell_instances:
             all_instances_data[str(key)] = cell_instances
 
+    # Add call counts to the data if provided
+    output_data = {
+        "instances": all_instances_data,
+    }
+    
+    if call_counts is not None:
+        output_data["call_counts"] = call_counts
+        output_data["total_calls"] = sum(call_counts.values())
+
     json_path = save_dir / f"{filename}.json"
     with open(json_path, 'w', encoding='utf-8') as f:
-        json.dump(all_instances_data, f, indent=4, ensure_ascii=False)
+        json.dump(output_data, f, indent=4, ensure_ascii=False)
         
     pkl_path = save_dir / f"{filename}.pkl"
     with open(pkl_path, 'wb') as f:
@@ -334,6 +343,10 @@ def save_all_instances(archive, save_dir, filename="all_jailbreak_instances"):
     print(f"\n[+] SAVE THÀNH CÔNG!")
     print(f"    - Đã xuất TỔNG CỘNG {total_count} instances (thuộc {len(all_instances_data)} cells) ra file: {json_path}")
     print(f"    - Đã sao lưu Archive ra file: {pkl_path}")
+    if call_counts is not None:
+        print(f"    - Function call counts:")
+        for func_name, count in call_counts.items():
+            print(f"      * {func_name}: {count}")
 
 
 def save_attack_memory_log(log_dir, attack_memory, timestamp):
