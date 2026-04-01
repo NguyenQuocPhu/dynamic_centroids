@@ -151,12 +151,8 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     descriptors = load_descriptors(config)
 
     # Initialize archives
-    all_prompts = Archive("all_prompts")
-    all_responses = Archive("all_responses")
-    all_scores = Archive("all_scores")
-    all_similarities = Archive("all_similarities")
-    rejection_reasons = Archive("rejection_reasons")
     archive_by_depth = Archive[Forest]("map-elites")
+    
     keys = list(descriptors.keys())
     all_combinations = list(itertools.product(*[descriptors[k] for k in keys]))
 

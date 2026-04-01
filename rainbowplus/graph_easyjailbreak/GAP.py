@@ -154,13 +154,6 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
         self.judge_temperature = judge_temperature
         self.judge_max_n_tokens = judge_max_n_tokens
 
-        ######## apply decorator to record calls ############
-        attack_model.generate = count_calls(attack_model.generate)
-        target_model.generate = count_calls(target_model.generate)
-        eval_model.generate = count_calls(eval_model.generate)
-        self.evaluator.get_score = count_calls(self.evaluator.get_score)
-        #self.constraint.process_output_on_topic_score = count_calls(self.constraint.process_output_on_topic_score)
-        self.selector.select = count_calls(self.selector.select)
 
         if self.attack_model.generation_config == {}:
             if isinstance(self.attack_model, OpenaiModel):
@@ -186,89 +179,6 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                                                  'max_new_tokens': self.judge_max_n_tokens,
                                                  'temperature': self.judge_temperature}
 
-    def attack(self, save_path='GAP_attack_result.jsonl'):
-        r"""
-        Execute the attack process using provided prompts.
-        """
-        # To calculate how many times are eval_model.generate() called
-        # global target_model_calls
-
-        # Track total calls for each function
-        total_queries = 0
-        total_jailbreaks = 0
-        total_rejects = 0
-        total_calls = {  
-            'selector.select': 0,
-            'constraint.score_prompt': 0,
-            'evaluator.get_score': 0,
-            'attack_model.generate': 0,
-            'eval_model.generate': 0,
-            'target_model.generate': 0
-        }
-        logging.info("Jailbreak started!")
-        try:
-            for Instance in tqdm(self.jailbreak_datasets, desc="Processing instances"):
-                new_Instance = self.single_attack(Instance)[0]
-
-                total_queries += 1
-                total_jailbreaks += new_Instance.num_jailbreak
-                total_rejects += new_Instance.num_reject
-                current_calls = {
-                    'Jailbreak': new_Instance.num_jailbreak,
-                    'Reject': new_Instance.num_reject,
-                    'Calls to SelectBasedOnScores': self.selector.select.calls,
-                    'Calls to DeleteOffTopic': self.constraint.score_prompt.calls,
-                    'Calls to EvaluatorGenerativeGetScore': self.evaluator.get_score.calls,
-                    'Calls to attack_model.generate': self.attack_model.generate.calls,
-                    'Calls to eval_model.generate': self.eval_model.generate.calls,
-                    'Calls to target_model.generate': self.target_model.generate.calls
-                }
-
-                # Update total call counts after each instance
-                for func_name in total_calls:
-                    total_calls[func_name] += getattr(self, func_name.split('.')[0]).__dict__[func_name.split('.')[1]].calls
-                new_Instance.__setattr__('call_info', current_calls)
-
-
-                # Reset the call counts for the next query
-                self.reset_call_counts()
-                # self.conversation_history = [] # Reset the conversation history to be clean for each seed
-                self.jailbreak_Dataset.add(new_Instance)
-
-                # Log the summary of total calls at the end
-                print("\n====== Total Calls Summary: ======")
-                for func_name, calls in total_calls.items():
-                    print(f"Total calls to {func_name}: {calls}")
-                self.update(self.jailbreak_Dataset)
-                print(f'jailbreak_prompt:{[instance.jailbreak_prompt for instance in self.jailbreak_Dataset]}')
-                print(f'target_responses:{[instance.target_responses[0] for instance in self.jailbreak_Dataset]}')
-                print(f"ASR:{100*self.current_jailbreak/self.current_query}%")
-                print(f"Total calls to target model:{self.target_model_calls}")
-                # print(f"Eval calls of generate:{self.evaluator.eval_model.generate.calls - target_model_calls}")
-                self.log()
-                logging.info("Jailbreak finished!")
-                self.jailbreak_Dataset.save_to_jsonl(save_path, call_info=current_calls) # pass total_calls to save_to_jsonl
-                logging.info(
-                    'Jailbreak result saved at {}!'.format(os.path.join(os.path.dirname(os.path.abspath(__file__)), save_path))
-                )
-        except KeyboardInterrupt:
-            logging.info("Jailbreak interrupted by user!")
-        # Log the summary of total calls at the end
-        print("\n====== Total Calls Summary: ======")
-        for func_name, calls in total_calls.items():
-            print(f"Total calls to {func_name}: {calls}")
-        self.update(self.jailbreak_Dataset)
-        print(f'jailbreak_prompt:{[instance.jailbreak_prompt for instance in self.jailbreak_Dataset]}')
-        print(f'target_responses:{[instance.target_responses[0] for instance in self.jailbreak_Dataset]}')
-        print(f"ASR:{100*self.current_jailbreak/self.current_query}%")
-        print(f"Total calls to target model:{self.target_model_calls}")
-        # print(f"Eval calls of generate:{self.evaluator.eval_model.generate.calls - target_model_calls}")
-        self.log()
-        logging.info("Jailbreak finished!")
-        self.jailbreak_Dataset.save_to_jsonl(save_path, call_info=current_calls) # pass total_calls to save_to_jsonl
-        logging.info(
-            'Jailbreak result saved at {}!'.format(os.path.join(os.path.dirname(os.path.abspath(__file__)), save_path))
-        )
 
     def single_attack(self, instance) -> JailbreakDataset:
         r"""
