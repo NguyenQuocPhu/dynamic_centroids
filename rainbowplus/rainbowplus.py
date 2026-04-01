@@ -183,7 +183,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         target_model=target_model,
                         eval_model=fitness_fn,
                         jailbreak_datasets=seed,
-                        tree_width=3,
+                        tree_width=5,
                         tree_depth=args.tree_depth,
                         root_num=1,
                         branching_factor=3,
@@ -200,6 +200,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         judge_max_n_tokens=config.fitness_llm.sampling_params.get('max_tokens', 10),
                         judge_temperature=config.fitness_llm.sampling_params.get('temperature', 1))
     
+   
     for iteration in range(1, args.max_iters):
         print(f"\n\n=== Iteration {iteration} ===\n\n")
         branchs = archive_by_depth.flatten_values()
