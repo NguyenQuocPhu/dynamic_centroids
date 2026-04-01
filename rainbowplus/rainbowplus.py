@@ -152,7 +152,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 
     # Initialize archives
     archive_by_depth = Archive[Forest]("map-elites")
-    
+
     keys = list(descriptors.keys())
     all_combinations = list(itertools.product(*[descriptors[k] for k in keys]))
 
@@ -175,7 +175,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         tree_depth=1,
                         root_num=1,
                         branching_factor=3,
-                        keep_last_n=10,
+                        keep_last_n=3,
                         max_n_attack_attempts=2,
                         logging_filename=dataset_name,
                         conversation_history=global_context,
