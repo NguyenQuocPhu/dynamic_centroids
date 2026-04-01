@@ -66,7 +66,7 @@ def parse_arguments():
         "--max_iters", type=int, default=50, help="Maximum number of iteration steps"
     )
     parser.add_argument(
-        "--tree_depth", type=int, default=5, help="Depth of the attack tree"
+        "--tree_depth", type=int, default=4, help="Depth of the attack tree"
     )
     parser.add_argument(
         "--sim_threshold",
