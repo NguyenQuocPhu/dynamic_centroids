@@ -22,6 +22,7 @@ mutator_llm:
     max_model_len: 510
     enforce_eager: True
     max_num_seqs: 16
+  sampling_params:
     temperature: 1
     top_p: 0.9
     max_tokens: 500
