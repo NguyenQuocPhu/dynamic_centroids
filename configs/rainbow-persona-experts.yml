@@ -6,7 +6,7 @@ target_llm:
   type_: vllm
   model_kwargs:
     model: Qwen/Qwen2.5-7B-Instruct
-    gpu_memory_utilization: 0.23
+    gpu_memory_utilization: 0.21
     max_model_len: 1024
     enforce_eager: True
     max_num_seqs: 32
@@ -19,7 +19,7 @@ mutator_llm:
   type_: vllm
   model_kwargs:
     model: lmsys/vicuna-13b-v1.5
-    gpu_memory_utilization: 0.335
+    gpu_memory_utilization: 0.36
     max_model_len: 1024
     enforce_eager: True
     max_num_seqs: 16
