@@ -134,7 +134,7 @@ def calculate_embedding_diversity_from_archives(all_prompts):
         flat_prompts.extend(prompts)
     if len(flat_prompts) < 2:
         return 0.0
-    model = SentenceTransformer('all-MiniLM-L6-v2')
+    model = SentenceTransformer('all-MiniLM-L6-v2', device = 'cpu')
     embeddings = model.encode(flat_prompts, show_progress_bar=False)
     # Compute pairwise cosine distances
     dists = cosine_distances(embeddings)
