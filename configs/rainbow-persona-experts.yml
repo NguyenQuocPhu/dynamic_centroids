@@ -30,8 +30,8 @@ fitness_llm:
   type_: vllm
   model_kwargs:
     model: Qwen/Qwen2.5-14B-Instruct
-    gpu_memory_utilization: 0.37
-    max_model_len: 510
+    gpu_memory_utilization: 0.36
+    max_model_len: 256
     enforce_eager: True
   sampling_params:
     temperature: 0.7
