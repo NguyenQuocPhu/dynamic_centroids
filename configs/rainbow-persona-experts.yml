@@ -33,7 +33,7 @@ fitness_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-14B-Instruct
     gpu_memory_utilization: 0.38
-    max_model_len: 1280
+    max_model_len: 1536
     enforce_eager: True
     max_num_seqs: 16
   sampling_params:
