@@ -63,10 +63,10 @@ def parse_arguments():
         "--num_samples", type=int, default=5, help="Number of initial seed prompts"
     )
     parser.add_argument(
-        "--max_iters", type=int, default=50, help="Maximum number of iteration steps"
+        "--max_iters", type=int, default=20, help="Maximum number of iteration steps"
     )
     parser.add_argument(
-        "--total", type=int, default=8, help="Total number of attacks per leaf node"
+        "--total", type=int, default=20, help="Total number of attacks per leaf node"
     )
     parser.add_argument(
         "--sim_threshold",
@@ -174,7 +174,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         tree_width=999,
                         tree_depth=1,
                         root_num=1,
-                        branching_factor=3,
+                        branching_factor=2,
                         keep_last_n=3,
                         max_n_attack_attempts=2,
                         logging_filename=dataset_name,
