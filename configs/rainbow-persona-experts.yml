@@ -6,7 +6,7 @@ target_llm:
   type_: vllm
   model_kwargs:
     model: Qwen/Qwen2.5-7B-Instruct
-    gpu_memory_utilization: 0.3
+    gpu_memory_utilization: 0.15
     max_model_len: 2048
   sampling_params:
     temperature: 1
@@ -28,7 +28,7 @@ fitness_llm:
   type_: vllm
   model_kwargs:
     model: Qwen/Qwen2.5-14B-Instruct
-    gpu_memory_utilization: 0.15
+    gpu_memory_utilization: 0.3
   sampling_params:
     temperature: 0.7
     top_p: 0.9
