@@ -21,7 +21,7 @@ mutator_llm:
     gpu_memory_utilization: 0.335
     max_model_len: 510
     enforce_eager: True
-  sampling_params:
+    max_num_seqs: 16
     temperature: 1
     top_p: 0.9
     max_tokens: 500
@@ -33,6 +33,7 @@ fitness_llm:
     gpu_memory_utilization: 0.36
     max_model_len: 256
     enforce_eager: True
+    max_num_seqs: 16
   sampling_params:
     temperature: 0.7
     top_p: 0.9
