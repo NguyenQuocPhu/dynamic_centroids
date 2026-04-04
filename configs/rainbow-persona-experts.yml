@@ -6,8 +6,9 @@ target_llm:
   type_: vllm
   model_kwargs:
     model: Qwen/Qwen2.5-7B-Instruct
-    gpu_memory_utilization: 0.255
+    gpu_memory_utilization: 0.23
     max_model_len: 768
+    enforce_eager: True
   sampling_params:
     temperature: 1
     top_p: 1
@@ -17,8 +18,9 @@ mutator_llm:
   type_: vllm
   model_kwargs:
     model: lmsys/vicuna-13b-v1.5
-    gpu_memory_utilization: 0.34
-    max_model_len: 768
+    gpu_memory_utilization: 0.32
+    max_model_len: 512
+    enforce_eager: True
   sampling_params:
     temperature: 1
     top_p: 0.9
@@ -28,8 +30,9 @@ fitness_llm:
   type_: vllm
   model_kwargs:
     model: Qwen/Qwen2.5-14B-Instruct
-    gpu_memory_utilization: 0.35
-    max_model_len: 510
+    gpu_memory_utilization: 0.34
+    max_model_len: 512
+    enforce_eager: True
   sampling_params:
     temperature: 0.7
     top_p: 0.9
