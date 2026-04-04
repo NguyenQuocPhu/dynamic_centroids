@@ -40,6 +40,8 @@ fitness_llm:
     temperature: 0.7
     top_p: 0.9
     max_tokens: 10
+    logprobs: 1
+
 
 sample_prompts: ./data/harmbench.json
 num_samples: 150
