@@ -442,7 +442,7 @@ def run_rainbowplus(
         # Generate responses for ALL original prompts (not just filtered ones)
         if original_mutated_prompts:
             all_target_prompts = [
-                TARGET_PROMPT.format(prompt=p.strip()) for p in original_mutated_prompts
+                TARGET_PROMPT.format(prompt=p.strip()) for p in original_mutated_prompts if p and p.strip()
             ]
             target_model = config.target_llm.model_kwargs["model"]
             all_candidates = llms[target_model].batch_generate(
