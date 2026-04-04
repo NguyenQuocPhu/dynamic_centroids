@@ -7,7 +7,7 @@ target_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-7B-Instruct
     gpu_memory_utilization: 0.255
-    max_model_len: 848
+    max_model_len: 768
   sampling_params:
     temperature: 1
     top_p: 1
@@ -18,7 +18,7 @@ mutator_llm:
   model_kwargs:
     model: lmsys/vicuna-13b-v1.5
     gpu_memory_utilization: 0.34
-    max_model_len: 848
+    max_model_len: 768
   sampling_params:
     temperature: 1
     top_p: 0.9
