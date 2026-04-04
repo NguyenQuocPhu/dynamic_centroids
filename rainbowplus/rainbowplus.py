@@ -245,7 +245,7 @@ def run_rainbowplus(
 
     # Main adversarial prompt generation loop
     for i in range(args.max_iters):
-        logger.info(f"#####ITERATION: {i}")
+        logger.warning(f"#####ITERATION: {i}")
 
         # Select prompt (initial seed or from existing adversarial prompts)
         if i < len(seed_prompts):
