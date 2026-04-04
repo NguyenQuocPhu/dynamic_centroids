@@ -3,35 +3,40 @@ algorithm: rainbowplus
 method: combined-fit
 
 target_llm:
-  type_: openai
+  type_: vllm
   model_kwargs:
-    model: gpt-4o
+    model: Qwen/Qwen2.5-7B-Instruct
+    gpu_memory_utilization: 0.3
+    max_model_len: 2048
   sampling_params:
-    temperature: 0.7
-    top_p: 0.9
-    max_tokens: 512
+    temperature: 1
+    top_p: 1
+    max_tokens: 500
 
 mutator_llm:
-  type_: openai
+  type_: vllm
   model_kwargs:
-    model: gpt-4o
+    model: lmsys/vicuna-13b-v1.5
+    gpu_memory_utilization: 0.35
+    max_model_len: 2048
   sampling_params:
-    temperature: 0.7
+    temperature: 1
     top_p: 0.9
-    max_tokens: 512
+    max_tokens: 500
 
 fitness_llm:
-  type_: openai
+  type_: vllm
   model_kwargs:
-    model: gpt-4o
+    model: Qwen/Qwen2.5-14B-Instruct
+    gpu_memory_utilization: 0.15
   sampling_params:
     temperature: 0.7
     top_p: 0.9
-    max_tokens: 512
+    max_tokens: 10
 
 sample_prompts: ./data/harmbench.json
 num_samples: 150
-max_iters: 200
+max_iters: 80
 sim_threshold: 0.6
 num_mutations: 10
 fitness_threshold: 0.6
