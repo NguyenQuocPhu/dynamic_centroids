@@ -8,36 +8,28 @@ archive:
 # Seed dataset
 sample_prompts: ./data/do-not-answer.json
 
-# Target LLM Configuration
 target_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-7B-Instruct
     max_model_len: 2048
-
   sampling_params:
-    temperature: 1          # override target_temperature
-    top_p: 1                # override target_top_p
-    max_tokens: 500         # override target_max_n_tokens
+    temperature: 1
+    top_p: 1
+    max_tokens: 500
 
-
-# Mutator LLM Configuration (Attacker Model)
-mutator_llm: 
+mutator_llm:
   model_kwargs:
     model: lmsys/vicuna-13b-v1.5
     max_model_len: 2048
-
   sampling_params:
-    temperature: 1          # override attack_temperature
-    top_p: 0.9              # override attack_top_p
-    max_tokens: 500         # override attack_max_n_tokens
+    temperature: 1
+    top_p: 0.9
+    max_tokens: 500
 
-
-# Fitness LLM Configuration (Judge Model)
-fitness_llm: 
+fitness_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-14B-Instruct
-    
   sampling_params:
-    temperature: 1          # override judge_temperature
-    top_p: 0.9              # giữ nguyên nếu không override
-    max_tokens: 10          # override judge_max_n_tokens
+    temperature: 0.7
+    top_p: 0.9
+    max_tokens: 10

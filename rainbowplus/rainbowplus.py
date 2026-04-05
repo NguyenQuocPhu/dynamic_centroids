@@ -28,8 +28,7 @@ from rainbowplus.utils import (
     load_json,
     initialize_language_models,
     save_comprehensive_logs,
-    save_ga_iteration_log,      # New logging function
-    save_ga_comprehensive_log,  # New logging function
+    save_iteration_logs,
     format_example,
     save_attack_memory_log,
     _repair_yaml_primitives
@@ -64,7 +63,7 @@ def parse_arguments():
         "--num_samples", type=int, default=5, help="Number of initial seed prompts"
     )
     parser.add_argument(
-        "--max_iters", type=int, default=10, help="Maximum number of iteration steps"
+        "--max_iters", type=int, default=40, help="Maximum number of iteration steps"
     )
     parser.add_argument(
         "--tree_depth", type=int, default=4, help="Depth of the attack tree"
@@ -93,7 +92,7 @@ def parse_arguments():
     parser.add_argument(
         "--log_interval",
         type=int,
-        default=50,
+        default=5,
         help="Number of iterations between log saves",
     )
     parser.add_argument(
@@ -163,7 +162,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     log_dir.mkdir(parents=True, exist_ok=True)
     seed = JailbreakDataset("AdvBench")
     seed.shuffle() # Shuffle seed prompts to ensure randomness
-    seed_prompts = seed[:25] # Take only the required number of samples
+    seed_prompts = seed[:100] # Take only the required number of samples
     archive_by_depth = Archive[Instance]("map-elites")
     # Prepare seed metadata
     for i, instance in enumerate(seed_prompts):
@@ -201,6 +200,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         judge_max_n_tokens=config.fitness_llm.sampling_params.get('max_tokens', 10),
                         judge_temperature=config.fitness_llm.sampling_params.get('temperature', 1))
     
+   
     for iteration in range(1, args.max_iters):
         print(f"\n\n=== Iteration {iteration} ===\n\n")
         branchs = archive_by_depth.flatten_values()
@@ -261,7 +261,16 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             else:
                 pruned_dataset_obj = temp_dataset
             update_archive(archive_by_depth, target_key, list(pruned_dataset_obj))
-        
+        if iteration % args.log_interval == 0:
+            current_ts = time.strftime(r"%Y%m%d-%H%M%S")
+            save_iteration_logs(
+                log_dir=log_dir,
+                archive=archive_by_depth,
+                global_context=global_context,
+                timestamp=current_ts,
+                iteration=iteration,
+                max_iters=args.max_iters
+            )
     current_ts = time.strftime(r"%Y%m%d-%H%M%S")
     
     save_comprehensive_logs(

@@ -291,7 +291,8 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                 new_dataset = self.mutator(new_dataset, self.conversation_history) # Pass global conversation history to prompt refiner (mutator)
 
                 ############# prune off-topic jailbreak_prompt ################
-                new_dataset = self.constraint(new_dataset)
+                if len(new_dataset) > 0:
+                    new_dataset = self.constraint(new_dataset)
                 print(f"Length of new_dataset: {len(new_dataset)}")
                 ############# attack ################
                 self.target_model.conversation.messages = []
@@ -318,7 +319,7 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
 
                 ############# prune not-jailbroken jailbreak_prompt ################
                 num_responses = len(new_dataset)
-                self.evaluator(new_dataset)
+                self.evaluator(new_dataset) 
                 # Remove log writing, keep only necessary logic
                 for instance in new_dataset:
                     conversation = instance.attack_attrs['conv'].messages 
