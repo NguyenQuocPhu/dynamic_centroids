@@ -723,7 +723,7 @@ def plot_map_elites_coverage_heatmap(log_data: Dict = None, output_dir: str = ".
     
     # Create a filled cells heatmap (binary: 0 or 1)
     filled_df = coverage_df.copy()
-    filled_df = filled_df.applymap(lambda x: 1 if x >= 0 else 0)
+    filled_df = (filled_df >= 0).astype(int)
     
     fig, ax = plt.subplots(figsize=(14, 10))
     sns.heatmap(
