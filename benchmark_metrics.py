@@ -616,17 +616,57 @@ def extract_coverage_from_phase_results(phase_results: Dict) -> pd.DataFrame:
     return coverage_matrix
 
 
+def build_judge_filtered_original_fitness_matrix(
+    log_data: Dict,
+    phase2_results: Dict,
+    judge_threshold: float = 6.0
+) -> Tuple[pd.DataFrame, Dict[str, int]]:
+    """
+    Build a matrix for Phase 2 visualization where:
+    - Cell selection is based on judge score > judge_threshold
+    - Cell color value comes from original MAP-Elites fitness score
+    """
+    original_fitness_df, _ = extract_map_elites_coverage(log_data)
+    judge_score_df = extract_coverage_from_phase_results(phase2_results)
+
+    filtered_df = pd.DataFrame(
+        data=-1.0,
+        index=original_fitness_df.index,
+        columns=original_fitness_df.columns
+    )
+
+    selected_cells = 0
+    for risk in filtered_df.index:
+        for style in filtered_df.columns:
+            judge_score = judge_score_df.loc[risk, style]
+            original_score = original_fitness_df.loc[risk, style]
+
+            if judge_score > judge_threshold and original_score >= 0:
+                filtered_df.loc[risk, style] = original_score
+                selected_cells += 1
+
+    stats = {
+        'selected_cells': selected_cells,
+        'total_cells': int(filtered_df.size)
+    }
+    return filtered_df, stats
+
+
 # ============ VISUALIZATION FUNCTIONS ============
 
 def plot_map_elites_coverage_heatmap(log_data: Dict = None, output_dir: str = "./results", 
-                                     phase_results: Dict = None, phase_num: int = 1):
+                                     phase_results: Dict = None, phase_num: int = 1,
+                                     coverage_df_override: Optional[pd.DataFrame] = None,
+                                     custom_title: Optional[str] = None):
     """
     Create MAP-Elites coverage heatmap: Risk Category vs Attack Style.
     Can use either log_data (Phase 1) or phase_results (Phase 2).
     """
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
-    if phase_results:
+    if coverage_df_override is not None:
+        coverage_df = coverage_df_override
+    elif phase_results:
         coverage_df = extract_coverage_from_phase_results(phase_results)
     else:
         coverage_df, _ = extract_map_elites_coverage(log_data)
@@ -664,8 +704,8 @@ def plot_map_elites_coverage_heatmap(log_data: Dict = None, output_dir: str = ".
     )
     
     phase_label = f"Phase {phase_num}" if phase_num else "Initial"
-    ax.set_title(f'MAP-Elites Coverage Heatmap ({phase_label}): Risk Category vs Attack Style', 
-                 fontsize=16, weight='bold', pad=20)
+    title = custom_title if custom_title else f'MAP-Elites Coverage Heatmap ({phase_label}): Risk Category vs Attack Style'
+    ax.set_title(title, fontsize=16, weight='bold', pad=20)
     ax.set_xlabel('Attack Style', fontsize=13, weight='bold')
     ax.set_ylabel('Risk Category', fontsize=13, weight='bold')
     
@@ -717,14 +757,18 @@ def plot_map_elites_coverage_heatmap(log_data: Dict = None, output_dir: str = ".
 
 
 def plot_map_elites_fitness_distribution(log_data: Dict = None, output_dir: str = "./results", 
-                                       phase_results: Dict = None, phase_num: int = 1):
+                                       phase_results: Dict = None, phase_num: int = 1,
+                                       all_scores_override: Optional[np.ndarray] = None,
+                                       custom_title_suffix: Optional[str] = None):
     """
     Create a detailed visualization of MAP-Elites fitness distribution.
     Can use either log_data (Phase 1) or phase_results (Phase 2).
     """
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
-    if phase_results:
+    if all_scores_override is not None:
+        all_scores = np.asarray(all_scores_override)
+    elif phase_results:
         coverage_df = extract_coverage_from_phase_results(phase_results)
         # For Phase 2, use the phase2_scores if available
         all_scores = np.array(phase_results.get('phase2_scores', []))
@@ -732,14 +776,24 @@ def plot_map_elites_fitness_distribution(log_data: Dict = None, output_dir: str 
         coverage_df, _ = extract_map_elites_coverage(log_data)
         all_scores = coverage_df.values.flatten()
         all_scores = all_scores[all_scores >= 0]  # Remove unfilled cells (-1)
+
+    # Keep only valid non-negative entries for plotting and stats.
+    all_scores = all_scores[np.isfinite(all_scores)]
+    all_scores = all_scores[all_scores >= 0]
+
+    if all_scores.size == 0:
+        print(f"⚠️  No fitness scores available for distribution plot (Phase {phase_num})")
+        return
     
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
     
+    title_suffix = f" ({custom_title_suffix})" if custom_title_suffix else ""
+
     # 1. Histogram of fitness scores
     axes[0, 0].hist(all_scores, bins=20, color='#1F77B4', alpha=0.7, edgecolor='black')
     axes[0, 0].set_xlabel('Fitness Score', fontsize=11)
     axes[0, 0].set_ylabel('Frequency', fontsize=11)
-    axes[0, 0].set_title('Distribution of Fitness Scores', fontsize=12, weight='bold')
+    axes[0, 0].set_title(f'Distribution of Fitness Scores{title_suffix}', fontsize=12, weight='bold')
     axes[0, 0].grid(True, alpha=0.3)
     
     # 2. Cumulative distribution
@@ -976,8 +1030,30 @@ def benchmark_logs(log_paths: List[str], output_dir: str = "./results",
     
     if phase2_results_list:
         print("🔍 Generating Phase 2 visualizations...")
-        plot_map_elites_coverage_heatmap(phase_results=phase2_results_list[-1], output_dir=output_dir, phase_num=2)
-        plot_map_elites_fitness_distribution(phase_results=phase2_results_list[-1], output_dir=output_dir, phase_num=2)
+        judge_threshold = phase2_results_list[-1].get('score_threshold', 6.0)
+        filtered_phase2_df, filter_stats = build_judge_filtered_original_fitness_matrix(
+            logs[-1],
+            phase2_results_list[-1],
+            judge_threshold=judge_threshold
+        )
+        print(
+            f"  ├─ Judge-selected cells: {filter_stats['selected_cells']}/{filter_stats['total_cells']} "
+            f"(threshold > {judge_threshold})"
+        )
+        plot_map_elites_coverage_heatmap(
+            output_dir=output_dir,
+            phase_num=2,
+            coverage_df_override=filtered_phase2_df,
+            custom_title='MAP-Elites Coverage Heatmap (Phase 2): Original Fitness for Judge-Selected Cells'
+        )
+        phase2_selected_original_scores = filtered_phase2_df.values.flatten()
+        phase2_selected_original_scores = phase2_selected_original_scores[phase2_selected_original_scores >= 0]
+        plot_map_elites_fitness_distribution(
+            output_dir=output_dir,
+            phase_num=2,
+            all_scores_override=phase2_selected_original_scores,
+            custom_title_suffix='Phase 2 Judge-Selected Cells (Original Fitness)'
+        )
         print("✅ Phase 2 visualizations complete!\n")
     
     # Phase comparison
