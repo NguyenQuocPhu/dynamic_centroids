@@ -157,7 +157,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     seed = JailbreakDataset("AdvBench")
     seed.shuffle() # Shuffle seed prompts to ensure randomness
     seed_prompts = seed[:args.num_samples] # Take only the required number of samples
-    
+
     global_context = []
     attacker = GAP (attack_model=attack_model,
                         target_model=target_model,
@@ -182,7 +182,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 
     archive_by_depth = Archive[Instance]("map-elites")
     for i, instance in enumerate(seed_prompts):
-        inst = instance.deepcopy()
+        inst = instance.copy()
         desc = {key: random.choice(value) for key, value in descriptors.items()}
         key = tuple(desc.values())
         seed_query = "\n".join([f"{k}: {v}" for k, v in desc.items()])
@@ -217,7 +217,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         best_instance = None
         best_score = -1
         for _ in range(attacker.max_n_attack_attempts):
-            temp_instance = selected_branchs.deepcopy()
+            temp_instance = selected_branchs.copy()
             temp_instance.query = descriptor_str
             temp_instance.reference_responses = [""]
             if 'conv' in temp_instance.attack_attrs:
