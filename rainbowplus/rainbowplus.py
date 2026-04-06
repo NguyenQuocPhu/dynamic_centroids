@@ -220,28 +220,38 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         if 'conv' in temp_instance.attack_attrs:
             del temp_instance.attack_attrs['conv']
 
+        # Wrap single instance vào JailbreakDataset
+        temp_dataset = JailbreakDataset([temp_instance])
+
         attacker.mutator.system_prompt = MUTATOR_PROMPT_V1
-        mutated_instances = attacker.mutator(temp_instance, global_context)  # Trả về list of Instance
+        mutated_instances = attacker.mutator(temp_dataset, global_context)  # Truyền JailbreakDataset
         attacker.mutator.system_prompt = system_prompt_mutator
 
         if 'conv' in temp_instance.attack_attrs:
             del temp_instance.attack_attrs['conv']
-        
+
+        # mutated_instances là JailbreakDataset, convert thành list nếu cần
+        mutated_list = list(mutated_instances)
+
         # Generate target response cho tất cả mutated instances
-        for inst in mutated_instances:
+        for inst in mutated_list:
             target_response = attacker.target_model.generate(inst.jailbreak_prompt)
             inst.target_responses = [target_response]
-        attacker.evaluator([temp_instance])
 
+        # Evaluate tất cả mutated instances
+        attacker.evaluator(mutated_list)
+
+        # Sort theo eval score từ evaluator và lấy instance có score cao nhất
         best_mutated = max(
-            mutated_instances,
+            mutated_list,
             key=lambda x: x.eval_results[-1] if len(x.eval_results) > 0 else 0
         )
+
         current_score = best_mutated.eval_results[-1] if best_mutated.eval_results else 0
         if current_score > best_score:
             best_score = current_score
             best_instance = best_mutated
- 
+
         best_instance.attack_attrs['cell_key'] = key
         batch_instances.append(best_instance)
 
