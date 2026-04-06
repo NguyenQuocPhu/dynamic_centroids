@@ -227,12 +227,14 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         temp_dataset = JailbreakDataset([temp_instance])
         
         temp_max_n_attack_attempts = attacker.mutator.max_n_attack_attempts
+        temp_branching_factor = attacker.mutator.branching_factor   
         attacker.mutator.system_prompt = MUTATOR_PROMPT_V1
         attacker.mutator.max_n_attack_attempts = 5
         print(f"Transferring instance with cell_key {key} to mutator...")
         mutated_instances = attacker.mutator(temp_dataset, global_context)  # Truyền JailbreakDataset
         attacker.mutator.system_prompt = system_prompt_mutator
         attacker.mutator.max_n_attack_attempts = temp_max_n_attack_attempts
+        attacker.mutator.branching_factor = temp_branching_factor
 
         if 'conv' in temp_instance.attack_attrs:
             del temp_instance.attack_attrs['conv']
