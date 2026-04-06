@@ -194,7 +194,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         inst.attack_attrs['cell_key'] = tuple(desc.values())
         target_key = inst.attack_attrs['cell_key']
 
-        seed_prompts[i] = inst
+        seed_prompts._dataset[i] = inst
 
     
    
