@@ -255,6 +255,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             best_instance.attack_attrs['cell_key'] = key
 
             batch_instances.append(best_instance)
+            print(best_instance.jailbreak_prompt)
         else:
             print("No mutated instances generated, skipping this iteration.")
             continue
