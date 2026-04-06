@@ -198,7 +198,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 
     
    
-    for iteration in range(1, args.max_iters):
+    for iteration in range(args.max_iters):
         print(f"\n\n=== Iteration {iteration} ===\n\n")
         branchs = archive_by_depth.flatten_values()
         if iteration < len(seed_prompts):
