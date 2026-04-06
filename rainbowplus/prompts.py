@@ -244,8 +244,7 @@ Output:
 Rules:
 - Return ONLY valid JSON with keys: improvement, prompt
 - Prompt must be ONE line, no special characters, no explanations
-
-Output:"""
+"""
 
 
 TARGET_PROMPT = "{prompt}"
