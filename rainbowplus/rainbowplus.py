@@ -214,30 +214,33 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         descriptor_str = "\n".join([f"{k}: {v}" for k, v in descriptor.items()])
         
 
-        best_instance = None
-        best_score = -1
-        K = 3
-        for _ in range(K):
-            temp_instance = selected_branchs.copy()
-            temp_instance.query = descriptor_str
-            temp_instance.reference_responses = [""]
-            if 'conv' in temp_instance.attack_attrs:
-                del temp_instance.attack_attrs['conv']
-            attacker.mutator.system_prompt = MUTATOR_PROMPT_V1
-            transfer_prompt = attacker.mutator(temp_instance, global_context)
-            temp_instance.jailbreak_prompt = transfer_prompt
-            attacker.mutator.system_prompt = system_prompt_mutator
-            if 'conv' in temp_instance.attack_attrs:
-                del temp_instance.attack_attrs['conv']
-                
-            target_response = attacker.target_model.generate(temp_instance.jailbreak_prompt)
-            temp_instance.target_responses = [target_response]
-            
-            attacker.evaluator([temp_instance])
-            current_score = temp_instance.eval_results[-1] if temp_instance.eval_results else 0
-            if current_score > best_score:
-                best_score = current_score
-                best_instance = temp_instance
+        temp_instance = selected_branchs.copy()
+        temp_instance.query = descriptor_str
+        temp_instance.reference_responses = [""]
+        if 'conv' in temp_instance.attack_attrs:
+            del temp_instance.attack_attrs['conv']
+
+        attacker.mutator.system_prompt = MUTATOR_PROMPT_V1
+        mutated_instances = attacker.mutator(temp_instance, global_context)  # Trả về list of Instance
+        attacker.mutator.system_prompt = system_prompt_mutator
+
+        if 'conv' in temp_instance.attack_attrs:
+            del temp_instance.attack_attrs['conv']
+        
+        # Generate target response cho tất cả mutated instances
+        for inst in mutated_instances:
+            target_response = attacker.target_model.generate(inst.jailbreak_prompt)
+            inst.target_responses = [target_response]
+        attacker.evaluator([temp_instance])
+
+        best_mutated = max(
+            mutated_instances,
+            key=lambda x: x.eval_results[-1] if len(x.eval_results) > 0 else 0
+        )
+        current_score = best_mutated.eval_results[-1] if best_mutated.eval_results else 0
+        if current_score > best_score:
+            best_score = current_score
+            best_instance = best_mutated
  
         best_instance.attack_attrs['cell_key'] = key
         batch_instances.append(best_instance)
