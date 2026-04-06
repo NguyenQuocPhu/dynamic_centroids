@@ -205,10 +205,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             selected_branchs = seed_prompts._dataset[iteration]
         else:
             selected_branchs = random.choice(branchs)
-            print(type(selected_branchs))
-        print("####")
-        print(type(selected_branchs))
-        batch_instances = []
+
 
         descriptor = {key: random.choice(value) for key, value in descriptors.items()}
         key = tuple(descriptor.values())
@@ -220,53 +217,12 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         temp_instance.query = descriptor_str
         temp_instance.reference_responses = [""]
         temp_instance.eval_results = []
-        if 'conv' in temp_instance.attack_attrs:
-            del temp_instance.attack_attrs['conv']
-
-        # Wrap single instance vào JailbreakDataset
-        temp_dataset = JailbreakDataset([temp_instance])
+        temp_instance.target_responses = []
+        temp_instance.attack_attrs = {}
         
-        temp_max_n_attack_attempts = attacker.mutator.max_n_attack_attempts
-        temp_branching_factor = attacker.mutator.branching_factor   
-        attacker.mutator.system_prompt = MUTATOR_PROMPT_V1
-        attacker.mutator.max_n_attack_attempts = 5
-        print(f"Transferring instance with cell_key {key} to mutator...")
-        mutated_instances = attacker.mutator(temp_dataset, global_context)  # Truyền JailbreakDataset
-        attacker.mutator.system_prompt = system_prompt_mutator
-        attacker.mutator.max_n_attack_attempts = temp_max_n_attack_attempts
-        attacker.mutator.branching_factor = temp_branching_factor
-
-        if 'conv' in temp_instance.attack_attrs:
-            del temp_instance.attack_attrs['conv']
-
-        # mutated_instances là JailbreakDataset, convert thành list nếu cần
-        mutated_list = list(mutated_instances)
-
-        # Generate response
-        for inst in mutated_list:
-            target_response = attacker.target_model.generate(inst.jailbreak_prompt)
-            inst.target_responses.append(target_response)
-
-        # Evaluate
-        attacker.evaluator(mutated_list)
-
-        # Chọn best
-        if mutated_list:
-            best_instance = max(
-                mutated_list,
-                key=lambda x: x.eval_results[-1] if x.eval_results else float('-inf')
-            )
-
-            best_instance = best_instance.copy()  # tránh reference bug
-            best_instance.attack_attrs['cell_key'] = key
-
-            batch_instances.append(best_instance)
-            print(f"-----{best_instance.jailbreak_prompt}")
-        else:
-            print("No mutated instances generated, skipping this iteration.")
-            continue
-
-        dataset = JailbreakDataset(batch_instances)
+        temp_instance.attack_attrs['cell_key'] = key
+ 
+        dataset = JailbreakDataset([temp_instance])
         attacker.jailbreak_datasets = dataset
 
         for instance in tqdm(attacker.jailbreak_datasets, desc=f"Processing instances in {iteration}"):
