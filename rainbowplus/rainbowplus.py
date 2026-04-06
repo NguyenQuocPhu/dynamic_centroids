@@ -205,7 +205,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             selected_branchs = seed_prompts._dataset[iteration]
         else:
             selected_branchs = random.choice(branchs)
-
+        print(type(selected_branchs))
         batch_instances = []
 
         descriptor = {key: random.choice(value) for key, value in descriptors.items()}
