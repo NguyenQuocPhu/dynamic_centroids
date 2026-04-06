@@ -204,7 +204,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         if iteration < len(seed_prompts):
             selected_branchs = seed_prompts._dataset[iteration]
         else:
-            selected_branchs = random.choice(random.choice(branchs))
+            selected_branchs = random.choice(branchs)
             print(type(selected_branchs))
         print("####")
         print(type(selected_branchs))
