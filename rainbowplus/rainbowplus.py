@@ -216,7 +216,8 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 
         best_instance = None
         best_score = -1
-        for _ in range(attacker.max_n_attack_attempts):
+        K = 3
+        for _ in range(K):
             temp_instance = selected_branchs.copy()
             temp_instance.query = descriptor_str
             temp_instance.reference_responses = [""]
