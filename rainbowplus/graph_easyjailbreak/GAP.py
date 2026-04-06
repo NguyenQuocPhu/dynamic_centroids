@@ -56,7 +56,7 @@ class GAP(AttackerBase):
     """
     def __init__(self, attack_model, target_model, eval_model, jailbreak_datasets: JailbreakDataset,
                  tree_width=10, tree_depth=10,root_num=1, branching_factor=4,keep_last_n=3,
-                 max_n_attack_attempts=5, template_file=None, logging_filename=None,
+                 max_n_attack_attempts=5, 
                  attack_max_n_tokens=500,
                  attack_temperature=1,
                  attack_top_p=0.9,
@@ -96,7 +96,6 @@ class GAP(AttackerBase):
                          jailbreak_datasets=jailbreak_datasets)
         # Add this line to initialize the counter
         self.target_model_calls = 0
-        self.logging_filename = logging_filename
 
         ####### 4 major components ##########
         self.mutator=IntrospectGeneration(attack_model,
