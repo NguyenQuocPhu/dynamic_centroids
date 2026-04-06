@@ -167,7 +167,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         tree_depth=args.tree_depth,
                         root_num=1,
                         branching_factor=2,
-                        keep_last_n=5,
+                        keep_last_n=2,
                         max_n_attack_attempts=2,
                         conversation_history=global_context,
                         attack_max_n_tokens = config.mutator_llm.sampling_params.get('max_tokens', 500),
