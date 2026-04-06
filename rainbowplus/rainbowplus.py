@@ -35,7 +35,7 @@ from rainbowplus.utils import (
 )
 from rainbowplus.archive import Archive
 from rainbowplus.configs import ConfigurationLoader
-from rainbowplus.prompts import MUTATOR_PROMPT, TARGET_PROMPT, MUTATOR_PROMPT_V1, SELECTOR_PROMPT, ANALYZER_PROMPT
+from rainbowplus.prompts import system_prompt_mutator, TARGET_PROMPT, MUTATOR_PROMPT_V1, SELECTOR_PROMPT, ANALYZER_PROMPT
 from rainbowplus.configs.base import LLMConfig
 from rainbowplus.mutators.persona import PersonaMutator
 from rainbowplus.attack_memory import AttackMemory
@@ -143,16 +143,7 @@ from rainbowplus.graph_easyjailbreak.model_utils import count_calls
 #from gap_easyjailbreak.models.bedrock_claude_model import ClaudeModel
 from rainbowplus.graph_easyjailbreak.IntrospectGenerationAggregateMaxConcatenate import IntrospectGenerationAggregateMaxConcatenate as IntrospectGeneration
 from rainbowplus.graph_easyjailbreak.GAP import GAP
-def transfer_prompt(attack_model, prompt, risk, style):
-    transfer_prompt = MUTATOR_PROMPT_V1.format(
-        risk = risk,
-        style = style,
-        prompt=prompt
-    )
-    attack_model.set_system_message(transfer_prompt)
-    transferred_prompt = attack_model.generate(prompt)
-    attack_model.set_system_message("")
-    return transferred_prompt
+
 
 def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_model=None, fitness_fn=None, similarity_fn=None):
     """Main RainbowPlus algorithm."""
@@ -191,7 +182,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     archive_by_depth = Archive[Instance]("map-elites")
     # Prepare seed metadata
     for i, instance in enumerate(seed_prompts):
-        inst = instance.copy()
+        inst = instance.deepcopy()
         desc = {key: random.choice(value) for key, value in descriptors.items()}
         key = tuple(desc.values())
         seed_query = "\n".join([f"{k}: {v}" for k, v in desc.items()])
@@ -211,9 +202,9 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         print(f"\n\n=== Iteration {iteration} ===\n\n")
         branchs = archive_by_depth.flatten_values()
         if iteration < len(seed_prompts):
-            selected_branchs = seed_prompts[iteration]
+            selected_branchs = [seed_prompts[iteration]]
         else:
-            selected_branchs = random.choice(branchs)
+            selected_branchs = [random.choice(branchs)]
 
         batch_instances = []
 
@@ -222,18 +213,33 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         
         descriptor_str = "\n".join([f"{k}: {v}" for k, v in descriptor.items()])
         
-        transferred_prompt = transfer_prompt(attacker.attack_model, selected_branchs.jailbreak_prompt, key[0], key[1])
-    
-        new_instance = selected_branchs.copy()
-        new_instance.query = descriptor_str
-        new_instance.jailbreak_prompt = transferred_prompt
-        new_instance.reference_responses = [""]
-        new_instance.eval_results = []       
-        new_instance.target_responses = []   
-        if 'conv' in new_instance.attack_attrs:
-            del new_instance.attack_attrs['conv']
-        new_instance.attack_attrs['cell_key'] = key
-        batch_instances.append(new_instance)
+
+        best_instance = None
+        best_score = -1
+        for _ in range(attacker.max_n_attack_attempts):
+            temp_instance = selected_branchs.deepcopy()
+            temp_instance.query = descriptor_str
+            temp_instance.reference_responses = [""]
+            if 'conv' in temp_instance.attack_attrs:
+                del temp_instance.attack_attrs['conv']
+            attacker.mutator.system_prompt = MUTATOR_PROMPT_V1
+            transfer_prompt = attacker.mutator(temp_instance, global_context)
+            temp_instance.jailbreak_prompt = transfer_prompt
+            attacker.mutator.system_prompt = system_prompt_mutator
+            if 'conv' in temp_instance.attack_attrs:
+                del temp_instance.attack_attrs['conv']
+                
+            target_response = attacker.target_model.generate(temp_instance.jailbreak_prompt)
+            temp_instance.target_responses = [target_response]
+            
+            attacker.evaluator([temp_instance])
+            current_score = temp_instance.eval_results[-1] if temp_instance.eval_results else 0
+            if current_score > best_score:
+                best_score = current_score
+                best_instance = temp_instance
+ 
+        best_instance.attack_attrs['cell_key'] = key
+        batch_instances.append(best_instance)
 
         dataset = JailbreakDataset(batch_instances)
         attacker.jailbreak_datasets = dataset
