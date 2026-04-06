@@ -63,7 +63,7 @@ def parse_arguments():
         "--num_samples", type=int, default=50, help="Number of initial seed prompts"
     )
     parser.add_argument(
-        "--max_iters", type=int, default=200, help="Maximum number of iteration steps"
+        "--max_iters", type=int, default=2, help="Maximum number of iteration steps"
     )
     parser.add_argument(
         "--tree_depth", type=int, default=5, help="Depth of the attack tree"
@@ -217,6 +217,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         temp_instance = selected_branchs.copy()
         temp_instance.query = descriptor_str
         temp_instance.reference_responses = [""]
+        temp_instance.eval_results = []
         if 'conv' in temp_instance.attack_attrs:
             del temp_instance.attack_attrs['conv']
 
