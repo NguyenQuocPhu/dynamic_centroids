@@ -202,9 +202,9 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         print(f"\n\n=== Iteration {iteration} ===\n\n")
         branchs = archive_by_depth.flatten_values()
         if iteration < len(seed_prompts):
-            selected_branchs = [seed_prompts[iteration]]
+            selected_branchs = seed_prompts._dataset[iteration]
         else:
-            selected_branchs = [random.choice(branchs)]
+            selected_branchs = random.choice(branchs)
 
         batch_instances = []
 
