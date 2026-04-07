@@ -204,6 +204,9 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         if iteration < len(seed_prompts):
             selected_branchs = seed_prompts._dataset[iteration]
         else:
+            if not branchs:
+                logger.warning("Archive is empty at iteration %d; stopping early.", iteration)
+                break
             selected_branchs = random.choice(branchs)
 
 
@@ -227,9 +230,12 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 
         for instance in tqdm(attacker.jailbreak_datasets, desc=f"Processing instances in {iteration}"):
             new_dataset_obj = attacker.single_attack(instance)
+            flattened_instances = []
+            for ds in new_dataset_obj:
+                flattened_instances.extend(list(ds))
                     
             target_key = instance.attack_attrs['cell_key']
-            update_archive(archive_by_depth, target_key, list(new_dataset_obj))
+            update_archive(archive_by_depth, target_key, flattened_instances)
             current_list_data = archive_by_depth.get(target_key)
             archive_by_depth.delete(target_key)
             
