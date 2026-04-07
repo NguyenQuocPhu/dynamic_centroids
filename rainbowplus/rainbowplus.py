@@ -229,10 +229,13 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         attacker.jailbreak_datasets = dataset
 
         for instance in tqdm(attacker.jailbreak_datasets, desc=f"Processing instances in {iteration}"):
-            new_dataset_obj = attacker.single_attack(instance)[0]
-                    
+            new_dataset_obj = attacker.single_attack(instance)
+            flattened_instances = []
+            for ds in new_dataset_obj:
+                flattened_instances.extend(list(ds))
+               
             target_key = instance.attack_attrs['cell_key']
-            update_archive(archive_by_depth, target_key, list(new_dataset_obj))
+            update_archive(archive_by_depth, target_key, flattened_instances)
             current_list_data = archive_by_depth.get(target_key)
             archive_by_depth.delete(target_key)
             
