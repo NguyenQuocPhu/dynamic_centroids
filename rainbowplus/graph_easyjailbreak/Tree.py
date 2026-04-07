@@ -1,5 +1,6 @@
 import math
 
+
 class MCTSNode:
     def __init__(self, instance, parent=None):
         self.instance = instance # Chứa prompt, điểm số, cell_key...
@@ -11,7 +12,7 @@ class MCTSNode:
             if instance is not None and instance.eval_results
             else 0.0
         )
-        self.is_terminal = self.max_score >= 1.0
+        self.is_terminal = self.max_score >= 0.9
 
 class Forest:
     def __init__(self):
@@ -53,4 +54,72 @@ class Forest:
             current.visits += K
             if max_new_score > current.max_score:
                 current.max_score = max_new_score
+            if current.children:
+                current.is_terminal = all(c.is_terminal for c in current.children)
             current = current.parent
+    def visualize(self, C: float = 1.414):
+        """In cây dạng text ra terminal để debug nhanh."""
+    
+        def _uct_str(parent, child):
+            if child.visits == 0:
+                return "uct=∞"
+            return f"uct={self._calculate_uct(parent, child, C):.3f}"
+
+        def _node_tag(node):
+            if node.is_terminal:
+                return "[TERM]"
+            if node.max_score >= 0.6:
+                return "[HIGH]"
+            return ""
+
+        def _print_node(node, prefix="", is_last=True, parent=None):
+            connector = "└── " if is_last else "├── "
+            
+            if node is self.dummy_root:
+                label = f"[ROOT] visits={node.visits} children={len(node.children)}"
+            else:
+                uct = _uct_str(parent, node) if parent else ""
+                tag = _node_tag(node)
+                label = (
+                    f"score={node.max_score:.3f} "
+                    f"visits={node.visits} "
+                    f"{uct} {tag}"
+                )
+                # Thêm cell_key nếu instance có
+                if hasattr(node.instance, 'cell_key'):
+                    label = f"[{node.instance.cell_key}] " + label
+
+            if node is self.dummy_root:
+                print(label)
+            else:
+                print(prefix + connector + label)
+
+            children = node.children
+            child_prefix = prefix + ("    " if is_last else "│   ")
+            for i, child in enumerate(children):
+                _print_node(
+                    child,
+                    prefix=child_prefix,
+                    is_last=(i == len(children) - 1),
+                    parent=node,
+                )
+
+        print("\n" + "─" * 60)
+        
+        # Stats tổng quan
+        all_nodes = []
+        from collections import deque
+        q = deque([self.dummy_root])
+        while q:
+            n = q.popleft()
+            all_nodes.append(n)
+            q.extend(n.children)
+        
+        total = len(all_nodes) - 1
+        terminal = sum(1 for n in all_nodes if n is not self.dummy_root and n.is_terminal)
+        best = max((n.max_score for n in all_nodes if n is not self.dummy_root), default=0)
+        print(f"nodes={total} | terminal={terminal} | best_score={best:.3f}")
+        print("─" * 60)
+        
+        _print_node(self.dummy_root)
+        print()
