@@ -66,7 +66,7 @@ def parse_arguments():
         "--max_iters", type=int, default=200, help="Maximum number of iteration steps"
     )
     parser.add_argument(
-        "--total", type=int, default=8, help="Total number of attacks per leaf node"
+        "--total", type=int, default=7, help="Total number of attacks per leaf node"
     )
     parser.add_argument(
         "--sim_threshold",
@@ -236,7 +236,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         dataset = JailbreakDataset([temp_instance])
         attacker.jailbreak_datasets = dataset
 
-        for instance in tqdm(dataset, desc=f"Processing evolved instances in iteration {iteration}\n"):
+        for instance in tqdm(dataset, desc=f"\n\nProcessing evolved instances in iteration {iteration + 1}\n\n"):
             dummy_node = archive_by_depth.get(instance.attack_attrs['cell_key'])[0]
             dummy_node.add_migrant_tree(instance)
             for i in range(args.total):
