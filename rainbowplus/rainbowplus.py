@@ -60,7 +60,7 @@ logger = logging.getLogger(__name__)
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Adversarial Prompt Generation")
     parser.add_argument(
-        "--num_samples", type=int, default=1, help="Number of initial seed prompts"
+        "--num_samples", type=int, default=5, help="Number of initial seed prompts"
     )
     parser.add_argument(
         "--max_iters", type=int, default=200, help="Maximum number of iteration steps"
