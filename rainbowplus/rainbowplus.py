@@ -60,13 +60,13 @@ logger = logging.getLogger(__name__)
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Adversarial Prompt Generation")
     parser.add_argument(
-        "--num_samples", type=int, default=5, help="Number of initial seed prompts"
+        "--num_samples", type=int, default=50, help="Number of initial seed prompts"
     )
     parser.add_argument(
-        "--max_iters", type=int, default=20, help="Maximum number of iteration steps"
+        "--max_iters", type=int, default=200, help="Maximum number of iteration steps"
     )
     parser.add_argument(
-        "--total", type=int, default=15, help="Total number of attacks per leaf node"
+        "--total", type=int, default=10, help="Total number of attacks per leaf node"
     )
     parser.add_argument(
         "--sim_threshold",
@@ -258,7 +258,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 print("\n\n ======== Visualize tree ======== \n\n")
                 dummy_node.visualize()
                 print("\n")
-        for state, node in zip(terminal_states, root.children):
+        for state, node in zip(terminal_states, root.dummy_root.children):
             node.is_terminal = state 
 
     # Collect call counts from all wrapped functions
