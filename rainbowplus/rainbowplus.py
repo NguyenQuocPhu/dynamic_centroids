@@ -60,7 +60,7 @@ logger = logging.getLogger(__name__)
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Adversarial Prompt Generation")
     parser.add_argument(
-        "--num_samples", type=int, default=50, help="Number of initial seed prompts"
+        "--num_samples", type=int, default=1, help="Number of initial seed prompts"
     )
     parser.add_argument(
         "--max_iters", type=int, default=200, help="Maximum number of iteration steps"
@@ -152,13 +152,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 
     # Initialize archives
     archive_by_depth = Archive[Forest]("map-elites")
-
-    keys = list(descriptors.keys())
-    all_combinations = list(itertools.product(*[descriptors[k] for k in keys]))
-
-    for combo in all_combinations:
-        archive_by_depth.add(combo, [Forest()]) 
-
+    
     # Setup logging
     log_dir = Path(args.log_dir) / target_model.model_name 
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -196,10 +190,9 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 
     for iteration in range(args.max_iters):
         print(f"=== Iteration {iteration + 1}===\n")
-        keys = archive_by_depth.keys()
-        selected_key = random.choice(keys)
         node = None
-        root = archive_by_depth.get(selected_key)[0]
+        tree = archive_by_depth.flatten_values()
+        root = random.choice(tree)[0]
 
         terminal_states = [c.is_terminal for c in root.dummy_root.children]
         if iteration < len(seed_prompts):
@@ -231,7 +224,8 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         temp_instance.eval_results = temp_instance.eval_results[-1:]
         temp_instance.attack_attrs = {}
         temp_instance.attack_attrs['cell_key'] = key
-
+        if not archive_by_depth.exists(key):
+            archive_by_depth.add(key, [Forest()])
 
         dataset = JailbreakDataset([temp_instance])
         attacker.jailbreak_datasets = dataset
