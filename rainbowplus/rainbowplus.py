@@ -201,7 +201,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         node = None
         root = archive_by_depth.get(selected_key)[0]
 
-        terminal_states = [c.is_terminal for c in root.children]
+        terminal_states = [c.is_terminal for c in root.dummy_node.children]
         if iteration < len(seed_prompts):
             instance = seed_prompts._dataset[iteration]
 
@@ -209,7 +209,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             inst.jailbreak_prompt = inst.query
             inst.reference_responses = [""]
             
-            for node in root.children:
+            for node in root.dummy_node.children:
                 node.is_terminal = True
                 
             new_node = MCTSNode(instance=inst)
