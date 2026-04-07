@@ -227,8 +227,8 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         temp_instance.query = descriptor_str
         temp_instance.reference_responses = [""]
         
-        temp_instance.target_responses = [temp_instance.target_responses[-1:]]
-        temp_instance.eval_results = [temp_instance.eval_results[-1:]]
+        temp_instance.target_responses = temp_instance.target_responses[-1:]
+        temp_instance.eval_results = temp_instance.eval_results[-1:]
         temp_instance.attack_attrs = {}
         temp_instance.attack_attrs['cell_key'] = key
 
