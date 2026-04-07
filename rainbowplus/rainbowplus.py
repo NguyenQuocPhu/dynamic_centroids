@@ -204,6 +204,9 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         if iteration < len(seed_prompts):
             selected_branchs = seed_prompts._dataset[iteration]
         else:
+            if not branchs:
+                logger.warning("Archive is empty at iteration %d; stopping early.", iteration)
+                break
             selected_branchs = random.choice(branchs)
 
 
