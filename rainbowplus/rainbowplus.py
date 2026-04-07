@@ -191,23 +191,19 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     for iteration in range(args.max_iters):
         print(f"=== Iteration {iteration + 1}===\n")
         node = None
-        tree = archive_by_depth.flatten_values()
-        root = random.choice(tree)[0]
 
-        terminal_states = [c.is_terminal for c in root.dummy_root.children]
         if iteration < len(seed_prompts):
             instance = seed_prompts._dataset[iteration]
 
             inst = instance.copy()
             inst.jailbreak_prompt = inst.query
             inst.reference_responses = [""]
-            
-            for node in root.dummy_root.children:
-                node.is_terminal = True
                 
             new_node = MCTSNode(instance=inst)
             node = new_node
         else:
+            tree = archive_by_depth.flatten_values()
+            root = random.choice(tree)[0]
             node = root.select_leaf()
 
 
@@ -227,14 +223,19 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         if not archive_by_depth.exists(key):
             archive_by_depth.add(key, [Forest()])
 
+        forest = archive_by_depth.get(key)[0]
+        terminal_states = [c.is_terminal for c in forest.root.children]
+        if iteration < len(seed_prompts):
+            for inst in forest.root.children:
+                inst.is_terminal = True
+
         dataset = JailbreakDataset([temp_instance])
         attacker.jailbreak_datasets = dataset
 
         for instance in tqdm(dataset, desc=f"\n\nProcessing evolved instances in iteration {iteration + 1}\n\n"):
-            dummy_node = archive_by_depth.get(instance.attack_attrs['cell_key'])[0]
-            dummy_node.add_migrant_tree(instance)
+            forest.add_migrant_tree(instance)
             for i in range(args.total):
-                leaf = dummy_node.select_leaf()
+                leaf = forest.select_leaf()
                 print(f"\n\n===Selected leaf with prompt in step {i}: {leaf.instance.jailbreak_prompt} and {leaf.max_score * 9.0 + 1.0}==\n\n")
                 if getattr(leaf, 'is_terminal', False):
                     continue
@@ -248,11 +249,11 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         new_children.append(child)
 
                 if new_children:
-                    dummy_node.backpropagate(leaf, new_children)
+                    forest.backpropagate(leaf, new_children)
                 print("\n\n ======== Visualize tree ======== \n\n")
-                dummy_node.visualize()
+                forest.visualize()
                 print("\n")
-        for state, node in zip(terminal_states, root.dummy_root.children):
+        for state, node in zip(terminal_states, forest.root.children):
             node.is_terminal = state 
 
     # Collect call counts from all wrapped functions

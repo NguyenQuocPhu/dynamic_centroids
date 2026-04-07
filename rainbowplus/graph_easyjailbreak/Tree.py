@@ -17,19 +17,19 @@ class MCTSNode:
 class Forest:
     def __init__(self):
         # Dummy root không chứa prompt thật, chỉ làm quản lý
-        self.dummy_root = MCTSNode(instance=None) 
-        self.dummy_root.visits = 1 
+        self.root = MCTSNode(instance=None) 
+        self.root.visits = 1 
 
     def add_migrant_tree(self, new_instance):
-        """Khi có một nhánh từ cell khác bay sang, gắn nó vào dummy_root"""
-        new_node = MCTSNode(instance=new_instance, parent=self.dummy_root)
-        self.dummy_root.children.append(new_node)
+        """Khi có một nhánh từ cell khác bay sang, gắn nó vào root"""
+        new_node = MCTSNode(instance=new_instance, parent=self.root)
+        self.root.children.append(new_node)
 
-        self.dummy_root.visits += 1
+        self.root.visits += 1
 
     def select_leaf(self):
-        """Thuật toán UCT đi từ dummy_root xuống tìm lá tiềm năng nhất"""
-        current = self.dummy_root
+        """Thuật toán UCT đi từ root xuống tìm lá tiềm năng nhất"""
+        current = self.root
         while len(current.children) > 0:
             valid_children = [c for c in current.children if not c.is_terminal]
             if not valid_children:
@@ -45,7 +45,7 @@ class Forest:
         return child.max_score + C * math.sqrt(math.log(parent.visits) / child.visits)
 
     def backpropagate(self, leaf_node, new_children_nodes):
-        """Truyền Max-Backup và Lượt thăm lên tận dummy_root"""
+        """Truyền Max-Backup và Lượt thăm lên tận root"""
         K = len(new_children_nodes)
         max_new_score = max([c.max_score for c in new_children_nodes]) if new_children_nodes else 0
         
@@ -75,7 +75,7 @@ class Forest:
         def _print_node(node, prefix="", is_last=True, parent=None):
             connector = "└── " if is_last else "├── "
             
-            if node is self.dummy_root:
+            if node is self.root:
                 label = f"[ROOT] visits={node.visits} children={len(node.children)}"
             else:
                 uct = _uct_str(parent, node) if parent else ""
@@ -89,7 +89,7 @@ class Forest:
                 if hasattr(node.instance, 'cell_key'):
                     label = f"[{node.instance.cell_key}] " + label
 
-            if node is self.dummy_root:
+            if node is self.root:
                 print(label)
             else:
                 print(prefix + connector + label)
@@ -109,17 +109,17 @@ class Forest:
         # Stats tổng quan
         all_nodes = []
         from collections import deque
-        q = deque([self.dummy_root])
+        q = deque([self.root])
         while q:
             n = q.popleft()
             all_nodes.append(n)
             q.extend(n.children)
         
         total = len(all_nodes) - 1
-        terminal = sum(1 for n in all_nodes if n is not self.dummy_root and n.is_terminal)
-        best = max((n.max_score for n in all_nodes if n is not self.dummy_root), default=0)
+        terminal = sum(1 for n in all_nodes if n is not self.root and n.is_terminal)
+        best = max((n.max_score for n in all_nodes if n is not self.root), default=0)
         print(f"nodes={total} | terminal={terminal} | best_score={best:.3f}")
         print("─" * 60)
         
-        _print_node(self.dummy_root)
+        _print_node(self.root)
         print()
