@@ -12,7 +12,7 @@ class MCTSNode:
             if instance is not None and instance.eval_results
             else 0.0
         )
-        self.is_terminal = self.max_score >= ((9 - 1) / 9.0)
+        self.is_terminal = self.max_score * 9.0 + 1 >= 9.0
 
 class Forest:
     def __init__(self):
