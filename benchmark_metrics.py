@@ -1056,7 +1056,7 @@ def run_phase1_evaluation(log_paths: List[str], output_dir: str = "./results") -
         iteration = log.get('metadata', {}).get('iteration', f'Unknown_{i}')
         print(f"\n🔍 Processing iteration: {iteration}")
         
-        phase1_result = calculate_asr_phase1(log, k=10, score_threshold=6.0)
+        phase1_result = calculate_asr_phase1(log, k=5, score_threshold=6.0)
         phase1_results_list.append(phase1_result)
         
         print(f"  ├─ ASR: {phase1_result['asr_percentage']:.2f}%")
@@ -1076,9 +1076,11 @@ def run_phase1_evaluation(log_paths: List[str], output_dir: str = "./results") -
         ]
         diversity = compute_diversity_metrics(phase1_prompts)
         phase1_coverage_df, _ = extract_map_elites_coverage(logs[-1])
-        all_prompts = extract_all_prompts(logs[-1])
-        diversity = compute_diversity_metrics(all_prompts)
-        phase1_results_list[-1].update(diversity)
+        phase1_results_list[-1]['self_bleu'] = diversity.get('self_bleu', 0.0)
+        phase1_results_list[-1]['diversity_score'] = diversity.get('diversity_score', 1.0)
+        phase1_results_list[-1]['num_prompts'] = diversity.get('num_prompts', 0)
+        phase1_results_list[-1]['filled_cells'] = int((phase1_coverage_df.values >= 0).sum())
+        phase1_results_list[-1]['total_cells'] = int(phase1_coverage_df.size)
         
         # Save JSON
         phase1_file = os.path.join(output_dir, 'phase1_results.json')
@@ -1100,6 +1102,7 @@ def run_phase1_evaluation(log_paths: List[str], output_dir: str = "./results") -
         print(f"✅ Phase 1 results saved: {phase1_file}")
 
     return logs, phase1_results_list
+
 
 
 def run_phase2_evaluation(logs: List[Dict], phase1_results_list: List[Dict], 
