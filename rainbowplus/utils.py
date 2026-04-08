@@ -306,7 +306,7 @@ def save_all_instances(archive, save_dir, filename="all_jailbreak_instances", ca
     for key in keys:
         forest = archive.get(key)[0]
         
-        if forest is None or len(forest.dummy_root.children) == 0:
+        if forest is None or len(forest.root.children) == 0:
             continue
             
         def get_all_nodes(node, depth=0):
@@ -315,7 +315,7 @@ def save_all_instances(archive, save_dir, filename="all_jailbreak_instances", ca
                 nodes.extend(get_all_nodes(child, depth + 1))
             return nodes
             
-        all_nodes_with_depth = get_all_nodes(forest.dummy_root)
+        all_nodes_with_depth = get_all_nodes(forest.root)
         
         cell_instances = []
         
