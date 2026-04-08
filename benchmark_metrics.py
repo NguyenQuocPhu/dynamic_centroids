@@ -16,6 +16,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from collections import defaultdict
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
 
 # Add rainbowplus to path
 try:
@@ -302,21 +303,51 @@ def extract_map_elites_coverage(log_data: Dict) -> Tuple[pd.DataFrame, Dict]:
     return coverage_matrix, archive_stats
 
 
-def compute_diversity_metrics(coverage_df: pd.DataFrame) -> Dict[str, float]:
+def compute_diversity_metrics(prompts: List[str]) -> Dict[str, float]:
     """
-    Compute diversity metrics from a coverage matrix.
+    Compute diversity metrics using Self-BLEU.
 
-    Diversity score is archive occupancy percentage:
-    (filled cells / total cells) * 100.
+    diversity_score = 1 - self_bleu
+    Lower self-BLEU means more diverse prompts.
     """
-    total_cells = int(coverage_df.size)
-    filled_cells = int((coverage_df.values >= 0).sum())
-    diversity_score = (filled_cells / total_cells * 100.0) if total_cells > 0 else 0.0
+    cleaned_prompts = [p.strip() for p in prompts if isinstance(p, str) and p.strip()]
+
+    if len(cleaned_prompts) < 2:
+        return {
+            'self_bleu': 0.0,
+            'diversity_score': 1.0,
+            'num_prompts': len(cleaned_prompts)
+        }
+
+    smoother = SmoothingFunction()
+    n_gram = 4
+    weights = tuple([1.0 / n_gram] * n_gram)
+
+    bleu_scores = []
+    for idx, prompt in enumerate(cleaned_prompts):
+        references = [p.lower().split() for j, p in enumerate(cleaned_prompts) if j != idx]
+        candidate = prompt.lower().split()
+        if not candidate or not references:
+            continue
+
+        try:
+            bleu = sentence_bleu(
+                references,
+                candidate,
+                weights=weights,
+                smoothing_function=smoother.method4,
+            )
+            bleu_scores.append(float(bleu))
+        except Exception:
+            continue
+
+    self_bleu = float(np.mean(bleu_scores)) if bleu_scores else 0.0
+    diversity_score = max(0.0, min(1.0, 1.0 - self_bleu))
 
     return {
-        'filled_cells': filled_cells,
-        'total_cells': total_cells,
-        'diversity_score': diversity_score
+        'self_bleu': self_bleu,
+        'diversity_score': diversity_score,
+        'num_prompts': len(cleaned_prompts)
     }
 
 
@@ -1070,23 +1101,35 @@ def benchmark_logs(log_paths: List[str], output_dir: str = "./results",
     print("💾 SAVING RESULTS & CONVERSATIONS")
     print("="*70 + "\n")
 
-    # Compute diversity metrics from final Phase 1/Phase 2 coverage matrices.
-    phase1_diversity = {'filled_cells': 0, 'total_cells': 0, 'diversity_score': 0.0}
-    phase2_diversity = {'filled_cells': 0, 'total_cells': 0, 'diversity_score': 0.0}
+    # Compute diversity metrics from prompts using diversity = 1 - Self-BLEU.
+    phase1_diversity = {'self_bleu': 0.0, 'diversity_score': 1.0, 'num_prompts': 0}
+    phase2_diversity = {'self_bleu': 0.0, 'diversity_score': 1.0, 'num_prompts': 0}
 
     if logs:
         phase1_coverage_df, _ = extract_map_elites_coverage(logs[-1])
-        phase1_diversity = compute_diversity_metrics(phase1_coverage_df)
+        phase1_prompts = [
+            item.get('instance', {}).get('jailbreak_prompt', '')
+            for item in phase1_results_list[-1].get('top_k_items', [])
+        ] if phase1_results_list else []
+        phase1_diversity = compute_diversity_metrics(phase1_prompts)
+        phase1_filled_cells = int((phase1_coverage_df.values >= 0).sum())
+        phase1_total_cells = int(phase1_coverage_df.size)
         if phase1_results_list:
-            phase1_results_list[-1]['filled_cells'] = phase1_diversity['filled_cells']
-            phase1_results_list[-1]['total_cells'] = phase1_diversity['total_cells']
+            phase1_results_list[-1]['filled_cells'] = phase1_filled_cells
+            phase1_results_list[-1]['total_cells'] = phase1_total_cells
+            phase1_results_list[-1]['self_bleu'] = phase1_diversity['self_bleu']
             phase1_results_list[-1]['diversity_score'] = phase1_diversity['diversity_score']
 
     if phase2_results_list:
         phase2_coverage_df = extract_coverage_from_phase_results(phase2_results_list[-1])
-        phase2_diversity = compute_diversity_metrics(phase2_coverage_df)
-        phase2_results_list[-1]['filled_cells'] = phase2_diversity['filled_cells']
-        phase2_results_list[-1]['total_cells'] = phase2_diversity['total_cells']
+        phase2_prompts = [
+            item.get('instance', {}).get('jailbreak_prompt', '')
+            for item in phase1_results_list[-1].get('top_k_items', [])
+        ] if phase1_results_list else []
+        phase2_diversity = compute_diversity_metrics(phase2_prompts)
+        phase2_results_list[-1]['filled_cells'] = int((phase2_coverage_df.values >= 0).sum())
+        phase2_results_list[-1]['total_cells'] = int(phase2_coverage_df.size)
+        phase2_results_list[-1]['self_bleu'] = phase2_diversity['self_bleu']
         phase2_results_list[-1]['diversity_score'] = phase2_diversity['diversity_score']
     
     # Save Phase 1 results
@@ -1099,6 +1142,7 @@ def benchmark_logs(log_paths: List[str], output_dir: str = "./results",
                     'successful_items': phase1_results_list[-1]['successful_items'],
                     'total_items': phase1_results_list[-1]['total_items'],
                     'score_threshold': phase1_results_list[-1]['score_threshold'],
+                    'self_bleu': phase1_results_list[-1].get('self_bleu', 0.0),
                     'diversity_score': phase1_results_list[-1].get('diversity_score', 0.0),
                     'filled_cells': phase1_results_list[-1].get('filled_cells', 0),
                     'total_cells': phase1_results_list[-1].get('total_cells', 0)
@@ -1136,7 +1180,8 @@ def benchmark_logs(log_paths: List[str], output_dir: str = "./results",
             f.write(f"Successful Items:       {p1['successful_items']}\n")
             f.write(f"Total Items:            {p1['total_items']}\n")
             f.write(f"Score Threshold:        {p1['score_threshold']}\n")
-            f.write(f"Diversity Score (%):    {p1.get('diversity_score', 0.0):.2f}%\n")
+            f.write(f"Self-BLEU:              {p1.get('self_bleu', 0.0):.4f}\n")
+            f.write(f"Diversity (1-SelfBLEU): {p1.get('diversity_score', 0.0):.4f}\n")
             f.write(f"Archive Occupancy:      {p1.get('filled_cells', 0)}/{p1.get('total_cells', 0)}\n")
             f.write(f"Top-K:                  {p1['k']}\n\n")
         
@@ -1149,7 +1194,8 @@ def benchmark_logs(log_paths: List[str], output_dir: str = "./results",
             f.write(f"Total Items:            {p2['total_items']}\n")
             f.write(f"Avg Judge Score:        {p2['avg_phase2_score']:.4f}\n")
             f.write(f"Std Dev Score:          {p2['std_phase2_score']:.4f}\n")
-            f.write(f"Diversity Score (%):    {p2.get('diversity_score', 0.0):.2f}%\n")
+            f.write(f"Self-BLEU:              {p2.get('self_bleu', 0.0):.4f}\n")
+            f.write(f"Diversity (1-SelfBLEU): {p2.get('diversity_score', 0.0):.4f}\n")
             f.write(f"Archive Occupancy:      {p2.get('filled_cells', 0)}/{p2.get('total_cells', 0)}\n")
             f.write(f"Improvement vs Phase1:  {p2['improvement']:+.2f}%\n\n")
         
