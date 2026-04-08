@@ -31,7 +31,8 @@ from rainbowplus.utils import (
     save_all_instances,
     format_example,
     save_attack_memory_log,
-    _repair_yaml_primitives
+    _repair_yaml_primitives,
+    save_iteration,
 )
 from rainbowplus.archive import Archive
 from rainbowplus.configs import ConfigurationLoader
@@ -266,7 +267,15 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 forest.visualize()
                 print("\n")
         for state, node in zip(terminal_states, forest.root.children):
-            node.is_terminal = state 
+            node.is_terminal = state
+        current_ts = time.strftime(r"%Y%m%d-%H%M%S")
+        if iteration % args.log_interval == 0:
+            save_iteration(
+                archive=archive_by_depth,
+                save_dir=log_dir,
+                iteration=iteration + 1,
+                timestamp=current_ts,
+            )
 
     # Collect call counts from all wrapped functions
     call_counts = {

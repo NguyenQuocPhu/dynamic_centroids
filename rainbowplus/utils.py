@@ -146,50 +146,7 @@ def calculate_embedding_diversity_from_list(prompt_list):
     avg_dist = dists[triu_indices].mean() if len(triu_indices[0]) > 0 else 0.0
     return float(avg_dist)
 
-def save_ga_iteration_log(
-    log_dir, 
-    ga_instance, 
-    timestamp, 
-    iteration=-1, 
-    max_iters=None
-):
-    """
-    Save the current state of the Growing Archive (Centroids and Elites).
-    """
-    if iteration == -1:
-        log_path = log_dir / f"ga_state_global_{timestamp}.json"
-    else:
-        log_path = log_dir / f"ga_state_{timestamp}_epoch_{iteration+1}.json"
 
-    # 1. Prepare Elites Data
-    clean_elites = {}
-    for cell_id, elite_data in ga_instance.elites.items():
-        clean_elites[str(cell_id)] = _convert_numpy_types(elite_data)
-
-    # 2. Prepare Centroids Data
-    active_centroids = ga_instance.centroids[:ga_instance.n_centroids]
-    clean_centroids = _convert_numpy_types(active_centroids)
-
-    # --- SỬA LỖI Ở ĐÂY: Hỗ trợ cả n_cells (cũ) và max_cells (mới) ---
-    # Lấy max_cells nếu có, nếu không thì lấy n_cells, mặc định là 0
-    current_capacity = getattr(ga_instance, 'max_cells', getattr(ga_instance, 'n_cells', 0))
-
-    # 3. Construct Log Data
-    log_data = {
-        "meta": {
-            "max_iters": max_iters,
-            "iteration": iteration,
-            "max_cells": current_capacity, # Đã sửa
-            "n_centroids": ga_instance.n_centroids,
-        },
-        "centroids": clean_centroids,
-        "elites": clean_elites
-    }
-
-    with open(log_path, "w", encoding="utf-8") as f:
-        json.dump(log_data, f, indent=2, ensure_ascii=False)
-
-    logger.info(f"GA State saved to {log_path}")
 
 import json
 from pathlib import Path
@@ -275,8 +232,120 @@ import pickle
 from pathlib import Path
 
 import json
-import pickle
+import time
 from pathlib import Path
+
+def save_iteration(archive, save_dir, iteration, filename=None, call_counts=None, timestamp=None):
+    """
+    Save all instances from archive for a specific iteration in a structured JSON format.
+    
+    Args:
+        archive: The map-elites archive containing all instances
+        save_dir: Directory to save outputs
+        iteration: The current iteration number (e.g., 1, 2, 3...)
+        filename: Base filename for the output (auto-generated based on iteration if None)
+        call_counts: Dictionary of function call statistics
+        timestamp: Optional timestamp for metadata (auto-generated if None)
+    """
+    save_dir = Path(save_dir)
+    save_dir.mkdir(parents=True, exist_ok=True)
+    
+    if timestamp is None:
+        timestamp = time.strftime(r"%Y%m%d-%H%M%S")
+        
+    if filename is None:
+        filename = f"iteration_{iteration}"
+        
+    map_elites_archive = {}
+    total_instances = 0
+    successful_instances = 0
+    
+    keys = list(archive.keys()) if hasattr(archive, 'keys') else list(archive.archive.keys())
+    
+    for key in keys:
+        forest = archive.get(key)[0]
+        
+        if forest is None or len(forest.root.children) == 0:
+            continue
+            
+        def get_all_nodes(node, depth=0):
+            nodes = [(node, depth)]
+            for child in node.children:
+                nodes.extend(get_all_nodes(child, depth + 1))
+            return nodes
+            
+        all_nodes_with_depth = get_all_nodes(forest.root)
+        
+        cell_instances = []
+        
+        for node, depth in all_nodes_with_depth:
+            if node.instance is None:
+                continue
+                
+            inst = node.instance
+            score = inst.eval_results[-1] if inst.eval_results else 0
+            
+            # Count successful jailbreaks (score >= 10)
+            total_instances += 1
+            if score >= 10:
+                successful_instances += 1
+            
+            instance_data = {
+                "query": inst.query if hasattr(inst, 'query') else "",
+                "jailbreak_prompt": inst.jailbreak_prompt,
+                "target_response": inst.target_responses[0] if inst.target_responses else "",
+                "score": score,
+                "tree_depth": depth,
+                "mcts_visits": node.visits,
+                "is_terminal": getattr(node, 'is_terminal', False),
+                "attack_attrs": {
+                    "cell_key": str(inst.attack_attrs.get('cell_key', '')) if hasattr(inst, 'attack_attrs') else str(key)
+                }
+            }
+            cell_instances.append(instance_data)
+            
+        if cell_instances:
+            map_elites_archive[str(key)] = cell_instances
+
+    # Calculate ASR (Attack Success Rate)
+    asr_percentage = (successful_instances / total_instances * 100) if total_instances > 0 else 0
+
+    # Structure output similar to save_comprehensive_logs
+    output_data = {
+        "metadata": {
+            "timestamp": timestamp,
+            "filename": filename,
+            "iteration": iteration
+        },
+        "metrics": {
+            "total_instances": total_instances,
+            "successful_jailbreaks": successful_instances,
+            "ASR_percentage": round(asr_percentage, 2)
+        },
+        "map_elites_archive": map_elites_archive
+    }
+    
+    # Add call counts if provided
+    if call_counts is not None:
+        output_data["call_counts"] = call_counts
+        output_data["metrics"]["total_function_calls"] = sum(call_counts.values())
+
+    # Save to JSON
+    json_path = save_dir / f"{filename}.json"
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump(output_data, f, indent=4, ensure_ascii=False)
+        
+    # Print console logs
+    print(f"\n[+] SAVE ITERATION {iteration} THÀNH CÔNG!")
+    print(f"    - Total instances: {total_instances}")
+    print(f"    - Successful jailbreaks: {successful_instances}")
+    print(f"    - ASR: {round(asr_percentage, 2)}%")
+    print(f"    - Saved to: {json_path}")
+    if call_counts is not None:
+        print(f"    - Function call counts:")
+        for func_name, count in call_counts.items():
+            print(f"      * {func_name}: {count}")
+        print(f"    - Total function calls: {sum(call_counts.values())}")
 
 def save_all_instances(archive, save_dir, filename="all_jailbreak_instances", call_counts=None, timestamp=None):
     """
