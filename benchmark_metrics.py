@@ -1014,7 +1014,8 @@ def run_phase1_evaluation(log_paths: List[str], output_dir: str = "./results") -
         
         # Calculate diversity
         phase1_coverage_df, _ = extract_map_elites_coverage(logs[-1])
-        diversity = compute_diversity_metrics(phase1_coverage_df)
+        all_prompts = extract_all_prompts(logs[-1])
+        diversity = compute_diversity_metrics(all_prompts)
         phase1_results_list[-1].update(diversity)
         
         # Save JSON
