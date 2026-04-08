@@ -459,7 +459,7 @@ def calculate_asr_phase2(
     import time
     start_time = time.time()
     
-    print(f"\n🛡️  Judge mode: Policy classification prompt ({getattr(judge_model, 'model_name', 'unknown')})")
+    print(f"\n Judge mode: Policy classification prompt ({getattr(judge_model, 'model_name', 'unknown')})")
 
     def build_judge_prompt(prompt_text: str, response_text: str) -> str:
         """Build Llama-Guard-style safety evaluation prompt for judge model."""
@@ -1012,10 +1012,18 @@ def run_phase1_evaluation(log_paths: List[str], output_dir: str = "./results") -
         plot_map_elites_coverage_heatmap(log_data=logs[-1], output_dir=output_dir, phase_num=1)
         plot_map_elites_fitness_distribution(log_data=logs[-1], output_dir=output_dir, phase_num=1)
         
-        # Calculate diversity
+        # Calculate diversity from Phase 1 top-k prompts: diversity = 1 - self_bleu
+        phase1_prompts = [
+            item.get('instance', {}).get('jailbreak_prompt', '')
+            for item in phase1_results_list[-1].get('top_k_items', [])
+        ]
+        diversity = compute_diversity_metrics(phase1_prompts)
         phase1_coverage_df, _ = extract_map_elites_coverage(logs[-1])
-        diversity = compute_diversity_metrics(phase1_coverage_df)
-        phase1_results_list[-1].update(diversity)
+        phase1_results_list[-1]['self_bleu'] = diversity.get('self_bleu', 0.0)
+        phase1_results_list[-1]['diversity_score'] = diversity.get('diversity_score', 1.0)
+        phase1_results_list[-1]['num_prompts'] = diversity.get('num_prompts', 0)
+        phase1_results_list[-1]['filled_cells'] = int((phase1_coverage_df.values >= 0).sum())
+        phase1_results_list[-1]['total_cells'] = int(phase1_coverage_df.size)
         
         # Save JSON
         phase1_file = os.path.join(output_dir, 'phase1_results.json')
@@ -1026,7 +1034,11 @@ def run_phase1_evaluation(log_paths: List[str], output_dir: str = "./results") -
                     'successful_items': phase1_results_list[-1]['successful_items'],
                     'total_items': phase1_results_list[-1]['total_items'],
                     'score_threshold': phase1_results_list[-1]['score_threshold'],
-                    'diversity_score': phase1_results_list[-1].get('diversity_score', 0.0)
+                    'self_bleu': phase1_results_list[-1].get('self_bleu', 0.0),
+                    'diversity_score': phase1_results_list[-1].get('diversity_score', 1.0),
+                    'num_prompts': phase1_results_list[-1].get('num_prompts', 0),
+                    'filled_cells': phase1_results_list[-1].get('filled_cells', 0),
+                    'total_cells': phase1_results_list[-1].get('total_cells', 0)
                 },
                 'cell_results': phase1_results_list[-1]['cell_results']
             }, f, indent=2, ensure_ascii=False)
@@ -1106,24 +1118,36 @@ def run_phase2_evaluation(logs: List[Dict], phase1_results_list: List[Dict],
     print("💾 SAVING RESULTS & CONVERSATIONS")
     print("="*70 + "\n")
 
-    # Compute diversity metrics from final Phase 1/Phase 2 coverage matrices.
-    phase1_diversity = {'filled_cells': 0, 'total_cells': 0, 'diversity_score': 0.0}
-    phase2_diversity = {'filled_cells': 0, 'total_cells': 0, 'diversity_score': 0.0}
+    # Compute diversity metrics from prompts using diversity = 1 - Self-BLEU.
+    phase1_diversity = {'self_bleu': 0.0, 'diversity_score': 1.0, 'num_prompts': 0}
+    phase2_diversity = {'self_bleu': 0.0, 'diversity_score': 1.0, 'num_prompts': 0}
 
     if logs:
         phase1_coverage_df, _ = extract_map_elites_coverage(logs[-1])
-        phase1_diversity = compute_diversity_metrics(phase1_coverage_df)
+        phase1_prompts = [
+            item.get('instance', {}).get('jailbreak_prompt', '')
+            for item in phase1_results_list[-1].get('top_k_items', [])
+        ] if phase1_results_list else []
+        phase1_diversity = compute_diversity_metrics(phase1_prompts)
         if phase1_results_list:
-            phase1_results_list[-1]['filled_cells'] = phase1_diversity['filled_cells']
-            phase1_results_list[-1]['total_cells'] = phase1_diversity['total_cells']
+            phase1_results_list[-1]['filled_cells'] = int((phase1_coverage_df.values >= 0).sum())
+            phase1_results_list[-1]['total_cells'] = int(phase1_coverage_df.size)
+            phase1_results_list[-1]['self_bleu'] = phase1_diversity['self_bleu']
             phase1_results_list[-1]['diversity_score'] = phase1_diversity['diversity_score']
+            phase1_results_list[-1]['num_prompts'] = phase1_diversity['num_prompts']
 
     if phase2_results_list:
         phase2_coverage_df = extract_coverage_from_phase_results(phase2_results_list[-1])
-        phase2_diversity = compute_diversity_metrics(phase2_coverage_df)
-        phase2_results_list[-1]['filled_cells'] = phase2_diversity['filled_cells']
-        phase2_results_list[-1]['total_cells'] = phase2_diversity['total_cells']
+        phase2_prompts = [
+            item.get('instance', {}).get('jailbreak_prompt', '')
+            for item in phase1_results_list[-1].get('top_k_items', [])
+        ] if phase1_results_list else []
+        phase2_diversity = compute_diversity_metrics(phase2_prompts)
+        phase2_results_list[-1]['filled_cells'] = int((phase2_coverage_df.values >= 0).sum())
+        phase2_results_list[-1]['total_cells'] = int(phase2_coverage_df.size)
+        phase2_results_list[-1]['self_bleu'] = phase2_diversity['self_bleu']
         phase2_results_list[-1]['diversity_score'] = phase2_diversity['diversity_score']
+        phase2_results_list[-1]['num_prompts'] = phase2_diversity['num_prompts']
     
     # Save Phase 1 results
     phase1_file = os.path.join(output_dir, 'phase1_results.json')
@@ -1135,7 +1159,9 @@ def run_phase2_evaluation(logs: List[Dict], phase1_results_list: List[Dict],
                     'successful_items': phase1_results_list[-1]['successful_items'],
                     'total_items': phase1_results_list[-1]['total_items'],
                     'score_threshold': phase1_results_list[-1]['score_threshold'],
-                    'diversity_score': phase1_results_list[-1].get('diversity_score', 0.0),
+                    'self_bleu': phase1_results_list[-1].get('self_bleu', 0.0),
+                    'diversity_score': phase1_results_list[-1].get('diversity_score', 1.0),
+                    'num_prompts': phase1_results_list[-1].get('num_prompts', 0),
                     'filled_cells': phase1_results_list[-1].get('filled_cells', 0),
                     'total_cells': phase1_results_list[-1].get('total_cells', 0)
                 },
@@ -1169,7 +1195,9 @@ def run_phase2_evaluation(logs: List[Dict], phase1_results_list: List[Dict],
             f.write(f"Successful Items:       {p1['successful_items']}\n")
             f.write(f"Total Items:            {p1['total_items']}\n")
             f.write(f"Score Threshold:        {p1['score_threshold']}\n")
-            f.write(f"Diversity Score (%):    {p1.get('diversity_score', 0.0):.2f}%\n")
+            f.write(f"Self-BLEU:              {p1.get('self_bleu', 0.0):.4f}\n")
+            f.write(f"Diversity (1-SelfBLEU): {p1.get('diversity_score', 1.0):.4f}\n")
+            f.write(f"Prompt Count:           {p1.get('num_prompts', 0)}\n")
             f.write(f"Archive Occupancy:      {p1.get('filled_cells', 0)}/{p1.get('total_cells', 0)}\n")
             f.write(f"Top-K:                  {p1['k']}\n\n")
         
@@ -1182,7 +1210,9 @@ def run_phase2_evaluation(logs: List[Dict], phase1_results_list: List[Dict],
             f.write(f"Total Items:            {p2['total_items']}\n")
             f.write(f"Avg Judge Score:        {p2['avg_phase2_score']:.4f}\n")
             f.write(f"Std Dev Score:          {p2['std_phase2_score']:.4f}\n")
-            f.write(f"Diversity Score (%):    {p2.get('diversity_score', 0.0):.2f}%\n")
+            f.write(f"Self-BLEU:              {p2.get('self_bleu', 0.0):.4f}\n")
+            f.write(f"Diversity (1-SelfBLEU): {p2.get('diversity_score', 1.0):.4f}\n")
+            f.write(f"Prompt Count:           {p2.get('num_prompts', 0)}\n")
             f.write(f"Archive Occupancy:      {p2.get('filled_cells', 0)}/{p2.get('total_cells', 0)}\n")
             f.write(f"Improvement vs Phase1:  {p2['improvement']:+.2f}%\n\n")
         
@@ -1198,10 +1228,7 @@ def run_phase2_evaluation(logs: List[Dict], phase1_results_list: List[Dict],
     print("="*70)
     print(f"\n📁 All results saved to: {output_dir}\n")
     
-    return {
-        'phase1': phase1_results_list,
-        'phase2': phase2_results_list
-    }
+    return phase2_results_list
 
 
 # ============ KAGGLE RUN FUNCTION ============
