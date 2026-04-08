@@ -968,45 +968,33 @@ def plot_two_phase_asr_comparison(phase1_results: Dict, phase2_results: Dict, ou
 
 # ============ MAIN BENCHMARK FUNCTION ============
 
-def benchmark_logs(log_paths: List[str], output_dir: str = "./results", 
-                   target_model=None, judge_model=None):
+def run_phase1_evaluation(log_paths: List[str], output_dir: str = "./results") -> Tuple[List[Dict], List[Dict]]:
     """
-    Benchmark attack results with Two-Phase ASR evaluation.
-    
-    Args:
-        log_paths: List of log file paths
-        output_dir: Output directory for results and plots
-        target_model: Target LLM instance (required)
-        judge_model: Judge LLM instance (required)
+    Run only Phase 1: Parse logs, calculate initial ASR, and generate baseline plots.
+    Does NOT require loading any LLM models.
     """
     print("\n" + "="*70)
-    print("🔬 TWO-PHASE ASR EVALUATION FOR MAP-ELITES ATTACKS")
+    print("📊 PHASE 1: INITIAL MAP-ELITES EVALUATION")
     print("="*70 + "\n")
     
-    # Create output directory
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
-    # Load all logs
+    # 1. Load all logs
     logs = []
     for log_path in log_paths:
         log_data = load_log(log_path)
         if log_data:
             logs.append(log_data)
             print(f"✅ Loaded: {Path(log_path).name}")
-    
+            
     if not logs:
         print("❌ No valid logs loaded!")
-        return
-    
+        return [], []
+        
     print(f"\n📊 Total logs loaded: {len(logs)}\n")
     
-    # ==================== PHASE 1 EVALUATION ====================
-    print("\n" + "="*70)
-    print("📊 PHASE 1: INITIAL MAP-ELITES EVALUATION")
-    print("="*70 + "\n")
-    
+    # 2. Evaluate Phase 1
     phase1_results_list = []
-    
     for i, log in enumerate(logs):
         iteration = log.get('metadata', {}).get('iteration', f'Unknown_{i}')
         print(f"\n🔍 Processing iteration: {iteration}")
@@ -1016,51 +1004,68 @@ def benchmark_logs(log_paths: List[str], output_dir: str = "./results",
         
         print(f"  ├─ ASR: {phase1_result['asr_percentage']:.2f}%")
         print(f"  ├─ Successful: {phase1_result['successful_items']}/{phase1_result['total_items']}")
-        print(f"  ├─ Score Threshold: {phase1_result['score_threshold']}")
         print(f"  └─ Top-K Items: {len(phase1_result['top_k_items'])}")
-    
-    # ==================== PHASE 1 VISUALIZATION ====================
-    print("\n" + "="*70)
-    print("🎨 PHASE 1 VISUALIZATIONS")
-    print("="*70 + "\n")
-    
+
+    # 3. Visualizations & Saving
     if logs and phase1_results_list:
-        print("🔍 Generating Phase 1 visualizations...")
+        print("\n🔍 Generating Phase 1 visualizations...")
         plot_map_elites_coverage_heatmap(log_data=logs[-1], output_dir=output_dir, phase_num=1)
         plot_map_elites_fitness_distribution(log_data=logs[-1], output_dir=output_dir, phase_num=1)
-        print("✅ Phase 1 visualizations complete!\n")
-    
-    # ==================== PHASE 2 EVALUATION ====================
+        
+        # Calculate diversity
+        phase1_coverage_df, _ = extract_map_elites_coverage(logs[-1])
+        diversity = compute_diversity_metrics(phase1_coverage_df)
+        phase1_results_list[-1].update(diversity)
+        
+        # Save JSON
+        phase1_file = os.path.join(output_dir, 'phase1_results.json')
+        with open(phase1_file, 'w', encoding='utf-8') as f:
+            json.dump({
+                'summary': {
+                    'asr_percentage': phase1_results_list[-1]['asr_percentage'],
+                    'successful_items': phase1_results_list[-1]['successful_items'],
+                    'total_items': phase1_results_list[-1]['total_items'],
+                    'score_threshold': phase1_results_list[-1]['score_threshold'],
+                    'diversity_score': phase1_results_list[-1].get('diversity_score', 0.0)
+                },
+                'cell_results': phase1_results_list[-1]['cell_results']
+            }, f, indent=2, ensure_ascii=False)
+        print(f"✅ Phase 1 results saved: {phase1_file}")
+
+    return logs, phase1_results_list
+
+
+def run_phase2_evaluation(logs: List[Dict], phase1_results_list: List[Dict], 
+                          output_dir: str, target_model, judge_model) -> List[Dict]:
+    """
+    Run Phase 2: Refined evaluation requiring loaded Target and Judge LLMs.
+    """
+    if not target_model or not judge_model:
+        print("❌ Target or Judge model not provided. Cannot run Phase 2.")
+        return []
+
     print("\n" + "="*70)
     print("📊 PHASE 2: REFINED EVALUATION WITH TARGET & JUDGE MODELS")
     print("="*70 + "\n")
     
     phase2_results_list = []
     
+    # 1. Evaluate Phase 2
     for i, (log, phase1_result) in enumerate(zip(logs, phase1_results_list)):
         iteration = log.get('metadata', {}).get('iteration', f'Unknown_{i}')
         print(f"\n🔄 Phase 2 for iteration: {iteration}")
         
-        phase2_result = calculate_asr_phase2(
-            phase1_result,
-            target_model=target_model,
-            judge_model=judge_model
-        )
+        phase2_result = calculate_asr_phase2(phase1_result, target_model, judge_model)
         
         if phase2_result:
             phase2_results_list.append(phase2_result)
             print(f"\n  ├─ ASR: {phase2_result['asr_percentage']:.2f}%")
             print(f"  ├─ Successful: {phase2_result['successful_items']}/{phase2_result['total_items']}")
-            print(f"  ├─ Avg Judge Score: {phase2_result['avg_phase2_score']:.4f}")
             print(f"  └─ Improvement: {phase2_result['improvement']:+.2f}%")
-    
-    # ==================== PHASE 2 VISUALIZATION ====================
-    print("\n" + "="*70)
-    print("🎨 PHASE 2 VISUALIZATIONS")
-    print("="*70 + "\n")
-    
+
+    # 2. Visualizations & Saving
     if phase2_results_list:
-        print("🔍 Generating Phase 2 visualizations...")
+        print("\n🔍 Generating Phase 2 visualizations...")
         judge_threshold = phase2_results_list[-1].get('score_threshold', 6.0)
         filtered_phase2_df, filter_stats = build_judge_filtered_original_fitness_matrix(
             logs[-1],
@@ -1101,35 +1106,23 @@ def benchmark_logs(log_paths: List[str], output_dir: str = "./results",
     print("💾 SAVING RESULTS & CONVERSATIONS")
     print("="*70 + "\n")
 
-    # Compute diversity metrics from prompts using diversity = 1 - Self-BLEU.
-    phase1_diversity = {'self_bleu': 0.0, 'diversity_score': 1.0, 'num_prompts': 0}
-    phase2_diversity = {'self_bleu': 0.0, 'diversity_score': 1.0, 'num_prompts': 0}
+    # Compute diversity metrics from final Phase 1/Phase 2 coverage matrices.
+    phase1_diversity = {'filled_cells': 0, 'total_cells': 0, 'diversity_score': 0.0}
+    phase2_diversity = {'filled_cells': 0, 'total_cells': 0, 'diversity_score': 0.0}
 
     if logs:
         phase1_coverage_df, _ = extract_map_elites_coverage(logs[-1])
-        phase1_prompts = [
-            item.get('instance', {}).get('jailbreak_prompt', '')
-            for item in phase1_results_list[-1].get('top_k_items', [])
-        ] if phase1_results_list else []
-        phase1_diversity = compute_diversity_metrics(phase1_prompts)
-        phase1_filled_cells = int((phase1_coverage_df.values >= 0).sum())
-        phase1_total_cells = int(phase1_coverage_df.size)
+        phase1_diversity = compute_diversity_metrics(phase1_coverage_df)
         if phase1_results_list:
-            phase1_results_list[-1]['filled_cells'] = phase1_filled_cells
-            phase1_results_list[-1]['total_cells'] = phase1_total_cells
-            phase1_results_list[-1]['self_bleu'] = phase1_diversity['self_bleu']
+            phase1_results_list[-1]['filled_cells'] = phase1_diversity['filled_cells']
+            phase1_results_list[-1]['total_cells'] = phase1_diversity['total_cells']
             phase1_results_list[-1]['diversity_score'] = phase1_diversity['diversity_score']
 
     if phase2_results_list:
         phase2_coverage_df = extract_coverage_from_phase_results(phase2_results_list[-1])
-        phase2_prompts = [
-            item.get('instance', {}).get('jailbreak_prompt', '')
-            for item in phase1_results_list[-1].get('top_k_items', [])
-        ] if phase1_results_list else []
-        phase2_diversity = compute_diversity_metrics(phase2_prompts)
-        phase2_results_list[-1]['filled_cells'] = int((phase2_coverage_df.values >= 0).sum())
-        phase2_results_list[-1]['total_cells'] = int(phase2_coverage_df.size)
-        phase2_results_list[-1]['self_bleu'] = phase2_diversity['self_bleu']
+        phase2_diversity = compute_diversity_metrics(phase2_coverage_df)
+        phase2_results_list[-1]['filled_cells'] = phase2_diversity['filled_cells']
+        phase2_results_list[-1]['total_cells'] = phase2_diversity['total_cells']
         phase2_results_list[-1]['diversity_score'] = phase2_diversity['diversity_score']
     
     # Save Phase 1 results
@@ -1142,7 +1135,6 @@ def benchmark_logs(log_paths: List[str], output_dir: str = "./results",
                     'successful_items': phase1_results_list[-1]['successful_items'],
                     'total_items': phase1_results_list[-1]['total_items'],
                     'score_threshold': phase1_results_list[-1]['score_threshold'],
-                    'self_bleu': phase1_results_list[-1].get('self_bleu', 0.0),
                     'diversity_score': phase1_results_list[-1].get('diversity_score', 0.0),
                     'filled_cells': phase1_results_list[-1].get('filled_cells', 0),
                     'total_cells': phase1_results_list[-1].get('total_cells', 0)
@@ -1157,10 +1149,7 @@ def benchmark_logs(log_paths: List[str], output_dir: str = "./results",
     if phase2_results_list:
         phase2_file = os.path.join(output_dir, 'phase2_results.json')
         phase2_data = phase2_results_list[-1].copy()
-        phase2_data.pop('conversations', None)  # Remove conversations from saved file
-        phase2_data['phase2_scores'] = phase2_data['phase2_scores'][:20]  # Truncate for readability
-        phase2_data['cell_results'] = {k: v for k, v in dict(phase2_data['cell_results']).items()}
-        
+        phase2_data['phase2_scores'] = phase2_data['phase2_scores'][:20] # Truncate for readability
         with open(phase2_file, 'w', encoding='utf-8') as f:
             json.dump(phase2_data, f, indent=2, ensure_ascii=False)
         print(f"✅ Phase 2 results saved: {phase2_file}")
@@ -1180,8 +1169,7 @@ def benchmark_logs(log_paths: List[str], output_dir: str = "./results",
             f.write(f"Successful Items:       {p1['successful_items']}\n")
             f.write(f"Total Items:            {p1['total_items']}\n")
             f.write(f"Score Threshold:        {p1['score_threshold']}\n")
-            f.write(f"Self-BLEU:              {p1.get('self_bleu', 0.0):.4f}\n")
-            f.write(f"Diversity (1-SelfBLEU): {p1.get('diversity_score', 0.0):.4f}\n")
+            f.write(f"Diversity Score (%):    {p1.get('diversity_score', 0.0):.2f}%\n")
             f.write(f"Archive Occupancy:      {p1.get('filled_cells', 0)}/{p1.get('total_cells', 0)}\n")
             f.write(f"Top-K:                  {p1['k']}\n\n")
         
@@ -1194,8 +1182,7 @@ def benchmark_logs(log_paths: List[str], output_dir: str = "./results",
             f.write(f"Total Items:            {p2['total_items']}\n")
             f.write(f"Avg Judge Score:        {p2['avg_phase2_score']:.4f}\n")
             f.write(f"Std Dev Score:          {p2['std_phase2_score']:.4f}\n")
-            f.write(f"Self-BLEU:              {p2.get('self_bleu', 0.0):.4f}\n")
-            f.write(f"Diversity (1-SelfBLEU): {p2.get('diversity_score', 0.0):.4f}\n")
+            f.write(f"Diversity Score (%):    {p2.get('diversity_score', 0.0):.2f}%\n")
             f.write(f"Archive Occupancy:      {p2.get('filled_cells', 0)}/{p2.get('total_cells', 0)}\n")
             f.write(f"Improvement vs Phase1:  {p2['improvement']:+.2f}%\n\n")
         
@@ -1219,139 +1206,61 @@ def benchmark_logs(log_paths: List[str], output_dir: str = "./results",
 
 # ============ KAGGLE RUN FUNCTION ============
 
-def run_kaggle_benchmark(log_path: str = '/kaggle/input/datasets/thibohunh/logginggggg/comprehensive_log_iter_FINAL_20260331-224419.json',
-                        output_dir: str = '/kaggle/working/benchmark_results',
-                        target_model_name: str = "Qwen/Qwen2.5-7B-Instruct",
-                        judge_model_name: str = "Qwen/Qwen2.5-14B-Instruct") -> Dict:
-    """
-    Run full benchmark with actual models in Kaggle (2x T4 GPU).
+def run_kaggle_benchmark(log_path: str, output_dir: str, 
+                         target_model_name: str = "Qwen/Qwen2.5-7B-Instruct",
+                         judge_model_name: str = "Qwen/Qwen2.5-14B-Instruct",
+                         run_phase2: bool = True) -> Dict:
     
-    Args:
-        log_path: Path to comprehensive log file
-        output_dir: Output directory for results
-        target_model_name: HuggingFace ID for target model
-        judge_model_name: HuggingFace ID for judge model
+    # Always run Phase 1
+    logs, phase1_results = run_phase1_evaluation([log_path], output_dir)
+    phase2_results = []
     
-    Usage in Kaggle notebook:
-    ```
-    from benchmark_metrics import run_kaggle_benchmark
-    
-    run_kaggle_benchmark(
-        log_path='/kaggle/input/datasets/thibohunh/logginggggg/comprehensive_log_iter_FINAL_20260331-224419.json',
-        output_dir='/kaggle/working/benchmark_results'
-    )
-    ```
-    """
-    print("\n" + "="*70)
-    print("🔬 KAGGLE TWO-PHASE ASR EVALUATION WITH ACTUAL MODELS")
-    print("="*70 + "\n")
-    
-    # Load models
-    target_model, judge_model = load_kaggle_models(target_model_name, judge_model_name)
-    
-    # Run benchmarking with actual models
-    results = benchmark_logs(
-        log_paths=[log_path],
-        output_dir=output_dir,
-        target_model=target_model,
-        judge_model=judge_model
-    )
-    
-    print("\n✅ Kaggle benchmark complete!")
-    print(f"📊 Results saved to: {output_dir}\n")
-    
-    return results
-
-
-# ============ CLI INTERFACE ============
+    # Conditionally run Phase 2
+    if run_phase2 and logs and phase1_results:
+        target_model, judge_model = load_kaggle_models(target_model_name, judge_model_name)
+        phase2_results = run_phase2_evaluation(logs, phase1_results, output_dir, target_model, judge_model)
+    else:
+        print("\n⏭️ Skipping Phase 2 (Model Evaluation).")
+        
+    return {'phase1': phase1_results, 'phase2': phase2_results}
 
 def main():
-    # Kaggle default paths
-    KAGGLE_LOG_PATH = '/kaggle/input/datasets/thibohunh/logginggggg/comprehensive_log_iter_FINAL_20260331-224419.json'
-    KAGGLE_OUTPUT_PATH = '/kaggle/working/benchmark_results'
+    parser = argparse.ArgumentParser(description="Two-Phase ASR Evaluation")
+    parser.add_argument('--logs', type=str, required=True, help='Log file path(s)')
+    parser.add_argument('--output', type=str, default='./benchmark_results', help='Output directory')
+    parser.add_argument('--skip-phase2', action='store_true', help='Skip loading models and running Phase 2')
     
-    # Check if running in Kaggle environment
-    is_kaggle = os.path.exists('/kaggle/working')
-    
-    # Set defaults based on environment
-    default_logs = KAGGLE_LOG_PATH if is_kaggle else None
-    default_output = KAGGLE_OUTPUT_PATH if is_kaggle else './benchmark_results'
-    
-    parser = argparse.ArgumentParser(
-        description="Two-Phase ASR Evaluation for MAP-Elites Attacks",
-        formatter_class=argparse.RawDescriptionHelpFormatter
-    )
-    
-    parser.add_argument(
-        '--logs',
-        type=str,
-        required=False,
-        default=default_logs,
-        help='Log file path(s) - supports wildcards (e.g., logs/*.json). Auto-uses Kaggle path if detected.'
-    )
-    
-    parser.add_argument(
-        '--output',
-        type=str,
-        default=default_output,
-        help=f'Output directory for results and plots (default: {default_output})'
-    )
-    
-    # Check if running in interactive environment (Jupyter/Kaggle Notebook)
     try:
         get_ipython()
         is_jupyter = True
     except (NameError, AttributeError):
         is_jupyter = False
-    
+
     if is_jupyter:
-        # For Jupyter/Kaggle notebooks, use defaults from parser
-        args = parser.parse_args([])
+        args = parser.parse_args(['--logs', '/kaggle/input/your_log.json'])
     else:
         args = parser.parse_args()
-    
-    # Validate that logs is provided
-    if not args.logs:
-        print("❌ No log file path provided!")
-        if is_kaggle:
-            print(f"   Expected Kaggle log at: {KAGGLE_LOG_PATH}")
-        parser.print_help()
-        sys.exit(1)
-    
-    # Check if the log file exists
-    if not os.path.exists(args.logs):
-        print(f"❌ Log file not found: {args.logs}")
-        if is_kaggle:
-            print(f"   Expected Kaggle log at: {KAGGLE_LOG_PATH}")
-            print("   Please check the path in the script.")
-        sys.exit(1)
-    
-    # Expand wildcards if provided
-    log_paths = glob.glob(args.logs)
-    
+
+    log_paths = sorted(glob.glob(args.logs))
     if not log_paths:
         print(f"❌ No log files found matching: {args.logs}")
         sys.exit(1)
-    
-    # Sort by filename for consistent ordering
-    log_paths = sorted(log_paths)
-    
-    # Load actual models (required for real evaluation)
-    print("\n" + "="*70)
-    print("🎯 LOADING TARGET & JUDGE MODELS WITH 8-BIT QUANTIZATION")
-    print("="*70 + "\n")
-    
-    try:
-        target_model, judge_model = load_kaggle_models()
-    except Exception as e:
-        print(f"\n❌ Failed to load models: {e}")
-        print("   Install bitsandbytes: pip install bitsandbytes")
-        sys.exit(1)
-    
-    # Run benchmarking
-    results = benchmark_logs(log_paths, args.output, target_model=target_model, 
-                           judge_model=judge_model)
 
+    # 1. Run Phase 1 (No Models Needed)
+    logs, phase1_results = run_phase1_evaluation(log_paths, args.output)
+
+    # 2. Run Phase 2 (Models Required)
+    if not args.skip_phase2 and logs:
+        print("\n" + "="*70)
+        print("🎯 LOADING TARGET & JUDGE MODELS")
+        print("="*70 + "\n")
+        try:
+            target_model, judge_model = load_kaggle_models()
+            run_phase2_evaluation(logs, phase1_results, args.output, target_model, judge_model)
+        except Exception as e:
+            print(f"\n❌ Failed to load models: {e}")
+    else:
+        print("\n⏭️ Skipping Phase 2 model loading and evaluation as requested.")
 
 if __name__ == "__main__":
     main()

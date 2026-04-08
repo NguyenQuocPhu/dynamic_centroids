@@ -183,21 +183,10 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     archive_by_depth = Archive[Instance]("map-elites")
     for i, instance in enumerate(seed_prompts):
         inst = instance.copy()
-        desc = {key: random.choice(value) for key, value in descriptors.items()}
-        key = tuple(desc.values())
-        seed_query = "\n".join([f"{k}: {v}" for k, v in desc.items()])
-
         inst.jailbreak_prompt = inst.query
-        inst.query = seed_query
         inst.reference_responses = [""]
-
-        inst.attack_attrs['cell_key'] = tuple(desc.values())
-        target_key = inst.attack_attrs['cell_key']
-
         seed_prompts._dataset[i] = inst
 
-    
-   
     for iteration in range(args.max_iters):
         print(f"\n\n=== Iteration {iteration} ===\n\n")
         branchs = archive_by_depth.flatten_values()
@@ -205,17 +194,14 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             selected_branchs = seed_prompts._dataset[iteration]
         else:
             if not branchs:
-                logger.warning("Archive is empty at iteration %d; stopping early.", iteration)
-                break
-            selected_branchs = random.choice(branchs)
-
+                selected_branchs = random.choice(seed_prompts._dataset)
+            else:
+                selected_branchs = random.choice(branchs)
 
         descriptor = {key: random.choice(value) for key, value in descriptors.items()}
-        key = tuple(descriptor.values())
-        
+        key = tuple(descriptor.values())        
         descriptor_str = "\n".join([f"{k}: {v}" for k, v in descriptor.items()])
         
-
         temp_instance = selected_branchs.copy()
         temp_instance.query = descriptor_str
         temp_instance.reference_responses = [""]
@@ -228,7 +214,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         dataset = JailbreakDataset([temp_instance])
         attacker.jailbreak_datasets = dataset
 
-        for instance in tqdm(attacker.jailbreak_datasets, desc=f"Processing instances in {iteration}"):
+        for instance in tqdm(dataset, desc=f"Processing instances in {iteration}"):
             new_dataset_obj = attacker.single_attack(instance)
             flattened_instances = []
             for ds in new_dataset_obj:
@@ -248,8 +234,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 # Keep top-k based on tree_width
                 current_list_data = current_list_data[:attacker.tree_width]
 
-            pruned_dataset_obj = JailbreakDataset(current_list_data)
-            update_archive(archive_by_depth, target_key, list(pruned_dataset_obj))
+            update_archive(archive_by_depth, target_key, current_list_data)
 
         if iteration % args.log_interval == 0:
             current_ts = time.strftime(r"%Y%m%d-%H%M%S")
