@@ -121,7 +121,7 @@ class KaggleLocalModel:
             print(f"❌ Error loading model: {e}")
             raise
     
-    def generate(self, prompt: str, max_tokens: int = 150, temperature: float = 0.7) -> str:
+    def generate(self, prompt: str, max_tokens: int = 150, temperature: float = 0.7, use_chat_template: bool = False) -> str:
         """
         Generate text using the loaded model.
         
@@ -138,7 +138,15 @@ class KaggleLocalModel:
             do_sample = temperature > 0
             
             with torch.no_grad():
-                inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
+                if use_chat_template and hasattr(self.tokenizer, "apply_chat_template"):
+                    chat_text = self.tokenizer.apply_chat_template(
+                        [{"role": "user", "content": prompt}],
+                        tokenize=False,
+                        add_generation_prompt=True,
+                    )
+                    inputs = self.tokenizer(chat_text, return_tensors="pt").to(self.device)
+                else:
+                    inputs = self.tokenizer(prompt, return_tensors="pt").to(self.device)
                 generate_kwargs = {
                     'max_new_tokens': max_tokens,
                     'do_sample': do_sample,
@@ -527,7 +535,12 @@ def calculate_asr_phase2(
         try:
             judge_input = build_judge_prompt(intended_task, jailbreak_prompt, target_response)
             print(f"    Evaluating with judge model...")
-            phase2_score_str = judge_model.generate(judge_input, max_tokens=48, temperature=0.0)
+            phase2_score_str = judge_model.generate(
+                judge_input,
+                max_tokens=32,
+                temperature=0.0,
+                use_chat_template=True,
+            )
             print(f"    ✅ Judge response received (len={len(phase2_score_str)})")
             
             # Parse score from judge output
