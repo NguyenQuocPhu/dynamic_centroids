@@ -204,13 +204,13 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 root = random.choice(tree)
                 node = root.select_leaf(False)
                 if node == root.root:
-                    instance = random.choice(seed._dataset)
+                    instance = random.choice(seed_prompts._dataset)
                     inst = instance.copy()
                     inst.jailbreak_prompt = inst.query
                     inst.reference_responses = [""]
                     node = MCTSNode(instance=inst)
             else:
-                instance = random.choice(seed._dataset)
+                instance = random.choice(seed_prompts._dataset)
                 inst = instance.copy()
                 inst.jailbreak_prompt = inst.query
                 inst.reference_responses = [""]
