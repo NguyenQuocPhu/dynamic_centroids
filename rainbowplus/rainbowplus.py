@@ -194,17 +194,27 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 
         if iteration < len(seed_prompts):
             instance = seed_prompts._dataset[iteration]
-
             inst = instance.copy()
             inst.jailbreak_prompt = inst.query
             inst.reference_responses = [""]
-                
-            new_node = MCTSNode(instance=inst)
-            node = new_node
+            node = MCTSNode(instance=inst)
         else:
             tree = archive_by_depth.flatten_values()
-            root = random.choice(tree)
-            node = root.select_leaf()
+            if tree:
+                root = random.choice(tree)
+                node = root.select_leaf(False)
+                if node == root.root:
+                    instance = random.choice(seed._dataset)
+                    inst = instance.copy()
+                    inst.jailbreak_prompt = inst.query
+                    inst.reference_responses = [""]
+                    node = MCTSNode(instance=inst)
+            else:
+                instance = random.choice(seed._dataset)
+                inst = instance.copy()
+                inst.jailbreak_prompt = inst.query
+                inst.reference_responses = [""]
+                node = MCTSNode(instance=inst)
 
 
         descriptor = {key: random.choice(value) for key, value in descriptors.items()}
@@ -236,9 +246,11 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             forest.add_migrant_tree(instance)
             for i in range(args.total):
                 leaf = forest.select_leaf()
+                if leaf == forest.root:
+                    logger.warning("\n\n ========= Selected root node, which is fully terminal. Skipping this iteration.========= \n\n")
+                    break
+
                 print(f"\n\n===Selected leaf with prompt in step {i}: {leaf.instance.jailbreak_prompt} and {leaf.max_score * 9.0 + 1.0}==\n\n")
-                if getattr(leaf, 'is_terminal', False):
-                    continue
                 new_instances = attacker.single_attack(leaf.instance)
                 new_children = []
 

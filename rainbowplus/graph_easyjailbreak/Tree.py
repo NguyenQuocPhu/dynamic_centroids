@@ -27,14 +27,19 @@ class Forest:
 
         self.root.visits += 1
 
-    def select_leaf(self):
+    def select_leaf(self, check = True):
         """Thuật toán UCT đi từ root xuống tìm lá tiềm năng nhất"""
         current = self.root
         while len(current.children) > 0:
-            valid_children = [c for c in current.children if not c.is_terminal]
-            if not valid_children:
-                current.is_terminal = True
-                return current # Trả về node hiện tại nếu ngõ cụt
+            if check:
+                valid_children = [c for c in current.children if not c.is_terminal]
+                if not valid_children:
+                    current.is_terminal = True
+                    return current # Trả về node hiện tại nếu ngõ cụt
+            else:
+                valid_children = [c for c in current.children if c.max_score * 9.0 + 1 < 9.0]
+                if not valid_children:
+                    return current # Trả về node hiện tại nếu ngõ cụt
             
             # Chọn con có điểm UCT cao nhất
             current = max(valid_children, key=lambda c: self._calculate_uct(current, c))
