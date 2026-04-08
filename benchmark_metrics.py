@@ -1056,7 +1056,7 @@ def run_phase1_evaluation(log_paths: List[str], output_dir: str = "./results") -
         iteration = log.get('metadata', {}).get('iteration', f'Unknown_{i}')
         print(f"\n🔍 Processing iteration: {iteration}")
         
-        phase1_result = calculate_asr_phase1(log, k=5, score_threshold=6.0)
+        phase1_result = calculate_asr_phase1(log, k=1, score_threshold=6.0)
         phase1_results_list.append(phase1_result)
         
         print(f"  ├─ ASR: {phase1_result['asr_percentage']:.2f}%")
