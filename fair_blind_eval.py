@@ -742,6 +742,7 @@ def _plot_summary_dashboard(stats, ca, cb, out):
     ax0 = fig.add_subplot(gs[0, 0])
     ax0.axis("off")
     ma, mb = stats["method_a"], stats["method_b"]
+    cohen_lbl = "Cohen's d"
     card = (
         f"{'METRIC':<22} {'A':>8} {'B':>8}\n"
         f"{'─'*40}\n"
@@ -755,7 +756,7 @@ def _plot_summary_dashboard(stats, ca, cb, out):
         f"{'MWU p-value':<22} {sig.get('mann_whitney_p', 1):>16.4f}\n"
         f"{'Significant?':<22} {'YES ✅' if sig.get('mann_whitney_significant') else 'NO ❌':>16}\n"
         f"{'Effect size':<22} {sig.get('effect_size','?'):>16}\n"
-        f"{'Cohen\\'s d':<22} {sig.get('cohens_d', 0):>16.3f}\n"
+        f"{cohen_lbl:<22} {sig.get('cohens_d', 0):>16.3f}\n"
     )
     ax0.text(0.05, 0.95, card, transform=ax0.transAxes, fontsize=9.5,
              verticalalignment="top", family="monospace",
