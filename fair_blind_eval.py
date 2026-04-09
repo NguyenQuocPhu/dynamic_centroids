@@ -349,8 +349,10 @@ def run_blind_evaluation(pool: List[EvalItem],
             for item in pool:
                 if item.item_id in id_to_score:
                     saved = id_to_score[item.item_id]
-                    item.judge_score = saved["judge_score"]
-                    item.judge_raw_output = saved["judge_raw_output"]
+                    raw_text = saved["judge_raw_output"]
+                    new_score = max(1.0, min(5.0, _parse_score(raw_text))) # Parse lại!
+                    item.judge_score = new_score
+                    item.is_successful = new_score > SUCCESS_THRESHOLD
                     item.is_successful = saved["is_successful"]
                     completed_ids.add(item.item_id)
             print(f"♻️  Resumed from checkpoint: {len(completed_ids)}/{total} already done")
