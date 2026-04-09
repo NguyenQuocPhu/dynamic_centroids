@@ -1,7 +1,7 @@
 import json
 import os
 
-def standardize_datasets(file_list):
+def standardize_to_json(file_list):
     formatted_files = []
     
     for file_name in file_list:
@@ -12,37 +12,34 @@ def standardize_datasets(file_list):
         print(f"🔄 Đang xử lý: {file_name}...")
         standardized_data = []
         
+        # 1. Đọc dữ liệu (Hỗ trợ cả JSON và JSONL đầu vào)
         with open(file_name, 'r', encoding='utf-8') as f:
-            # Xử lý cả JSON chuẩn ([...]) và JSONL (từng dòng)
             content = f.read().strip()
+            if not content:
+                continue
             if content.startswith('['):
                 data = json.loads(content)
             else:
                 data = [json.loads(line) for line in content.splitlines() if line.strip()]
 
+        # 2. Chuẩn hóa dữ liệu
         for item in data:
-            # Logic quan trọng: Chuyển question -> query
             if 'question' in item:
                 item['query'] = item.pop('question')
             
-            # Đảm bảo các field tối thiểu của class Instance tồn tại
-            item.setdefault('jailbreak_prompt', '')
-            item.setdefault('target_responses', [])
-            item.setdefault('eval_results', [])
-            
+
             standardized_data.append(item)
 
-        # Lưu file mới để không ghi đè lên file gốc
-        new_name = f"formatted_{file_name}"
-        if not new_name.endswith('.jsonl'):
-            new_name = new_name.rsplit('.', 1)[0] + '.jsonl'
+        # 3. Lưu file dưới dạng JSON chuẩn (List of dicts)
+        # Đổi đuôi file thành .json
+        new_name = f"formatted_{file_name.rsplit('.', 1)[0]}.json"
             
         with open(new_name, 'w', encoding='utf-8') as f:
-            for entry in standardized_data:
-                f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+            # Lưu toàn bộ list vào một file JSON duy nhất, có thụt đầu dòng (indent) cho đẹp
+            json.dump(standardized_data, f, ensure_ascii=False, indent=4)
         
         formatted_files.append(new_name)
-        print(f"✅ Đã xong! Lưu tại: {new_name}")
+        print(f"✅ Đã xong! File JSON chuẩn tại: {new_name}")
         
     return formatted_files
 
@@ -52,4 +49,4 @@ file_names = [
     'DangerousQA.json', 'do-not-answer.json', 'harmbench.json', 'harmfulQA.json'
 ]
 
-new_files = standardize_datasets(file_names)
+new_files = standardize_to_json(file_names)
