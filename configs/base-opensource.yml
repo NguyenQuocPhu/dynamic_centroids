@@ -6,7 +6,7 @@ archive:
   descriptor: [Risk Category, Attack Style]
 
 # Seed dataset
-sample_prompts: ./data/formatted_harmbench.jsonl
+sample_prompts: ./data/formatted_harmbench.json
 
 target_llm:
   model_kwargs:
