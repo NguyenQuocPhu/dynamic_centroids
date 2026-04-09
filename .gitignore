@@ -13,7 +13,7 @@ __pycache__/
 *.pdf
 
 # Bỏ qua các file log hoặc data lớn (nếu bạn không muốn lưu log lên git)
-*.json
+!formatted_*.json
 result.txt
 
 # Bỏ qua các file cấu hình hệ thống
