@@ -34,11 +34,13 @@ def standardize_datasets(file_list):
 
         # Lưu file mới để không ghi đè lên file gốc
         new_name = f"formatted_{file_name}"
-        if not new_name.endswith('.json'):
-            new_name = new_name.rsplit('.', 1)[0] + '.json'
+        if not new_name.endswith('.jsonl'):
+            new_name = new_name.rsplit('.', 1)[0] + '.jsonl'
             
         with open(new_name, 'w', encoding='utf-8') as f:
-            json.dump(standardized_data, f, ensure_ascii=False)
+            for entry in standardized_data:
+                f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+        
         formatted_files.append(new_name)
         print(f"✅ Đã xong! Lưu tại: {new_name}")
         
