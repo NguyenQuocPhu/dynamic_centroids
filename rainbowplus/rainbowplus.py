@@ -158,8 +158,10 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     log_dir = Path(args.log_dir) / target_model.model_name 
     log_dir.mkdir(parents=True, exist_ok=True)
 
-    seed = JailbreakDataset("AdvBench")
+    seed = JailbreakDataset(dataset=args.dataset, local_file_type="json")
     seed.shuffle()
+    for i in range(15):
+        print(seed._dataset[i].query)
     seed_prompts = seed[: args.num_samples]
     global_context = []
     attacker = GAP (attack_model=attack_model,
