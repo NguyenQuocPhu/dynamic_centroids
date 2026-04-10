@@ -192,7 +192,8 @@ def run_rainbowplus(
             shuffle=args.shuffle,
             seed = RANDOM_SEED
         )
-
+    for i in range(15):
+        print(f"Seed prompt {i}: {seed_prompts[i]}")
     # Load category descriptors
     descriptors = load_descriptors(config)
 
