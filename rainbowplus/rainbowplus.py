@@ -190,6 +190,7 @@ def run_rainbowplus(
             field="question",
             num_samples=args.num_samples,
             shuffle=args.shuffle,
+            seed = RANDOM_SEED
         )
 
     # Load category descriptors

@@ -40,36 +40,35 @@ def load_txt(file_path: str) -> List[str]:
     with open(file_path, "r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip()]
 
-
+import random
 def load_json(
     file_path: str,
     field: str,
     num_samples: int = -1,
     shuffle: bool = False,
-    seed: int = 0,
+    seed: int = 15,  
 ) -> List[str]:
     """
-    Load JSON dataset with optional sampling and shuffling.
-
-    Args:
-        file_path (str): Path to the JSON file
-        field (str): Field to extract from the dataset
-        num_samples (int, optional): Number of samples to return. Defaults to -1 (all).
-        shuffle (bool, optional): Whether to shuffle the data. Defaults to False.
-        seed (int, optional): Random seed for shuffling. Defaults to 0.
-
-    Returns:
-        List[str]: Extracted and potentially sampled/shuffled data
+    Chuẩn hóa hàm load_json để khớp hoàn toàn với cơ chế của JailbreakDataset.
     """
-    data = load_dataset("json", data_files=file_path, split="train")
+    # 1. Load dataset từ file (giống JailbreakDataset)
+    raw_dataset = load_dataset("json", data_files=file_path, split="train")
 
+    # 2. Chuyển đổi thành List các Dictionary (Tương đương với List[Object])
+    # Bước này quan trọng vì random.shuffle chỉ hoạt động chính xác trên List Python
+    data_list = [sample for sample in raw_dataset]
+
+    # 3. Thực hiện Shuffle bằng thư viện random của Python
     if shuffle:
-        data = data.shuffle(seed=seed)
+        # Thiết lập seed ngay trước khi shuffle để đảm bảo tính tái lập
+        random.seed(seed)
+        random.shuffle(data_list)
 
-    # Determine number of samples
-    sample_count = len(data) if num_samples == -1 else min(num_samples, len(data))
+    # 4. Lấy số lượng mẫu yêu cầu
+    sample_count = len(data_list) if num_samples == -1 else min(num_samples, len(data_list))
+    sampled_data = [sample[field] for sample in data_list[:sample_count]]
 
-    return data[field][:sample_count]
+    return sampled_data
 
 
 def save_iteration_log(
