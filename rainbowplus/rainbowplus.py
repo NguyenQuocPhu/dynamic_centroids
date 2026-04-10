@@ -67,7 +67,7 @@ def parse_arguments():
         "--max_iters", type=int, default=200, help="Maximum number of iteration steps"
     )
     parser.add_argument(
-        "--total", type=int, default=6, help="Total number of attacks per leaf node"
+        "--total", type=int, default=7, help="Total number of attacks per leaf node"
     )
     parser.add_argument(
         "--sim_threshold",
@@ -194,7 +194,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     for iteration in range(args.max_iters):
         print(f"=== Iteration {iteration + 1}===\n")
         node = None
-
+        flag = 0
         if iteration < len(seed_prompts):
             instance = seed_prompts._dataset[iteration]
             inst = instance.copy()
@@ -229,9 +229,10 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         temp_instance.query = descriptor_str
         temp_instance.reference_responses = [""]
         
-        temp_instance.target_responses = temp_instance.target_responses[-1:]
-        temp_instance.eval_results = temp_instance.eval_results[-1:]
+        temp_instance.target_responses = []
+        temp_instance.eval_results = []
         temp_instance.attack_attrs = {}
+
         temp_instance.attack_attrs['cell_key'] = key
         if not archive_by_depth.exists(key):
             archive_by_depth.add(key, [Forest()])
@@ -239,6 +240,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         forest = archive_by_depth.get(key)[0]
         terminal_states = [c.is_terminal for c in forest.root.children]
         if iteration < len(seed_prompts):
+            flat = 1
             for inst in forest.root.children:
                 inst.is_terminal = True
 
@@ -248,12 +250,13 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         for instance in tqdm(dataset, desc=f"\n\nProcessing evolved instances in iteration {iteration + 1}\n\n"):
             forest.add_migrant_tree(instance)
             for i in range(args.total):
-                leaf = forest.select_leaf()
+                leaf = forest.select_leaf(C = 1)
                 if leaf == forest.root:
                     logger.warning("\n\n ========= Selected root node, which is fully terminal. Skipping this iteration.========= \n\n")
                     break
 
                 print(f"\n\n===Selected leaf with prompt in step {i}: {leaf.instance.jailbreak_prompt} and {leaf.max_score * 9.0 + 1.0}==\n\n")
+                attacker.branching_factor = 4 if i == 0 else 2 
                 new_instances = attacker.single_attack(leaf.instance)
                 new_children = []
 
