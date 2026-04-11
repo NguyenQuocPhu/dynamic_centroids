@@ -1038,7 +1038,7 @@ def save_results(pool: List[EvalItem], stats: Dict, output_dir: str):
 # MAIN
 # ─────────────────────────────────────────────────────────────────────────────
 import torch
-from transformers import pipeline, BitsAndBytesConfig
+from transformers import pipeline
 def main():
     parser = argparse.ArgumentParser(
         description="Fair Blind Evaluation: Compare two MAP-Elites jailbreak methods "
@@ -1112,6 +1112,7 @@ def main():
     else:
         judge_pipeline = None
         if args.evaluator == "strongreject_rubric":
+            from transformers import BitsAndBytesConfig
             quantization_config = BitsAndBytesConfig(
                 load_in_4bit=True,
                 bnb_4bit_compute_dtype=torch.bfloat16, # H100 hỗ trợ bfloat16 nguyên bản cực nhanh
