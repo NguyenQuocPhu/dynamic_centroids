@@ -1037,6 +1037,7 @@ def save_results(pool: List[EvalItem], stats: Dict, output_dir: str):
 # ─────────────────────────────────────────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────────────────────────────────────────
+import torch
 from transformers import pipeline, BitsAndBytesConfig
 def main():
     parser = argparse.ArgumentParser(
