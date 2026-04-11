@@ -1110,20 +1110,22 @@ def main():
             item.judge_score   = max(0.0, min(1.0, raw / 10.0 if raw > 1.0 else raw))
             item.is_successful = item.judge_score > SUCCESS_THRESHOLD
     else:
-        quantization_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.bfloat16, # H100 hỗ trợ bfloat16 nguyên bản cực nhanh
-            bnb_4bit_use_double_quant=True,        # Ép VRAM xuống thấp hơn nữa
-            bnb_4bit_quant_type="nf4"              # Kiểu nén nf4 giữ độ chính xác cao nhất
-        )
-        judge_pipeline = pipeline(
-            task="text-generation",
-            model=args.model,
-            device_map="auto", # Tự động nhận diện và đẩy vào H100
-            model_kwargs={"quantization_config": quantization_config},
-            max_new_tokens=512,
-            return_full_text=False
-        )
+        judge_pipeline = None
+        if args.evaluator == "strongreject_rubric":
+            quantization_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.bfloat16, # H100 hỗ trợ bfloat16 nguyên bản cực nhanh
+                bnb_4bit_use_double_quant=True,        # Ép VRAM xuống thấp hơn nữa
+                bnb_4bit_quant_type="nf4"              # Kiểu nén nf4 giữ độ chính xác cao nhất
+            )
+            judge_pipeline = pipeline(
+                task="text-generation",
+                model=args.model,
+                device_map="auto", # Tự động nhận diện và đẩy vào H100
+                model_kwargs={"quantization_config": quantization_config},
+                max_new_tokens=512,
+                return_full_text=False
+            )
         judge = StrongRejectJudge(evaluator=args.evaluator, models = [judge_pipeline])
         pool  = run_blind_evaluation(pool, judge, args.output, args.checkpoint_every)
 
