@@ -757,7 +757,7 @@ def main():
                         help="Save checkpoint every N items")
     parser.add_argument("--skip_eval", action="store_true",
                         help="Skip evaluation (use for debugging)")
-    parser.add_argument("--top_k", type=int, default=1,
+    parser.add_argument("--k", type=int, default=1,
                         help="Number of top items to evaluate per cell")
     parser.add_argument("--model", type=str, default="meta-llama/Llama-3.1-70B-Instruct",
                         help="Model to use for STRONGReject evaluation")
@@ -780,7 +780,7 @@ def main():
         sys.exit(1)
 
     # Load all items
-    items = load_all_items(log_data, args.top_k)
+    items = load_all_items(log_data, args.k)
 
     if not items:
         print("❌ No valid items found. Exiting.")
