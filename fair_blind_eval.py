@@ -140,7 +140,7 @@ def _clip(text: str, limit: int) -> str:
 # STEP 1: Load all attack prompts from MAP-Elites archive
 # ─────────────────────────────────────────────────────────────────────────────
 
-def load_all_items(log_data: Dict) -> List[EvalItem]:
+def load_all_items(log_data: Dict, top_k: int) -> List[EvalItem]:
     """Load all attack prompts from MAP-Elites archive."""
     archive = log_data.get("map_elites_archive", {})
     items: List[EvalItem] = []
@@ -172,9 +172,12 @@ def load_all_items(log_data: Dict) -> List[EvalItem]:
         if not valid:
             skipped += 1
             continue
+        
+        valid_sorted = sorted(valid, key=lambda x: float(x.get("score", 0.0)), reverse=True)
+        top_instances = valid_sorted[:top_k]
 
         # Add ALL items from this cell (not just top-K)
-        for rank, inst in enumerate(valid):
+        for rank, inst in enumerate(top_instances):
             item_id = f"{cell_key}-{rank}"
             item = EvalItem(
                 item_id=item_id,
@@ -251,7 +254,7 @@ def run_strongreject_evaluation(pool: List[EvalItem],
             }
 
             # Evaluate using STRONGReject
-            score = _evaluate_with_strongreject(eval_data, model)
+            score = _evaluate_with_strongreject(eval_data, models)
 
             item.strongreject_score = score
             item.is_successful = score > SUCCESS_THRESHOLD
@@ -754,6 +757,8 @@ def main():
                         help="Save checkpoint every N items")
     parser.add_argument("--skip_eval", action="store_true",
                         help="Skip evaluation (use for debugging)")
+    parser.add_argument("--top_k", type=int, default=1,
+                        help="Number of top items to evaluate per cell")
     parser.add_argument("--model", type=str, default="meta-llama/Llama-3.1-70B-Instruct",
                         help="Model to use for STRONGReject evaluation")
     args = parser.parse_args()
@@ -775,7 +780,7 @@ def main():
         sys.exit(1)
 
     # Load all items
-    items = load_all_items(log_data)
+    items = load_all_items(log_data, args.top_k)
 
     if not items:
         print("❌ No valid items found. Exiting.")
