@@ -345,8 +345,7 @@ def build_blind_pool(items_a: List[EvalItem],
 
 def run_blind_evaluation(pool: List[EvalItem],
                          judge: StrongRejectJudge,
-                         output_dir: str,
-                         checkpoint_every: int = 10) -> List[EvalItem]:
+                         output_dir: str) -> List[EvalItem]:
     """
     Chấm điểm toàn bộ pool theo thứ tự đã shuffle bằng STRONGReject.
     KHÔNG dùng checkpoint (đã remove hoàn toàn).
@@ -1070,7 +1069,7 @@ def main():
                 return_full_text=False
             )
         judge = StrongRejectJudge(evaluator=args.evaluator, models = [judge_pipeline])
-        pool  = run_blind_evaluation(pool, judge, args.output, args.checkpoint_every)
+        pool  = run_blind_evaluation(pool, judge, args.output)
 
     # ── Step 4: Statistics ──
     print("\n📊 Computing statistics...")
