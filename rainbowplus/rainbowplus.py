@@ -190,6 +190,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 
     for iteration in range(args.max_iters):
         print(f"\n\n=== Iteration {iteration} ===\n\n")
+        attacker.current_iteration = iteration
         branchs = archive_by_depth.flatten_values()
         if iteration < len(seed_prompts):
             selected_branchs = seed_prompts._dataset[iteration]
@@ -245,7 +246,13 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 global_context=global_context,
                 timestamp=current_ts,
                 iteration=iteration,
-                max_iters=args.max_iters
+                max_iters=args.max_iters,
+                target_call_history=attacker.target_call_history,
+                attack_call_history=attacker.attack_call_history,
+                eval_call_history=attacker.eval_call_history,
+                target_model_name=target_model.get_name() if hasattr(target_model, 'get_name') else getattr(target_model, 'model_name', ''),
+                attack_model_name=attack_model.get_name() if hasattr(attack_model, 'get_name') else getattr(attack_model, 'model_name', ''),
+                eval_model_name=eval_model.get_name() if hasattr(eval_model, 'get_name') else getattr(eval_model, 'model_name', '')
             )
     current_ts = time.strftime(r"%Y%m%d-%H%M%S")
     
@@ -254,8 +261,14 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         archive=archive_by_depth,
         global_context=global_context,
         timestamp=current_ts,
-        iteration="FINAL", # Đánh dấu đây là file chốt cuối cùng
-        max_iters=args.max_iters
+        iteration="FINAL",
+        max_iters=args.max_iters,
+        target_call_history=attacker.target_call_history,
+        attack_call_history=attacker.attack_call_history,
+        eval_call_history=attacker.eval_call_history,
+        target_model_name=target_model.get_name() if hasattr(target_model, 'get_name') else getattr(target_model, 'model_name', ''),
+        attack_model_name=attack_model.get_name() if hasattr(attack_model, 'get_name') else getattr(attack_model, 'model_name', ''),
+        eval_model_name=eval_model.get_name() if hasattr(eval_model, 'get_name') else getattr(eval_model, 'model_name', '')
     )
     print("Done!")
 

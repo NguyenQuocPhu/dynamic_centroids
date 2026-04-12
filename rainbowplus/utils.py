@@ -66,7 +66,65 @@ def load_json(
 import json
 from pathlib import Path
 
-def save_iteration_logs(log_dir, archive, global_context, timestamp, iteration, max_iters):
+def _normalize_call_history(call_history, iteration=None, llm_type="target"):
+    """
+    Filter and normalize call history to return only calls from a specific iteration.
+    
+    Args:
+        call_history: List of call records
+        iteration: Filter by run_iteration (if None, return all)
+        llm_type: Type of LLM ("target", "attack", "eval")
+    
+    Returns:
+        Filtered list of call records with computed call_location string
+    """
+    if not call_history:
+        return []
+    
+    filtered = []
+    for call in call_history:
+        if iteration is not None and call.get('run_iteration') != iteration:
+            continue
+        
+        call_copy = dict(call)
+        # Create human-readable call_location string
+        call_copy['call_location'] = (
+            f"{call.get('call_site', 'unknown')} | "
+            f"run_iteration={call.get('run_iteration', '')} | "
+            f"tree_depth_step={call.get('tree_depth_step', '')} | "
+            f"branch_index={call.get('branch_index', '')}"
+        )
+        filtered.append(call_copy)
+    
+    return filtered
+
+def _build_llm_log(llm_type, llm_call_history, model_name, llm_type_display):
+    """
+    Build a standardized LLM log structure for any LLM type.
+    
+    Args:
+        llm_type: Internal type identifier ("target", "attack", "eval")
+        llm_call_history: List of call records for this LLM type
+        model_name: Name of the model being called
+        llm_type_display: Display name for the LLM type
+    
+    Returns:
+        Dictionary with model_name, total_calls, calls_in_log, and calls array
+    """
+    return {
+        "llm_type": llm_type_display,
+        "model_name": model_name,
+        "total_calls": len(llm_call_history),
+        "calls_in_log": len(llm_call_history),
+        "calls": llm_call_history
+    }
+
+import json
+from pathlib import Path
+
+def save_iteration_logs(log_dir, archive, global_context, timestamp, iteration, max_iters,
+                       target_call_history=None, attack_call_history=None, eval_call_history=None,
+                       target_model_name="", attack_model_name="", eval_model_name=""):
     """
     Lưu trữ log cho từng vòng lặp (iteration) bao gồm Archive, Global Context 
     và tính toán nhanh ASR (Attack Success Rate).
@@ -123,6 +181,23 @@ def save_iteration_logs(log_dir, archive, global_context, timestamp, iteration, 
     # 2. Tính ASR
     asr_percentage = (successful_instances / total_instances * 100) if total_instances > 0 else 0
 
+    # 2.5 Prepare LLM call histories for all three types
+    target_call_history = target_call_history or []
+    attack_call_history = attack_call_history or []
+    eval_call_history = eval_call_history or []
+    
+    normalized_target = _normalize_call_history(target_call_history, iteration=iteration, llm_type="target")
+    normalized_attack = _normalize_call_history(attack_call_history, iteration=iteration, llm_type="attack")
+    normalized_eval = _normalize_call_history(eval_call_history, iteration=iteration, llm_type="eval")
+    
+    llm_logs = {}
+    if normalized_target or target_model_name:
+        llm_logs["target_llm"] = _build_llm_log("target", normalized_target, target_model_name, "Target Model")
+    if normalized_attack or attack_model_name:
+        llm_logs["attack_llm"] = _build_llm_log("attack", normalized_attack, attack_model_name, "Attack/Mutator Model")
+    if normalized_eval or eval_model_name:
+        llm_logs["eval_llm"] = _build_llm_log("eval", normalized_eval, eval_model_name, "Evaluation/Judge Model")
+
     # 3. Ghi ra file JSON
     log_payload = {
         "metadata": {
@@ -138,12 +213,17 @@ def save_iteration_logs(log_dir, archive, global_context, timestamp, iteration, 
         "map_elites_archive": archive_dump,
         "global_context": global_context
     }
+    
+    # Add LLM logs to the payload
+    if llm_logs:
+        log_payload["llm_call_logs"] = llm_logs
 
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(log_payload, f, ensure_ascii=False, indent=4)
     
-    # In ra console cho dễ theo dõi tiến độ
-    print(f"[+] Iter {iteration:04d}/{max_iters} | ASR: {round(asr_percentage, 2):05.2f}% ({successful_instances}/{total_instances}) | Saved: {filename.name}")
+    # Print summary with target call count
+    target_count = len(normalized_target)
+    print(f"[+] Iter {iteration:04d}/{max_iters} | ASR: {round(asr_percentage, 2):05.2f}% ({successful_instances}/{total_instances}) | Target calls: {target_count} | Saved: {filename.name}")
 
 def calculate_lexical_diversity_from_archives(all_prompts):
     flat_prompts = []
@@ -248,7 +328,9 @@ def save_ga_iteration_log(
 import json
 from pathlib import Path
 
-def save_comprehensive_logs(log_dir, archive, global_context, timestamp, iteration, max_iters):
+def save_comprehensive_logs(log_dir, archive, global_context, timestamp, iteration, max_iters,
+                            target_call_history=None, attack_call_history=None, eval_call_history=None,
+                            target_model_name="", attack_model_name="", eval_model_name=""):
     """
     Lưu trữ Archive, Global Context và tính toán nhanh ASR (Attack Success Rate).
     """
@@ -302,6 +384,24 @@ def save_comprehensive_logs(log_dir, archive, global_context, timestamp, iterati
     # 2. Tính ASR
     asr_percentage = (successful_instances / total_instances * 100) if total_instances > 0 else 0
 
+    # 2.5 Prepare LLM call histories for all three types (no iteration filtering for comprehensive logs)
+    target_call_history = target_call_history or []
+    attack_call_history = attack_call_history or []
+    eval_call_history = eval_call_history or []
+    
+    # For comprehensive logs, include all calls from all iterations
+    normalized_target = _normalize_call_history(target_call_history, iteration=None, llm_type="target")
+    normalized_attack = _normalize_call_history(attack_call_history, iteration=None, llm_type="attack")
+    normalized_eval = _normalize_call_history(eval_call_history, iteration=None, llm_type="eval")
+    
+    llm_logs = {}
+    if normalized_target or target_model_name:
+        llm_logs["target_llm"] = _build_llm_log("target", normalized_target, target_model_name, "Target Model")
+    if normalized_attack or attack_model_name:
+        llm_logs["attack_llm"] = _build_llm_log("attack", normalized_attack, attack_model_name, "Attack/Mutator Model")
+    if normalized_eval or eval_model_name:
+        llm_logs["eval_llm"] = _build_llm_log("eval", normalized_eval, eval_model_name, "Evaluation/Judge Model")
+
     # 3. Ghi ra file JSON
     log_payload = {
         "metadata": {
@@ -317,12 +417,19 @@ def save_comprehensive_logs(log_dir, archive, global_context, timestamp, iterati
         "map_elites_archive": archive_dump,
         "global_context": global_context
     }
+    
+    # Add LLM logs to the payload
+    if llm_logs:
+        log_payload["llm_call_logs"] = llm_logs
 
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(log_payload, f, ensure_ascii=False, indent=4)
     
-    # In ra console cho dễ theo dõi tiến độ
-    print(f"[+] Iter {iteration} | ASR: {round(asr_percentage, 2)}% ({successful_instances}/{total_instances}) | Saved: {filename.name}")
+    # Print summary with all call counts
+    target_count = len(normalized_target)
+    attack_count = len(normalized_attack)
+    eval_count = len(normalized_eval)
+    print(f"[+] Iter {iteration} | ASR: {round(asr_percentage, 2)}% ({successful_instances}/{total_instances}) | Target: {target_count} | Attack: {attack_count} | Eval: {eval_count} | Saved: {filename.name}")
     
 def save_ga_comprehensive_log(
     log_dir, 
