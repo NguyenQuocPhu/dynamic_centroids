@@ -194,6 +194,8 @@ class StrongRejectJudge:
                 forbidden_prompt=_clip(forbidden_prompt, 1024),
                 response=_clip(response, 2048),
                 evaluators=[self.evaluator],
+                temperature=0.00001,
+                do_sample=True,
                 models=self.models # Truyền pipeline local vào đây
             )
             
