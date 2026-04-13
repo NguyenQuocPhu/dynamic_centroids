@@ -63,7 +63,7 @@ def parse_arguments():
         "--num_samples", type=int, default=50, help="Number of initial seed prompts"
     )
     parser.add_argument(
-        "--max_iters", type=int, default=2, help="Maximum number of iteration steps"
+        "--max_iters", type=int, default=200, help="Maximum number of iteration steps"
     )
     parser.add_argument(
         "--tree_depth", type=int, default=4, help="Depth of the attack tree"
@@ -174,6 +174,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         keep_last_n=3,
                         max_n_attack_attempts=2,
                         conversation_history=global_context,
+                        selection_strategy="baseline",
                         attack_max_n_tokens = config.mutator_llm.sampling_params.get('max_tokens', 500),
                         attack_temperature=config.mutator_llm.sampling_params.get('temperature', 1),
                         attack_top_p = config.mutator_llm.sampling_params.get('top_p', 0.9),
