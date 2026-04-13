@@ -171,7 +171,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         tree_width=999,
                         tree_depth=1,
                         root_num=1,
-                        branching_factor=4,
+                        branching_factor=5,
                         keep_last_n=3,
                         max_n_attack_attempts=2,
                         conversation_history=global_context,
