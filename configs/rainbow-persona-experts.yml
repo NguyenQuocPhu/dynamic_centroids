@@ -5,7 +5,7 @@ method: combined-fit
 target_llm:
   type_: vllm
   model_kwargs:
-    model: meta-llama/Llama-2-7b-chat-hf
+    model: mistralai/Mistral-7B-Instruct-v0.2
     gpu_memory_utilization: 0.21
     max_model_len: 1536
     enforce_eager: True
