@@ -155,6 +155,8 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     log_dir.mkdir(parents=True, exist_ok=True)
     # Prepare seed metadata
     seed = JailbreakDataset(dataset=args.dataset, local_file_type='json')
+    for i in range(15):
+        print(seed._dataset[i].query)
     random.seed(RANDOM_SEED)
     seed.shuffle() # Shuffle seed prompts to ensure randomness
     for i in range(15):
