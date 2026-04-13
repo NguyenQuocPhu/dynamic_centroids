@@ -273,6 +273,8 @@ def run_rainbowplus(
         # Sample descriptors based on strategy...
         descriptor = {}
         selected_persona = None
+        # Mutate prompts using appropriate strategy
+        mutator_model = config.mutator_llm.model_kwargs["model"]
         # [PHẦN CODE XỬ LÝ DESCRIPTORS GIỮ NGUYÊN NHƯ CŨ...]
         if config.mutation_strategy == "combined-fit" and persona_mutator:
             for key, values in descriptors.items():
@@ -340,8 +342,6 @@ def run_rainbowplus(
         key = tuple(descriptor.values())
         descriptor_str = "- " + "- ".join([f"{k}: {v}\n" for k, v in descriptor.items()])
 
-        # Mutate prompts using appropriate strategy
-        mutator_model = config.mutator_llm.model_kwargs["model"]
         if config.mutation_strategy == "persona" and persona_mutator:
             mutated_prompts = persona_mutator.mutate(
                 prompt, llms[mutator_model], config.mutator_llm.sampling_params,
