@@ -70,48 +70,86 @@ def load_json(
 
     return sampled_data
 
+def _normalize_call_history(call_history, iteration=None, llm_type="target"):
+    """
+    Lọc và chuẩn hóa lịch sử gọi API dựa trên vòng lặp.
+    """
+    if not call_history:
+        return []
+    
+    filtered = []
+    for call in call_history:
+        # Nếu iteration được chỉ định cụ thể (khác None và khác -1 cho global) thì tiến hành lọc
+        if iteration is not None and iteration != -1 and call.get('run_iteration') != iteration:
+            continue
+        
+        call_copy = dict(call)
+        # Tạo chuỗi call_location dễ đọc
+        call_copy['call_location'] = (
+            f"{call.get('call_site', 'unknown')} | "
+            f"run_iteration={call.get('run_iteration', '')}"
+        )
+        filtered.append(call_copy)
+    
+    return filtered
 
+def _build_llm_log(llm_type, llm_call_history, model_name, llm_type_display):
+    """
+    Đóng gói dữ liệu lịch sử gọi API thành một block JSON chuẩn.
+    """
+    return {
+        "llm_type": llm_type_display,
+        "model_name": model_name,
+        "total_calls": len(llm_call_history),
+        "calls_in_log": len(llm_call_history),
+        "calls": llm_call_history
+    }
 def save_iteration_log(
-    log_dir, adv_prompts, responses, scores, iters, timestamp, iteration=-1, max_iters=None
+    log_dir, adv_prompts, responses, scores, iters, timestamp, iteration=-1, max_iters=None,
+    target_call_history=None, attack_call_history=None, eval_call_history=None,
+    target_model_name="", attack_model_name="", eval_model_name=""
 ):
     """
-    Save log of current iteration's results.
-
-    Args:
-        log_dir: Directory for saving log files
-        adv_prompts: Archive of adversarial prompts
-        responses: Archive of model responses
-        scores: Archive of prompt scores
-        timestamp: Timestamp for log filename
-        iteration: Current iteration number 
-            - -1: Global log
-            - otherwise: Iteration log
-        max_iters: Maximum iterations configured for the experiment
+    Save log of current iteration's results (Cập nhật lưu LLM logs).
     """
     if iteration == -1:
         log_path = log_dir / f"rainbowplus_log_{timestamp}.json"
     else:
         log_path = log_dir / f"rainbowplus_log_{timestamp}_epoch_{iteration+1}.json"
 
-    with open(log_path, "w") as f:
-        json.dump(
-            {
-                "max_iters": max_iters,
-                "adv_prompts": {
-                    str(key): value for key, value in adv_prompts._archive.items()
-                },
-                "responses": {
-                    str(key): value for key, value in responses._archive.items()
-                },
-                "scores": {str(key): value for key, value in scores._archive.items()},
-                "iters": {str(key): value for key, value in iters._archive.items()},
-            },
-            f,
-            indent=2,
-        )
+    # Xử lý LLM Call Logs (Chỉ lấy của vòng lặp hiện tại, trừ khi là global: iteration=-1)
+    target_call_history = target_call_history or []
+    attack_call_history = attack_call_history or []
+    eval_call_history = eval_call_history or []
+    
+    normalized_target = _normalize_call_history(target_call_history, iteration=iteration, llm_type="target")
+    normalized_attack = _normalize_call_history(attack_call_history, iteration=iteration, llm_type="attack")
+    normalized_eval = _normalize_call_history(eval_call_history, iteration=iteration, llm_type="eval")
+    
+    llm_logs = {}
+    if normalized_target or target_model_name:
+        llm_logs["target_llm"] = _build_llm_log("target", normalized_target, target_model_name, "Target Model")
+    if normalized_attack or attack_model_name:
+        llm_logs["attack_llm"] = _build_llm_log("attack", normalized_attack, attack_model_name, "Attack/Mutator Model")
+    if normalized_eval or eval_model_name:
+        llm_logs["eval_llm"] = _build_llm_log("eval", normalized_eval, eval_model_name, "Evaluation/Judge Model")
+
+    # Đóng gói Payload
+    log_payload = {
+        "max_iters": max_iters,
+        "adv_prompts": {str(key): value for key, value in adv_prompts._archive.items()},
+        "responses": {str(key): value for key, value in responses._archive.items()},
+        "scores": {str(key): value for key, value in scores._archive.items()},
+        "iters": {str(key): value for key, value in iters._archive.items()},
+    }
+    
+    if llm_logs:
+        log_payload["llm_call_logs"] = llm_logs
+
+    with open(log_path, "w", encoding='utf-8') as f:
+        json.dump(log_payload, f, indent=2, ensure_ascii=False)
 
     logger.info(f"Log saved to {log_path}")
-
 
 def calculate_lexical_diversity_from_archives(all_prompts):
     flat_prompts = []
@@ -143,7 +181,6 @@ def calculate_embedding_diversity_from_archives(all_prompts):
     avg_dist = dists[triu_indices].mean() if len(triu_indices[0]) > 0 else 0.0
     return float(avg_dist)
 
-
 def save_comprehensive_log(
     log_dir, 
     all_prompts, 
@@ -156,51 +193,50 @@ def save_comprehensive_log(
     all_prompt_ids=None,
     all_parent_ids=None,
     all_seed_ids=None,
-    max_iters=None
+    max_iters=None,
+    target_call_history=None, attack_call_history=None, eval_call_history=None,
+    target_model_name="", attack_model_name="", eval_model_name=""
 ):
     """
-    Save comprehensive log of all generated prompts including failed ones.
-
-    Args:
-        log_dir: Directory for saving log files
-        all_prompts: Archive of all generated prompts (successful and failed)
-        all_responses: Archive of all model responses
-        all_scores: Archive of all prompt scores
-        all_similarities: Archive of similarity scores
-        rejection_reasons: Archive of rejection reasons for each prompt
-        timestamp: Timestamp for log filename
-        iteration: Current iteration number 
-            - -1: Global log
-            - otherwise: Iteration log
-        all_prompt_ids: Archive of prompt_ids (optional)
-        all_parent_ids: Archive of parent_ids (optional)
-        all_seed_ids: Archive of seed_ids (optional)
-        max_iters: Maximum iterations configured for the experiment
+    Save comprehensive log of all generated prompts (Cập nhật lưu TOÀN BỘ LLM logs).
     """
     if iteration == -1:
         log_path = log_dir / f"comprehensive_log_{timestamp}.json"
     else:
         log_path = log_dir / f"comprehensive_log_{timestamp}_epoch_{iteration+1}.json"
 
-    # Calculate lexical diversity
+    # Xử lý LLM Call Logs (Truyền iteration=None để VÉT SẠCH toàn bộ lịch sử)
+    target_call_history = target_call_history or []
+    attack_call_history = attack_call_history or []
+    eval_call_history = eval_call_history or []
+    
+    normalized_target = _normalize_call_history(target_call_history, iteration=None, llm_type="target")
+    normalized_attack = _normalize_call_history(attack_call_history, iteration=None, llm_type="attack")
+    normalized_eval = _normalize_call_history(eval_call_history, iteration=None, llm_type="eval")
+    
+    llm_logs = {}
+    if normalized_target or target_model_name:
+        llm_logs["target_llm"] = _build_llm_log("target", normalized_target, target_model_name, "Target Model")
+    if normalized_attack or attack_model_name:
+        llm_logs["attack_llm"] = _build_llm_log("attack", normalized_attack, attack_model_name, "Attack/Mutator Model")
+    if normalized_eval or eval_model_name:
+        llm_logs["eval_llm"] = _build_llm_log("eval", normalized_eval, eval_model_name, "Evaluation/Judge Model")
+
+    # Tính toán Diversity
     diversity = calculate_lexical_diversity_from_archives(all_prompts)
-    # Calculate embedding-based diversity
     embedding_diversity = calculate_embedding_diversity_from_archives(all_prompts)
 
     log_data = {
         "max_iters": max_iters,
-        "all_prompts": {
-            str(key): value for key, value in all_prompts._archive.items()
-        },
-        "all_responses": {
-            str(key): value for key, value in all_responses._archive.items()
-        },
+        "all_prompts": {str(key): value for key, value in all_prompts._archive.items()},
+        "all_responses": {str(key): value for key, value in all_responses._archive.items()},
         "all_scores": {str(key): value for key, value in all_scores._archive.items()},
         "all_similarities": {str(key): value for key, value in all_similarities._archive.items()},
         "rejection_reasons": {str(key): value for key, value in rejection_reasons._archive.items()},
         "diversity": diversity,
         "embedding_diversity": embedding_diversity,
     }
+    
     if all_prompt_ids is not None:
         log_data["all_prompt_ids"] = {str(key): value for key, value in all_prompt_ids._archive.items()}
     if all_parent_ids is not None:
@@ -208,11 +244,15 @@ def save_comprehensive_log(
     if all_seed_ids is not None:
         log_data["all_seed_ids"] = {str(key): value for key, value in all_seed_ids._archive.items()}
 
-    with open(log_path, "w") as f:
-        json.dump(log_data, f, indent=2)
+    # Chèn LLM Call logs vào nếu có
+    if llm_logs:
+        log_data["llm_call_logs"] = llm_logs
+
+    with open(log_path, "w", encoding='utf-8') as f:
+        json.dump(log_data, f, indent=2, ensure_ascii=False)
 
     logger.info(f"Comprehensive log saved to {log_path}")
-
+    
 
 def initialize_language_models(config: ConfigurationLoader):
     """

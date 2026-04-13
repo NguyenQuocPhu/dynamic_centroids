@@ -175,7 +175,6 @@ def load_descriptors(config):
             descriptors[descriptor] = load_txt(path)
     return descriptors
 
-
 def run_rainbowplus(
     args, config, seed_prompts=[], llms=None, fitness_fn=None, similarity_fn=None
 ):
@@ -214,6 +213,12 @@ def run_rainbowplus(
     all_parent_ids = Archive("all_parent_ids")
     all_seed_ids = Archive("all_seed_ids")
 
+    # ========== BỔ SUNG: Khởi tạo mảng lưu lịch sử gọi LLM ==========
+    target_call_history = []
+    attack_call_history = []
+    eval_call_history = []
+    # ================================================================
+
     # ID counters
     prompt_id_counter = 0
     prompt_id_map = {}  # prompt text -> prompt_id (for parent lookup)
@@ -230,11 +235,8 @@ def run_rainbowplus(
     simple_persona_mode = getattr(config, 'simple_persona_mode', False) or getattr(config, 'simple_mode', False) or config.__dict__.get('simple_persona_mode', False)
     if config.mutation_strategy in ["persona", "combined", "combined-fit"] and config.persona_config:
         selected_personas = config.archive.get('selected_personas')
-        #persona_type = getattr(config, 'persona_type', 'RedTeamingExperts')  # Default to RedTeamingExperts
-        # Read persona_type more robustly
         persona_type = getattr(config, 'persona_type', None) or config.__dict__.get('persona_type', 'RedTeamingExperts')
         logger.info(f"Using persona_type: {persona_type}")
-        #print(f"DEBUG: PersonaMutator initialized with persona_type = {persona_type}")
         persona_mutator = PersonaMutator(config.persona_config, selected_personas=selected_personas, simple_mode=simple_persona_mode, persona_type=persona_type)
 
     # Prepare log directory
@@ -249,7 +251,7 @@ def run_rainbowplus(
     for i in range(args.max_iters):
         logger.warning(f"#####ITERATION: {i}")
 
-        # Select prompt (initial seed or from existing adversarial prompts)
+        # Select prompt
         if i < len(seed_prompts):
             prompt = seed_prompts[i]
             parent_id = None
@@ -261,119 +263,118 @@ def run_rainbowplus(
                 prompt = random.choice(adv_values)
                 parent_id = prompt_id_map.get(prompt, None)
                 seed_id = seed_id_map.get(prompt, None)
-                prompt_id = None  # Will be assigned to new mutations
+                prompt_id = None
             else:
                 prompt = random.choice(seed_prompts)
                 parent_id = None
                 seed_id = seed_id_map[prompt]
                 prompt_id = prompt_id_map[prompt]
 
-        # Sample descriptors based on strategy
+        # Sample descriptors based on strategy...
         descriptor = {}
         selected_persona = None
+        # [PHẦN CODE XỬ LÝ DESCRIPTORS GIỮ NGUYÊN NHƯ CŨ...]
         if config.mutation_strategy == "combined-fit" and persona_mutator:
-            # Use all descriptors, but for persona use fitting
             for key, values in descriptors.items():
                 if key == "Persona":
-                    # Use persona mutator to find a fitting persona
                     persona_name, persona_details = persona_mutator._find_fitting_persona(
-                        prompt, 
-                        llms[config.mutator_llm.model_kwargs["model"]], 
-                        config.mutator_llm.sampling_params
+                        prompt, llms[config.mutator_llm.model_kwargs["model"]], config.mutator_llm.sampling_params
                     )
+                    # ========== BỔ SUNG: Log hoạt động tìm Persona ==========
+                    attack_call_history.append({
+                        "call_number": len(attack_call_history) + 1,
+                        "timestamp": time.time(),
+                        "run_iteration": i,
+                        "call_site": "run_rainbowplus.find_fitting_persona",
+                        "attack_model_name": mutator_model,
+                        "action": "generate_and_eval_persona",
+                        "estimated_internal_calls": 3
+                    })
+                    # ========================================================
                     descriptor[key] = persona_name
                     selected_persona = (persona_name, persona_details)
                 else:
-                    # For other descriptor types, use random selection
                     descriptor[key] = random.choice(values)
         elif config.mutation_strategy == "combined" and persona_mutator:
-            # Use all descriptors together
             for key, values in descriptors.items():
                 if key == "Persona":
-                    # If personas are selected, use only those
                     if 'selected_personas' in config.archive:
-                        # Get a random persona from selected personas
                         persona_name = random.choice(config.archive['selected_personas'])
                         persona_details = persona_mutator.personas[persona_name]
                         descriptor[key] = persona_name
                         selected_persona = (persona_name, persona_details)
                     else:
-                        # Otherwise use any persona
                         persona_name = random.choice(values)
                         descriptor[key] = persona_name
                         selected_persona = (persona_name, persona_mutator.personas[persona_name])
                 else:
-                    # For other descriptor types, use random selection
                     descriptor[key] = random.choice(values)
         elif config.mutation_strategy == "persona" and persona_mutator:
-            # If specific personas are selected, use them directly
             if 'selected_personas' in config.archive:
-                # Get a random persona from selected personas
                 persona_name = random.choice(config.archive['selected_personas'])
                 persona_details = persona_mutator.personas[persona_name]
                 descriptor["Persona"] = persona_name
                 selected_persona = (persona_name, persona_details)
             else:
-                # Use persona mutator to find or generate a fitting persona
                 persona_name, persona_details = persona_mutator._find_fitting_persona(
-                    prompt, 
-                    llms[config.mutator_llm.model_kwargs["model"]], 
-                    config.mutator_llm.sampling_params
+                    prompt, llms[config.mutator_llm.model_kwargs["model"]], config.mutator_llm.sampling_params
                 )
+                # ========== BỔ SUNG: Log hoạt động tìm Persona ==========
+                attack_call_history.append({
+                    "call_number": len(attack_call_history) + 1,
+                    "timestamp": time.time(),
+                    "run_iteration": i,
+                    "call_site": "run_rainbowplus.find_fitting_persona",
+                    "attack_model_name": mutator_model,
+                    "action": "generate_and_eval_persona",
+                    "estimated_internal_calls": 3
+                })
+                # ========================================================
+    
                 descriptor["Persona"] = persona_name
                 selected_persona = (persona_name, persona_details)
         else:
-            # Use random selection for other descriptors (rainbow-teaming-only)
             for key, values in descriptors.items():
                 descriptor[key] = random.choice(values)
 
-        # Create unique key for this descriptor set
         key = tuple(descriptor.values())
-
-        # Prepare descriptor string for prompt mutation
-        descriptor_str = "- " + "- ".join(
-            [f"{key}: {value}\n" for key, value in descriptor.items()]
-        )
+        descriptor_str = "- " + "- ".join([f"{k}: {v}\n" for k, v in descriptor.items()])
 
         # Mutate prompts using appropriate strategy
         mutator_model = config.mutator_llm.model_kwargs["model"]
         if config.mutation_strategy == "persona" and persona_mutator:
-            # Use persona mutator with pre-selected persona and num_mutations
             mutated_prompts = persona_mutator.mutate(
-                prompt, 
-                llms[mutator_model], 
-                config.mutator_llm.sampling_params,
-                selected_persona=selected_persona,
-                num_mutations=args.num_mutations
+                prompt, llms[mutator_model], config.mutator_llm.sampling_params,
+                selected_persona=selected_persona, num_mutations=args.num_mutations
             )
-            # Create prompt_ for similarity check
             prompt_ = prompt
         else:
-            # Use default mutator
-            prompt_ = MUTATOR_PROMPT.format(
-                descriptor=descriptor_str.strip(), prompt=prompt
-            )
+            prompt_ = MUTATOR_PROMPT.format(descriptor=descriptor_str.strip(), prompt=prompt)
             mutated_prompts = llms[mutator_model].batch_generate(
                 [prompt_] * args.num_mutations, config.mutator_llm.sampling_params
             )
 
-        # Store all original mutated prompts before filtering
+        # ========== BỔ SUNG: Log Mutator LLM Call ==========
+        attack_call_history.append({
+            "call_number": len(attack_call_history) + 1,
+            "timestamp": time.time(),
+            "run_iteration": i,
+            "call_site": "run_rainbowplus.mutator",
+            "attack_model_name": mutator_model,
+            "num_prompts_generated": len(mutated_prompts),
+            "descriptor": descriptor_str.strip()
+        })
+        # ===================================================
+
         original_mutated_prompts = mutated_prompts.copy()
+        mutated_prompts = [p for p in mutated_prompts if similarity_fn.score(p, prompt_) < args.sim_threshold]
 
-        # Filter mutated prompts by similarity
-        mutated_prompts = [
-            p
-            for p in mutated_prompts
-            if similarity_fn.score(p, prompt_) < args.sim_threshold
-        ]
-
-        # Assign IDs to mutated prompts
+        # Assign IDs to mutated prompts...
         mutated_prompt_ids = []
         mutated_parent_ids = []
         mutated_seed_ids = []
         for mp in original_mutated_prompts:
             if i < len(seed_prompts):
-                # Seed prompt, already has ID
                 mpid = prompt_id_map[mp] if mp in prompt_id_map else f"seed_{i}"
                 parid = None
                 sid = seed_id_map[mp] if mp in seed_id_map else mpid
@@ -388,42 +389,42 @@ def run_rainbowplus(
             mutated_parent_ids.append(parid)
             mutated_seed_ids.append(sid)
 
+        target_model = config.target_llm.model_kwargs["model"]
+        eval_model_name = config.fitness_llm.model_kwargs.get("model", "LlamaGuard")
+
         if mutated_prompts:
-            # Generate responses for mutated prompts
-            target_prompts = [
-                TARGET_PROMPT.format(prompt=p.strip()) for p in mutated_prompts if p and p.strip()
-            ]
-            target_model = config.target_llm.model_kwargs["model"]
-            candidates = llms[target_model].batch_generate(
-                target_prompts, config.target_llm.sampling_params
-            )
+            target_prompts = [TARGET_PROMPT.format(prompt=p.strip()) for p in mutated_prompts if p and p.strip()]
+            candidates = llms[target_model].batch_generate(target_prompts, config.target_llm.sampling_params)
+            
+            # ========== BỔ SUNG: Log Target LLM Call (Filtered) ==========
+            target_call_history.append({
+                "call_number": len(target_call_history) + 1,
+                "timestamp": time.time(),
+                "run_iteration": i,
+                "call_site": "run_rainbowplus.target_model.filtered",
+                "target_model_name": target_model,
+                "num_responses_generated": len(candidates)
+            })
+            # =============================================================
 
-            # Score fitness of mutated prompts
-            fitness_scores = fitness_fn.batch_score(
-                mutated_prompts, candidates, config.fitness_llm.sampling_params
-            )
+            fitness_scores = fitness_fn.batch_score(mutated_prompts, candidates, config.fitness_llm.sampling_params)
+            
+            # ========== BỔ SUNG: Log Eval LLM Call (Filtered) ==========
+            eval_call_history.append({
+                "call_number": len(eval_call_history) + 1,
+                "timestamp": time.time(),
+                "run_iteration": i,
+                "call_site": "run_rainbowplus.fitness_fn.filtered",
+                "eval_model_name": eval_model_name,
+                "num_responses_scored": len(fitness_scores)
+            })
+            # ===========================================================
 
-            # Filter prompts based on fitness threshold
-            filtered_data = [
-                (p, c, s)
-                for p, c, s in zip(mutated_prompts, candidates, fitness_scores)
-                if s > args.fitness_threshold
-            ]
+            filtered_data = [(p, c, s) for p, c, s in zip(mutated_prompts, candidates, fitness_scores) if s > args.fitness_threshold]
 
             if filtered_data:
-                # Unpack filtered data
-                filtered_prompts, filtered_candidates, filtered_scores = zip(
-                    *filtered_data
-                )
-
-                # Use logger
+                filtered_prompts, filtered_candidates, filtered_scores = zip(*filtered_data)
                 logger.info(f"Prompt for Mutator: {prompt_}")
-                logger.info(f"Mutated Prompt: {filtered_prompts}")
-                logger.info(f"Candidate: {filtered_candidates}")
-                logger.info(f"Score: {filtered_scores}")
-                logger.info("\n\n\n")
-
-                # Update archives
                 if not adv_prompts.exists(key):
                     adv_prompts.add(key, filtered_prompts)
                     responses.add(key, filtered_candidates)
@@ -435,37 +436,27 @@ def run_rainbowplus(
                     scores.extend(key, filtered_scores)
                     iters.extend(key, [i] * len(filtered_prompts))
 
-        # Track all generated prompts and their rejection reasons
+        # Track all generated prompts
         all_responses_for_key = []
         all_scores_for_key = []
         all_similarities_for_key = []
         rejection_reasons_for_key = []
 
-        # Generate responses for ALL original prompts (not just filtered ones)
         if original_mutated_prompts:
-            all_target_prompts = [
-                TARGET_PROMPT.format(prompt=p.strip()) for p in original_mutated_prompts if p and p.strip()
-            ]
-            target_model = config.target_llm.model_kwargs["model"]
-            all_candidates = llms[target_model].batch_generate(
-                all_target_prompts, config.target_llm.sampling_params
-            )
+            all_target_prompts = [TARGET_PROMPT.format(prompt=p.strip()) for p in original_mutated_prompts if p and p.strip()]
+            all_candidates = llms[target_model].batch_generate(all_target_prompts, config.target_llm.sampling_params)
+            
 
-            # Score fitness of ALL prompts
-            all_fitness_scores = fitness_fn.batch_score(
-                original_mutated_prompts, all_candidates, config.fitness_llm.sampling_params
-            )
+            all_fitness_scores = fitness_fn.batch_score(original_mutated_prompts, all_candidates, config.fitness_llm.sampling_params)
+            
 
-            # Calculate similarity scores for ALL prompts
             all_sim_scores = [similarity_fn.score(p, prompt_) for p in original_mutated_prompts]
 
-            # Determine rejection reasons for each prompt
-            for j, (prompt, response, score, sim_score) in enumerate(zip(original_mutated_prompts, all_candidates, all_fitness_scores, all_sim_scores)):
+            for j, (prompt_val, response, score, sim_score) in enumerate(zip(original_mutated_prompts, all_candidates, all_fitness_scores, all_sim_scores)):
                 all_responses_for_key.append(response)
                 all_scores_for_key.append(score)
                 all_similarities_for_key.append(sim_score)
                 
-                # Determine rejection reason
                 if sim_score >= args.sim_threshold:
                     rejection_reasons_for_key.append("similarity_too_high")
                 elif score <= args.fitness_threshold:
@@ -493,42 +484,58 @@ def run_rainbowplus(
                 all_parent_ids.extend(key, mutated_parent_ids)
                 all_seed_ids.extend(key, mutated_seed_ids)
 
-        # Global saving
+        # ========== BỔ SUNG: Gắn log history vào các hàm Save ==========
         save_iteration_log(
-            log_dir, adv_prompts, responses, scores, iters, "global", iteration=-1, max_iters=args.max_iters
+            log_dir, adv_prompts, responses, scores, iters, "global", iteration=-1, max_iters=args.max_iters,
+            target_call_history=target_call_history,
+            attack_call_history=attack_call_history,
+            eval_call_history=eval_call_history,
+            target_model_name=target_model,
+            attack_model_name=mutator_model,
+            eval_model_name=eval_model_name
         )
 
-        # Global comprehensive saving
         save_comprehensive_log(
             log_dir, all_prompts, all_responses, all_scores, all_similarities, rejection_reasons, "global", iteration=-1,
-            all_prompt_ids=all_prompt_ids, all_parent_ids=all_parent_ids, all_seed_ids=all_seed_ids, max_iters=args.max_iters
+            all_prompt_ids=all_prompt_ids, all_parent_ids=all_parent_ids, all_seed_ids=all_seed_ids, max_iters=args.max_iters,
+            target_call_history=target_call_history,
+            attack_call_history=attack_call_history,
+            eval_call_history=eval_call_history,
+            target_model_name=target_model,
+            attack_model_name=mutator_model,
+            eval_model_name=eval_model_name
         )
 
         # Periodic logging
         if i > 0 and (i + 1) % args.log_interval == 0:
             timestamp = time.strftime(r"%Y%m%d-%H%M%S")
             save_iteration_log(
-                log_dir, adv_prompts, responses, scores, iters, timestamp, iteration=i, max_iters=args.max_iters
+                log_dir, adv_prompts, responses, scores, iters, timestamp, iteration=i, max_iters=args.max_iters,
+                target_call_history=target_call_history, attack_call_history=attack_call_history, eval_call_history=eval_call_history,
+                target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name
             )
-            # Periodic comprehensive logging
             save_comprehensive_log(
                 log_dir, all_prompts, all_responses, all_scores, all_similarities, rejection_reasons, timestamp, iteration=i,
-                all_prompt_ids=all_prompt_ids, all_parent_ids=all_parent_ids, all_seed_ids=all_seed_ids, max_iters=args.max_iters
+                all_prompt_ids=all_prompt_ids, all_parent_ids=all_parent_ids, all_seed_ids=all_seed_ids, max_iters=args.max_iters,
+                target_call_history=target_call_history, attack_call_history=attack_call_history, eval_call_history=eval_call_history,
+                target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name
             )
 
-    # Save final log
+    # Save final logs
     timestamp = time.strftime(r"%Y%m%d-%H%M%S")
-    save_iteration_log(log_dir, adv_prompts, responses, scores, iters, timestamp, iteration=i, max_iters=args.max_iters)
-    
-    # Save final comprehensive log
+    save_iteration_log(
+        log_dir, adv_prompts, responses, scores, iters, timestamp, iteration=i, max_iters=args.max_iters,
+        target_call_history=target_call_history, attack_call_history=attack_call_history, eval_call_history=eval_call_history,
+        target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name
+    )
     save_comprehensive_log(
         log_dir, all_prompts, all_responses, all_scores, all_similarities, rejection_reasons, timestamp, iteration=i,
-        all_prompt_ids=all_prompt_ids, all_parent_ids=all_parent_ids, all_seed_ids=all_seed_ids, max_iters=args.max_iters
+        all_prompt_ids=all_prompt_ids, all_parent_ids=all_parent_ids, all_seed_ids=all_seed_ids, max_iters=args.max_iters,
+        target_call_history=target_call_history, attack_call_history=attack_call_history, eval_call_history=eval_call_history,
+        target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name
     )
 
-    # Return final archives
     return adv_prompts, responses, scores
-
 
 if __name__ == "__main__":
     # Parse command-line arguments
