@@ -59,9 +59,9 @@ def load_json(
     data_list = [sample for sample in raw_dataset]
     for i in range(15):
         if field not in data_list[i]:
-            logger.warning(f"Sample {i} does not contain the field '{field}'. Available fields: {list(data_list[i].keys())}")
+            print(f"Sample {i} does not contain the field '{field}'. Available fields: {list(data_list[i].keys())}")
         else:
-            logger.info(f"Sample {i} - {field}: {data_list[i][field]}")
+            print(f"Sample {i} - {field}: {data_list[i][field]}")
     # 3. Thực hiện Shuffle bằng thư viện random của Python
     if shuffle:
         # Thiết lập seed ngay trước khi shuffle để đảm bảo tính tái lập
