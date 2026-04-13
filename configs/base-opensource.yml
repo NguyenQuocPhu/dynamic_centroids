@@ -10,7 +10,7 @@ sample_prompts: ./data/formatted_harmbench.json
 
 target_llm:
   model_kwargs:
-    model: Qwen/Qwen2.5-7B-Instruct
+    model: mistralai/Mistral-7B-Instruct-v0.2
     max_model_len: 2048
   sampling_params:
     temperature: 1
