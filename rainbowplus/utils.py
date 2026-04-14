@@ -91,8 +91,7 @@ def _normalize_call_history(call_history, iteration=None, llm_type="target"):
         call_copy['call_location'] = (
             f"{call.get('call_site', 'unknown')} | "
             f"run_iteration={call.get('run_iteration', '')} | "
-            f"tree_depth_step={call.get('tree_depth_step', '')} | "
-            f"branch_index={call.get('branch_index', '')}"
+            f"tree_depth_step={call.get('tree_depth_step', '')} "
         )
         filtered.append(call_copy)
     
@@ -115,7 +114,7 @@ def _build_llm_log(llm_type, llm_call_history, model_name, llm_type_display):
         "llm_type": llm_type_display,
         "model_name": model_name,
         "total_calls": len(llm_call_history),
-        "calls_in_log": len(llm_call_history),
+        "total_queries": sum(call.get('query_count', 0) for call in llm_call_history),
         "calls": llm_call_history
     }
 
