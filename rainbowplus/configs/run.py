@@ -76,7 +76,7 @@ class ConfigurationLoader:
                 persona_type=data.get("persona_type", "RedTeamingExperts"),
                 log_dir=data.get("log_dir", "./logs"),
                 num_samples=data.get("num_samples", 150),
-                max_iters=data.get("max_iters", 1000),
+                max_iters=data.get("max_iters", 2),
                 sim_threshold=data.get("sim_threshold", 0.6),
                 num_mutations=data.get("num_mutations", 5),
                 fitness_threshold=data.get("fitness_threshold", 0.5),
