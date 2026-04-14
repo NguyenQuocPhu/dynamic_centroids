@@ -8,8 +8,10 @@ import json
 import logging
 import sys
 import os
+import time
+import functools
 
-from typing import TypeVar, List
+from typing import TypeVar, List, Callable, Optional, Dict, Any
 from datasets import load_dataset
 from rainbowplus.switcher import LLMSwitcher
 from rainbowplus.configs import ConfigurationLoader
@@ -25,6 +27,114 @@ logging.basicConfig(
     stream=sys.stdout,
 )
 logger = logging.getLogger(__name__)
+
+
+# Global context for tracking LLM calls
+_llm_call_context: Dict[str, Any] = {
+    "target_call_history": [],
+    "attack_call_history": [],
+    "eval_call_history": [],
+    "current_iteration": 0,
+    "target_model_name": "",
+    "attack_model_name": "",
+    "eval_model_name": "",
+}
+
+
+def set_llm_call_context(
+    target_call_history: List = None,
+    attack_call_history: List = None,
+    eval_call_history: List = None,
+    current_iteration: int = 0,
+    target_model_name: str = "",
+    attack_model_name: str = "",
+    eval_model_name: str = "",
+):
+    """
+    Set global context for LLM call tracking.
+    
+    Args:
+        target_call_history: List to store target model calls
+        attack_call_history: List to store attack/mutator model calls
+        eval_call_history: List to store evaluation model calls
+        current_iteration: Current iteration number
+        target_model_name: Name of target model
+        attack_model_name: Name of attack/mutator model
+        eval_model_name: Name of evaluation model
+    """
+    if target_call_history is not None:
+        _llm_call_context["target_call_history"] = target_call_history
+    if attack_call_history is not None:
+        _llm_call_context["attack_call_history"] = attack_call_history
+    if eval_call_history is not None:
+        _llm_call_context["eval_call_history"] = eval_call_history
+    if current_iteration >= 0:
+        _llm_call_context["current_iteration"] = current_iteration
+    if target_model_name:
+        _llm_call_context["target_model_name"] = target_model_name
+    if attack_model_name:
+        _llm_call_context["attack_model_name"] = attack_model_name
+    if eval_model_name:
+        _llm_call_context["eval_model_name"] = eval_model_name
+
+
+def count_calls(func: Callable, llm_type: str = "target") -> Callable:
+    """
+    Decorator to automatically log LLM function calls.
+    
+    Args:
+        func: The function to wrap (e.g., model.generate or model.batch_generate)
+        llm_type: Type of LLM call - "target", "attack", or "eval"
+    
+    Returns:
+        Wrapped function that logs calls automatically
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        # Determine if this is batch_generate or generate
+        is_batch = "batch_generate" in func.__name__
+        
+        # Get the appropriate call history list
+        if llm_type == "target":
+            call_history = _llm_call_context["target_call_history"]
+            model_name = _llm_call_context["target_model_name"]
+        elif llm_type == "attack":
+            call_history = _llm_call_context["attack_call_history"]
+            model_name = _llm_call_context["attack_model_name"]
+        elif llm_type == "eval":
+            call_history = _llm_call_context["eval_call_history"]
+            model_name = _llm_call_context["eval_model_name"]
+        else:
+            call_history = []
+            model_name = ""
+        
+        # Execute the original function
+        result = func(*args, **kwargs)
+        
+        # Log the call
+        call_entry = {
+            "call_number": len(call_history) + 1,
+            "timestamp": time.time(),
+            "run_iteration": _llm_call_context["current_iteration"],
+            "llm_type": llm_type,
+            "model_name": model_name,
+            "function_name": func.__name__,
+        }
+        
+        # Add result count
+        if is_batch:
+            if isinstance(result, list):
+                call_entry["num_responses_generated"] = len(result)
+            else:
+                call_entry["num_responses_generated"] = 1
+        else:
+            call_entry["num_responses_generated"] = 1
+        
+        call_history.append(call_entry)
+        
+        return result
+    
+    return wrapper
 
 
 def load_txt(file_path: str) -> List[str]:

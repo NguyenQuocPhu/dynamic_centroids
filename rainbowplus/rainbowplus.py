@@ -22,6 +22,8 @@ from rainbowplus.utils import (
     initialize_language_models,
     save_iteration_log,
     save_comprehensive_log,
+    set_llm_call_context,
+    count_calls,
 )
 from rainbowplus.archive import Archive
 from rainbowplus.configs import ConfigurationLoader
@@ -219,6 +221,35 @@ def run_rainbowplus(
     eval_call_history = []
     # ================================================================
 
+    # Extract model names for context
+    target_model = config.target_llm.model_kwargs["model"]
+    mutator_model = config.mutator_llm.model_kwargs["model"]
+    eval_model_name = config.fitness_llm.model_kwargs.get("model", "LlamaGuard")
+
+    # Wrap LLM methods with automatic call logging
+    if target_model in llms:
+        llms[target_model].generate = count_calls(llms[target_model].generate, "target")
+        llms[target_model].batch_generate = count_calls(llms[target_model].batch_generate, "target")
+    
+    if mutator_model in llms:
+        llms[mutator_model].generate = count_calls(llms[mutator_model].generate, "attack")
+        llms[mutator_model].batch_generate = count_calls(llms[mutator_model].batch_generate, "attack")
+    
+    # Wrap eval/fitness model for logging
+    if fitness_fn is not None:
+        fitness_fn.batch_score = count_calls(fitness_fn.batch_score, "eval")
+    
+    # Set initial context for call tracking
+    set_llm_call_context(
+        target_call_history=target_call_history,
+        attack_call_history=attack_call_history,
+        eval_call_history=eval_call_history,
+        current_iteration=0,
+        target_model_name=target_model,
+        attack_model_name=mutator_model,
+        eval_model_name=eval_model_name,
+    )
+
     # ID counters
     prompt_id_counter = 0
     prompt_id_map = {}  # prompt text -> prompt_id (for parent lookup)
@@ -250,6 +281,9 @@ def run_rainbowplus(
     # Main adversarial prompt generation loop
     for i in range(args.max_iters):
         logger.warning(f"#####ITERATION: {i}")
+        
+        # Update call tracking context for this iteration
+        set_llm_call_context(current_iteration=i)
 
         # Select prompt
         if i < len(seed_prompts):
@@ -282,17 +316,6 @@ def run_rainbowplus(
                     persona_name, persona_details = persona_mutator._find_fitting_persona(
                         prompt, llms[config.mutator_llm.model_kwargs["model"]], config.mutator_llm.sampling_params
                     )
-                    # ========== BỔ SUNG: Log hoạt động tìm Persona ==========
-                    attack_call_history.append({
-                        "call_number": len(attack_call_history) + 1,
-                        "timestamp": time.time(),
-                        "run_iteration": i,
-                        "call_site": "run_rainbowplus.find_fitting_persona",
-                        "attack_model_name": mutator_model,
-                        "action": "generate_and_eval_persona",
-                        "estimated_internal_calls": 3
-                    })
-                    # ========================================================
                     descriptor[key] = persona_name
                     selected_persona = (persona_name, persona_details)
                 else:
@@ -321,18 +344,6 @@ def run_rainbowplus(
                 persona_name, persona_details = persona_mutator._find_fitting_persona(
                     prompt, llms[config.mutator_llm.model_kwargs["model"]], config.mutator_llm.sampling_params
                 )
-                # ========== BỔ SUNG: Log hoạt động tìm Persona ==========
-                attack_call_history.append({
-                    "call_number": len(attack_call_history) + 1,
-                    "timestamp": time.time(),
-                    "run_iteration": i,
-                    "call_site": "run_rainbowplus.find_fitting_persona",
-                    "attack_model_name": mutator_model,
-                    "action": "generate_and_eval_persona",
-                    "estimated_internal_calls": 3
-                })
-                # ========================================================
-    
                 descriptor["Persona"] = persona_name
                 selected_persona = (persona_name, persona_details)
         else:
@@ -353,18 +364,6 @@ def run_rainbowplus(
             mutated_prompts = llms[mutator_model].batch_generate(
                 [prompt_] * args.num_mutations, config.mutator_llm.sampling_params
             )
-
-        # ========== BỔ SUNG: Log Mutator LLM Call ==========
-        attack_call_history.append({
-            "call_number": len(attack_call_history) + 1,
-            "timestamp": time.time(),
-            "run_iteration": i,
-            "call_site": "run_rainbowplus.mutator",
-            "attack_model_name": mutator_model,
-            "num_prompts_generated": len(mutated_prompts),
-            "descriptor": descriptor_str.strip()
-        })
-        # ===================================================
 
         original_mutated_prompts = mutated_prompts.copy()
         mutated_prompts = [p for p in mutated_prompts if similarity_fn.score(p, prompt_) < args.sim_threshold]
@@ -389,36 +388,11 @@ def run_rainbowplus(
             mutated_parent_ids.append(parid)
             mutated_seed_ids.append(sid)
 
-        target_model = config.target_llm.model_kwargs["model"]
-        eval_model_name = config.fitness_llm.model_kwargs.get("model", "LlamaGuard")
-
         if mutated_prompts:
             target_prompts = [TARGET_PROMPT.format(prompt=p.strip()) for p in mutated_prompts if p and p.strip()]
             candidates = llms[target_model].batch_generate(target_prompts, config.target_llm.sampling_params)
-            
-            # ========== BỔ SUNG: Log Target LLM Call (Filtered) ==========
-            target_call_history.append({
-                "call_number": len(target_call_history) + 1,
-                "timestamp": time.time(),
-                "run_iteration": i,
-                "call_site": "run_rainbowplus.target_model.filtered",
-                "target_model_name": target_model,
-                "num_responses_generated": len(candidates)
-            })
-            # =============================================================
 
             fitness_scores = fitness_fn.batch_score(mutated_prompts, candidates, config.fitness_llm.sampling_params)
-            
-            # ========== BỔ SUNG: Log Eval LLM Call (Filtered) ==========
-            eval_call_history.append({
-                "call_number": len(eval_call_history) + 1,
-                "timestamp": time.time(),
-                "run_iteration": i,
-                "call_site": "run_rainbowplus.fitness_fn.filtered",
-                "eval_model_name": eval_model_name,
-                "num_responses_scored": len(fitness_scores)
-            })
-            # ===========================================================
 
             filtered_data = [(p, c, s) for p, c, s in zip(mutated_prompts, candidates, fitness_scores) if s > args.fitness_threshold]
 
