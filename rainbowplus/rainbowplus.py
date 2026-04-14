@@ -59,7 +59,7 @@ def parse_arguments():
         "--num_samples", type=int, default=50, help="Number of initial seed prompts"
     )
     parser.add_argument(
-        "--max_iters", type=int, default=2, help="Maximum number of iteration steps"
+        "--max_iters", type=int, default=200, help="Maximum number of iteration steps"
     )
     parser.add_argument(
         "--tree_depth", type=int, default=2, help="Depth of the attack tree"
