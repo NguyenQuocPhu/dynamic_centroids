@@ -80,14 +80,14 @@ def set_llm_call_context(
 
 def count_calls(func: Callable, llm_type: str = "target") -> Callable:
     """
-    Decorator to automatically log LLM function calls.
+    Decorator to automatically log LLM function calls with query count tracking.
     
     Args:
         func: The function to wrap (e.g., model.generate or model.batch_generate)
         llm_type: Type of LLM call - "target", "attack", or "eval"
     
     Returns:
-        Wrapped function that logs calls automatically
+        Wrapped function that logs calls automatically with query count
     """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -108,8 +108,26 @@ def count_calls(func: Callable, llm_type: str = "target") -> Callable:
             call_history = []
             model_name = ""
         
+        # Calculate query count from input arguments
+        # For batch_generate/batch_score: args[1] is the list of queries/prompts
+        # For generate: args[1] is a single query
+        query_count = 0
+        if len(args) > 1:
+            first_input = args[1]  # Skip self (args[0])
+            if isinstance(first_input, list):
+                query_count = len(first_input)
+            else:
+                query_count = 1
+        
         # Execute the original function
         result = func(*args, **kwargs)
+        
+        # Calculate response count
+        response_count = 0
+        if isinstance(result, list):
+            response_count = len(result)
+        else:
+            response_count = 1
         
         # Log the call
         call_entry = {
@@ -119,16 +137,9 @@ def count_calls(func: Callable, llm_type: str = "target") -> Callable:
             "llm_type": llm_type,
             "model_name": model_name,
             "function_name": func.__name__,
+            "query_count": query_count,
+            "response_count": response_count,
         }
-        
-        # Add result count
-        if is_batch:
-            if isinstance(result, list):
-                call_entry["num_responses_generated"] = len(result)
-            else:
-                call_entry["num_responses_generated"] = 1
-        else:
-            call_entry["num_responses_generated"] = 1
         
         call_history.append(call_entry)
         
@@ -211,11 +222,13 @@ def _build_llm_log(llm_type, llm_call_history, model_name, llm_type_display):
     """
     Đóng gói dữ liệu lịch sử gọi API thành một block JSON chuẩn.
     """
+    total_queries = sum(call.get('query_count', 0) for call in llm_call_history)
+    
     return {
         "llm_type": llm_type_display,
         "model_name": model_name,
         "total_calls": len(llm_call_history),
-        "calls_in_log": len(llm_call_history),
+        "total_queries": total_queries,
         "calls": llm_call_history
     }
 def save_iteration_log(
