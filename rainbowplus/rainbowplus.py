@@ -184,7 +184,6 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     for iteration in range(args.max_iters):
         print(f"=== Iteration {iteration + 1}===\n")
         node = None
-        flag = 0
         if iteration < len(seed_prompts):
             instance = seed_prompts._dataset[iteration]
             inst = instance.copy()
@@ -230,7 +229,6 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         forest = archive_by_depth.get(key)[0]
         terminal_states = [c.is_terminal for c in forest.root.children]
         if iteration < len(seed_prompts):
-            flat = 1
             for inst in forest.root.children:
                 inst.is_terminal = True
 
@@ -248,6 +246,10 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 print(f"\n\n===Selected leaf with prompt in step {i}: {leaf.instance.jailbreak_prompt} and {leaf.max_score * 9.0 + 1.0}==\n\n")
                 attacker.branching_factor = 4 if i == 0 else 2 
                 new_instances = attacker.single_attack(leaf.instance)
+                attacker.attack_call_record[-1]['selection_step'] = i + 1
+                attacker.target_call_record[-1]['selection_step'] = i + 1
+                attacker.eval_call_record[-1]['selection_step'] = i + 1
+                
                 new_children = []
 
                 for data in new_instances: 

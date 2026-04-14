@@ -95,7 +95,7 @@ def _build_llm_log(llm_type, llm_call_history, model_name, llm_type_display):
         "llm_type": llm_type_display,
         "model_name": model_name,
         "total_calls": len(llm_call_history),
-        "calls_in_log": len(llm_call_history),
+        "total_queries": sum(call.get('query_count', 0) for call in llm_call_history),
         "calls": llm_call_history
     }
 
