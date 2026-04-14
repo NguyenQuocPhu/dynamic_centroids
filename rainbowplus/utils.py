@@ -83,7 +83,6 @@ def _normalize_call_history(call_history, iteration=None, llm_type="target"):
             f"{call.get('call_site', 'unknown')} | "
             f"run_iteration={call.get('run_iteration', '')} | "
             f"tree_depth_step={call.get('tree_depth_step', '')} | "
-            f"branch_index={call.get('branch_index', '')}"
         )
         filtered.append(call_copy)
     
@@ -175,7 +174,6 @@ def save_iteration_logs(log_dir, archive, global_context, timestamp, iteration, 
                         "score": score,
                         "attack_attrs": {
                             "cell_key": str(getattr(inst, 'attack_attrs', {}).get('cell_key', '')),
-                            "target_style": getattr(inst, 'attack_attrs', {}).get('target_style', '')
                         }
                     }
                     archive_dump[str_key].append(inst_dict)
