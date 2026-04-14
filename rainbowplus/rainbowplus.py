@@ -27,12 +27,8 @@ from rainbowplus.utils import (
     load_txt,
     load_json,
     initialize_language_models,
+    save_iteration_logs,
     save_comprehensive_logs,
-    save_all_instances,
-    format_example,
-    save_attack_memory_log,
-    _repair_yaml_primitives,
-    save_iteration,
 )
 from rainbowplus.archive import Archive
 from rainbowplus.configs import ConfigurationLoader
@@ -269,30 +265,36 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             node.is_terminal = state
         current_ts = time.strftime(r"%Y%m%d-%H%M%S")
         if iteration % args.log_interval == 0:
-            save_iteration(
+            save_iteration_logs(
                 archive=archive_by_depth,
-                save_dir=log_dir,
+                log_dir=log_dir,
+                global_context=global_context,
                 iteration=iteration + 1,
                 timestamp=current_ts,
+                max_iters=args.max_iters,
+                target_call_history=attacker.target_call_history,
+                attack_call_history=attacker.attack_call_history,
+                eval_call_history=attacker.eval_call_history,
+                target_model_name=target_model.model_name,
+                attack_model_name=attack_model.model_name,
+                eval_model_name=fitness_fn.model_name,
             )
 
-    # Collect call counts from all wrapped functions
-    call_counts = {
-        "attack_model_generate": attacker.attack_model.generate.calls,
-        "target_model_generate": attacker.target_model.generate.calls,
-        "eval_model_generate": attacker.eval_model.generate.calls,
-        "evaluator_get_score": attacker.evaluator.get_score.calls,
-        "constraint_process_output_on_topic_score": attacker.constraint.process_output_on_topic_score.calls,
-        "selector_select": attacker.selector.select.calls,
-    }
-    
     current_ts = time.strftime(r"%Y%m%d-%H%M%S")
     
-    save_all_instances(
+    save_comprehensive_logs(
+        log_dir=log_dir,
         archive=archive_by_depth,
-        save_dir=log_dir,
-        filename=current_ts,
-        call_counts=call_counts
+        global_context=global_context,
+        timestamp=current_ts,
+        iteration=iteration + 1,
+        max_iters=args.max_iters,
+        target_call_history=attacker.target_call_history,
+        attack_call_history=attacker.attack_call_history,
+        eval_call_history=attacker.eval_call_history,
+        target_model_name=target_model.model_name,
+        attack_model_name=attack_model.model_name,
+        eval_model_name=fitness_fn.model_name
     )
     print("Done!")
 
