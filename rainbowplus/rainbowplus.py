@@ -430,13 +430,16 @@ def run_rainbowplus(
         rejection_reasons_for_key = []
 
         if original_mutated_prompts:
+            llms[target_model].batch_generate.disable_log()
+            fitness_fn.batch_score.disable_log()
             all_target_prompts = [TARGET_PROMPT.format(prompt=p.strip()) for p in original_mutated_prompts if p and p.strip()]
             all_candidates = llms[target_model].batch_generate(all_target_prompts, config.target_llm.sampling_params)
             
 
             all_fitness_scores = fitness_fn.batch_score(original_mutated_prompts, all_candidates, config.fitness_llm.sampling_params)
             
-
+            llms[target_model].batch_generate.enable_log()
+            fitness_fn.batch_score.enable_log()
             all_sim_scores = [similarity_fn.score(p, prompt_) for p in original_mutated_prompts]
 
             for j, (prompt_val, response, score, sim_score) in enumerate(zip(original_mutated_prompts, all_candidates, all_fitness_scores, all_sim_scores)):

@@ -44,6 +44,8 @@ def count_calls(original_func: Callable, call_history: List[Dict], call_site: st
     """
     @functools.wraps(original_func)
     def wrapper(*args, **kwargs):
+        if not getattr(wrapper, '_is_logging_enabled', True):
+            return original_func(*args, **kwargs)
         # Timestamp for start
         start_time = time.time()
         
@@ -80,8 +82,14 @@ def count_calls(original_func: Callable, call_history: List[Dict], call_site: st
     # Attach methods to wrapper for setting context
     wrapper._current_iteration = 0
     wrapper._current_cell_key = None
+    wrapper._is_logging_enabled = True # Thêm trạng thái mặc định là Bật
+
     wrapper.set_iteration = lambda it: setattr(wrapper, '_current_iteration', it)
     wrapper.set_cell_key = lambda ck: setattr(wrapper, '_current_cell_key', ck)
+    
+    # THÊM 2 HÀM BẬT/TẮT CÔNG TẮC
+    wrapper.enable_log = lambda: setattr(wrapper, '_is_logging_enabled', True)
+    wrapper.disable_log = lambda: setattr(wrapper, '_is_logging_enabled', False)
     
     return wrapper
 
