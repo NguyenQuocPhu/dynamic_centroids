@@ -1002,22 +1002,23 @@ def main():
     else:
         import torch
         from transformers import pipeline, BitsAndBytesConfig
-        
-        print(f"\n🔧 Loading local judge pipeline: {args.model}")
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.bfloat16,
-            bnb_4bit_use_double_quant=True,
-            bnb_4bit_quant_type="nf4",
-        )
-        judge_pipeline = pipeline(
-            task="text-generation",
-            model=args.model,
-            device_map="auto",
-            model_kwargs={"quantization_config": bnb_config},
-            max_new_tokens=512,
-            return_full_text=False,
-        )
+        judge_pipeline = None
+        if args.evaluator == "strongreject_rubric":   
+            print(f"\n🔧 Loading local judge pipeline: {args.model}")
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.bfloat16,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4",
+            )
+            judge_pipeline = pipeline(
+                task="text-generation",
+                model=args.model,
+                device_map="auto",
+                model_kwargs={"quantization_config": bnb_config},
+                max_new_tokens=512,
+                return_full_text=False,
+            )
         print("  └─ ✅ Pipeline ready\n")
 
         judge = StrongRejectJudge(evaluator=args.evaluator,
