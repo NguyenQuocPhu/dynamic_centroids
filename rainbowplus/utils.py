@@ -29,121 +29,59 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Global context for tracking LLM calls
-_llm_call_context: Dict[str, Any] = {
-    "target_call_history": [],
-    "attack_call_history": [],
-    "eval_call_history": [],
-    "current_iteration": 0,
-    "target_model_name": "",
-    "attack_model_name": "",
-    "eval_model_name": "",
-}
-
-
-def set_llm_call_context(
-    target_call_history: List = None,
-    attack_call_history: List = None,
-    eval_call_history: List = None,
-    current_iteration: int = 0,
-    target_model_name: str = "",
-    attack_model_name: str = "",
-    eval_model_name: str = "",
-):
+def count_calls(original_func: Callable, call_history: List[Dict], call_site: str = None, llm_type: str = "target"):
     """
-    Set global context for LLM call tracking.
+    Wrap a function to log calls with query_count tracking.
     
     Args:
-        target_call_history: List to store target model calls
-        attack_call_history: List to store attack/mutator model calls
-        eval_call_history: List to store evaluation model calls
-        current_iteration: Current iteration number
-        target_model_name: Name of target model
-        attack_model_name: Name of attack/mutator model
-        eval_model_name: Name of evaluation model
-    """
-    if target_call_history is not None:
-        _llm_call_context["target_call_history"] = target_call_history
-    if attack_call_history is not None:
-        _llm_call_context["attack_call_history"] = attack_call_history
-    if eval_call_history is not None:
-        _llm_call_context["eval_call_history"] = eval_call_history
-    if current_iteration >= 0:
-        _llm_call_context["current_iteration"] = current_iteration
-    if target_model_name:
-        _llm_call_context["target_model_name"] = target_model_name
-    if attack_model_name:
-        _llm_call_context["attack_model_name"] = attack_model_name
-    if eval_model_name:
-        _llm_call_context["eval_model_name"] = eval_model_name
-
-
-def count_calls(func: Callable, llm_type: str = "target") -> Callable:
-    """
-    Decorator to automatically log LLM function calls with query count tracking.
-    
-    Args:
-        func: The function to wrap (e.g., model.generate or model.batch_generate)
-        llm_type: Type of LLM call - "target", "attack", or "eval"
+        original_func: The original function to wrap
+        call_history: List to append call records to
+        call_site: Name of the call site (e.g., "rainbowplus.target_model.generate")
+        llm_type: Type of LLM - "target", "attack", or "eval"
     
     Returns:
-        Wrapped function that logs calls automatically with query count
+        Wrapped function that logs calls
     """
-    @functools.wraps(func)
+    @functools.wraps(original_func)
     def wrapper(*args, **kwargs):
-        # Determine if this is batch_generate or generate
-        is_batch = "batch_generate" in func.__name__
+        # Timestamp for start
+        start_time = time.time()
         
-        # Get the appropriate call history list
-        if llm_type == "target":
-            call_history = _llm_call_context["target_call_history"]
-            model_name = _llm_call_context["target_model_name"]
-        elif llm_type == "attack":
-            call_history = _llm_call_context["attack_call_history"]
-            model_name = _llm_call_context["attack_model_name"]
-        elif llm_type == "eval":
-            call_history = _llm_call_context["eval_call_history"]
-            model_name = _llm_call_context["eval_model_name"]
-        else:
-            call_history = []
-            model_name = ""
-        
-        # Calculate query count from input arguments
-        # For batch_generate/batch_score: args[1] is the list of queries/prompts
-        # For generate: args[1] is a single query
+        # Calculate query_count from first positional argument (after self)
         query_count = 0
-        if len(args) > 1:
-            first_input = args[1]  # Skip self (args[0])
-            if isinstance(first_input, list):
-                query_count = len(first_input)
+        if len(args) > 0:
+            first_arg = args[0]
+            if isinstance(first_arg, list):
+                query_count = len(first_arg)
             else:
                 query_count = 1
         
-        # Execute the original function
-        result = func(*args, **kwargs)
+        # Call the original function
+        result = original_func(*args, **kwargs)
         
-        # Calculate response count
-        response_count = 0
-        if isinstance(result, list):
-            response_count = len(result)
-        else:
-            response_count = 1
+        # Timestamp for completion
+        completion_time = time.time()
         
-        # Log the call
+        # Create call entry
         call_entry = {
             "call_number": len(call_history) + 1,
-            "timestamp": time.time(),
-            "run_iteration": _llm_call_context["current_iteration"],
-            "llm_type": llm_type,
-            "model_name": model_name,
-            "function_name": func.__name__,
-            "query_count": query_count,
-            "response_count": response_count,
+            "timestamp": start_time,
+            "completion_timestamp": completion_time,
+            "run_iteration": getattr(wrapper, '_current_iteration', 0),
+            "call_site": call_site or original_func.__name__,
+            "cell_key": getattr(wrapper, '_current_cell_key', None),
+            "query_count": query_count
         }
         
         call_history.append(call_entry)
         
         return result
+    
+    # Attach methods to wrapper for setting context
+    wrapper._current_iteration = 0
+    wrapper._current_cell_key = None
+    wrapper.set_iteration = lambda it: setattr(wrapper, '_current_iteration', it)
+    wrapper.set_cell_key = lambda ck: setattr(wrapper, '_current_cell_key', ck)
     
     return wrapper
 

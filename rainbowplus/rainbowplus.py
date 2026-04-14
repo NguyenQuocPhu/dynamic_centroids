@@ -22,7 +22,6 @@ from rainbowplus.utils import (
     initialize_language_models,
     save_iteration_log,
     save_comprehensive_log,
-    set_llm_call_context,
     count_calls,
 )
 from rainbowplus.archive import Archive
@@ -226,29 +225,28 @@ def run_rainbowplus(
     mutator_model = config.mutator_llm.model_kwargs["model"]
     eval_model_name = config.fitness_llm.model_kwargs.get("model", "LlamaGuard")
 
-    # Wrap LLM methods with automatic call logging
+    # Wrap LLM methods with call tracking
     if target_model in llms:
-        llms[target_model].generate = count_calls(llms[target_model].generate, "target")
-        llms[target_model].batch_generate = count_calls(llms[target_model].batch_generate, "target")
+        llms[target_model].generate = count_calls(
+            llms[target_model].generate, target_call_history, f"rainbowplus.target_model.generate", "target"
+        )
+        llms[target_model].batch_generate = count_calls(
+            llms[target_model].batch_generate, target_call_history, f"rainbowplus.target_model.batch_generate", "target"
+        )
     
     if mutator_model in llms:
-        llms[mutator_model].generate = count_calls(llms[mutator_model].generate, "attack")
-        llms[mutator_model].batch_generate = count_calls(llms[mutator_model].batch_generate, "attack")
+        llms[mutator_model].generate = count_calls(
+            llms[mutator_model].generate, attack_call_history, f"rainbowplus.mutator_model.generate", "attack"
+        )
+        llms[mutator_model].batch_generate = count_calls(
+            llms[mutator_model].batch_generate, attack_call_history, f"rainbowplus.mutator_model.batch_generate", "attack"
+        )
     
     # Wrap eval/fitness model for logging
     if fitness_fn is not None:
-        fitness_fn.batch_score = count_calls(fitness_fn.batch_score, "eval")
-    
-    # Set initial context for call tracking
-    set_llm_call_context(
-        target_call_history=target_call_history,
-        attack_call_history=attack_call_history,
-        eval_call_history=eval_call_history,
-        current_iteration=0,
-        target_model_name=target_model,
-        attack_model_name=mutator_model,
-        eval_model_name=eval_model_name,
-    )
+        fitness_fn.batch_score = count_calls(
+            fitness_fn.batch_score, eval_call_history, f"rainbowplus.fitness_fn.batch_score", "eval"
+        )
 
     # ID counters
     prompt_id_counter = 0
@@ -281,9 +279,6 @@ def run_rainbowplus(
     # Main adversarial prompt generation loop
     for i in range(args.max_iters):
         logger.warning(f"#####ITERATION: {i}")
-        
-        # Update call tracking context for this iteration
-        set_llm_call_context(current_iteration=i)
 
         # Select prompt
         if i < len(seed_prompts):
@@ -352,6 +347,24 @@ def run_rainbowplus(
 
         key = tuple(descriptor.values())
         descriptor_str = "- " + "- ".join([f"{k}: {v}\n" for k, v in descriptor.items()])
+        
+        # Update iteration and cell_key context for all wrapped functions
+        for model_key in llms:
+            for attr_name in ['generate', 'batch_generate']:
+                if hasattr(llms[model_key], attr_name):
+                    wrapped_func = getattr(llms[model_key], attr_name)
+                    if hasattr(wrapped_func, 'set_iteration'):
+                        wrapped_func.set_iteration(i)
+                    if hasattr(wrapped_func, 'set_cell_key'):
+                        wrapped_func.set_cell_key(key)
+        
+        # Update eval model context if wrapped
+        if fitness_fn is not None and hasattr(fitness_fn, 'batch_score'):
+            wrapped_func = fitness_fn.batch_score
+            if hasattr(wrapped_func, 'set_iteration'):
+                wrapped_func.set_iteration(i)
+            if hasattr(wrapped_func, 'set_cell_key'):
+                wrapped_func.set_cell_key(key)
 
         if config.mutation_strategy == "persona" and persona_mutator:
             mutated_prompts = persona_mutator.mutate(
