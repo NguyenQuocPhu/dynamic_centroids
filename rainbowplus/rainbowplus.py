@@ -182,6 +182,11 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     
 
     archive_by_depth = Archive[Instance]("map-elites")
+    attacker.attack_model.generate = count_calls(attack_model.generate)
+    attacker.target_model.generate = count_calls(target_model.generate)
+    attacker.eval_model.generate = count_calls(eval_model.generate)
+    #attacker.constraint.process_output_on_topic_score = count_calls(attacker.constraint.process_output_on_topic_score)
+    #attacker.selector.select = count_calls(attacker.selector.select)
     for i, instance in enumerate(seed_prompts):
         inst = instance.copy()
         inst.jailbreak_prompt = inst.query

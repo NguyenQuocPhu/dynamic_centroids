@@ -160,7 +160,10 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
         self.target_top_p = target_top_p
         self.judge_temperature = judge_temperature
         self.judge_max_n_tokens = judge_max_n_tokens
-
+        ##### apply count_calls wrapper to the generate method of all three LLM types ######
+        self.attack_model.generate = count_calls(attack_model.generate)
+        self.target_model.generate = count_calls(target_model.generate)
+        self.eval_model.generate = count_calls(eval_model.generate)
 
         if self.attack_model.generation_config == {}:
             if isinstance(self.attack_model, OpenaiModel):
@@ -185,7 +188,7 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
             self.eval_model.generation_config = {'do_sample': True,
                                                  'max_new_tokens': self.judge_max_n_tokens,
                                                  'temperature': self.judge_temperature}
-
+        
     def attack(self, save_path='GAP_attack_result.jsonl'):
         r"""
         Execute the attack process using provided prompts.
@@ -201,6 +204,7 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
         """
         # global target_model_calls
         batch=[JailbreakDataset([instance.copy()]) for _ in range(self.root_num)]
+        #self.reset_call_counts() # Reset call counts at the beginning of each single_attack
         #print(f"QUERY:{instance.jailbreak_prompt}\n", flush=True)
         for iteration in range(1, self.tree_depth + 1):
             #print(f"""\n{'=' * 36}\nTree-depth is: {iteration}\n{'=' * 36}\n""", flush=True)
@@ -215,42 +219,40 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                 attack_call_record = {
                     "call_number": attack_call_number,
                     "timestamp": attack_call_timestamp,
-                    "run_iteration": self.current_iteration,
+                    "run_iteration": self.current_iteration,               
                     "tree_depth_step": iteration,
-                    "branch_index": i,
                     "call_site": "GAP.single_attack.mutator.generate",
                     "cell_key": str(instance.attack_attrs.get('cell_key', '')),
                     "attack_model_name": self.attack_model.get_name() if hasattr(self.attack_model, 'get_name') else getattr(self.attack_model, 'model_name', ''),
                 }
+                # Bo sung, mutator co max_n_attemps
+                temp_mutator_call = self.attack_model.generate.calls
                 new_dataset = self.mutator(new_dataset, self.conversation_history) # Pass global conversation history to prompt refiner (mutator)
-                attack_call_record["num_prompts_generated"] = len(new_dataset)
+                attack_call_record["query_count"] = self.attack_model.generate.calls - temp_mutator_call
                 attack_call_record["completion_timestamp"] = time.time()
                 self.attack_call_history.append(attack_call_record)
                 self.attack_model_calls += 1
 
                 ############# prune off-topic jailbreak_prompt ################
+                temp_eval_call = self.eval_model.generate.calls
                 if len(new_dataset) > 0:
                     new_dataset = self.constraint(new_dataset)
                 print(f"Length of new_dataset: {len(new_dataset)}")
                 ############# attack ################
                 self.target_model.conversation.messages = []
+                target_call_number = self.target_model_calls + 1
+                target_call_timestamp = time.time()
+                target_call_record = {
+                    "call_number": target_call_number,
+                    "timestamp": target_call_timestamp,
+                    "run_iteration": self.current_iteration,
+                    "tree_depth_step": iteration,
+                    "call_site": "GAP.single_attack.target_model.generate",
+                    "cell_key": str(instance.attack_attrs.get('cell_key', '')),
+                    "target_model_name": self.target_model.get_name() if hasattr(self.target_model, 'get_name') else getattr(self.target_model, 'model_name', ''),
+                }
+                temp_target_call = self.target_model.generate.calls
                 for instance in new_dataset:
-                    target_call_number = self.target_model_calls + 1
-                    target_call_timestamp = time.time()
-                    target_call_record = {
-                        "call_number": target_call_number,
-                        "timestamp": target_call_timestamp,
-                        "run_iteration": self.current_iteration,
-                        "tree_depth_step": iteration,
-                        "branch_index": i,
-                        "call_site": "GAP.single_attack.target_model.generate",
-                        "query": instance.query,
-                        "jailbreak_prompt": instance.jailbreak_prompt,
-                        "cell_key": str(instance.attack_attrs.get('cell_key', '')),
-                        "conversation_id": getattr(instance.attack_attrs.get('conv'), 'self_id', None),
-                        "parent_conversation_id": getattr(instance.attack_attrs.get('conv'), 'parent_id', None),
-                        "target_model_name": self.target_model.get_name() if hasattr(self.target_model, 'get_name') else getattr(self.target_model, 'model_name', ''),
-                    }
                     if isinstance(self.target_model, OpenaiModel):
                         instance.target_responses = [
                             self.target_model.generate(instance.jailbreak_prompt, max_tokens=self.target_max_n_tokens,
@@ -269,11 +271,10 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                                                     eos_token_id=self.target_model.tokenizer.eos_token_id)]
                     print("\nJailbreak Prompt:{}\n".format(instance.jailbreak_prompt))
                     print("\nOutput:\n{}\n????????????????????????????\n".format(instance.target_responses))
-                    target_call_record["target_response"] = instance.target_responses[0] if instance.target_responses else ""
-                    target_call_record["completion_timestamp"] = time.time()
-                    self.target_call_history.append(target_call_record)
                     self.target_model_calls += 1
-
+                target_call_record["query_count"] = self.target_model.generate.calls - temp_target_call
+                target_call_record["completion_timestamp"] = time.time()
+                self.target_call_history.append(target_call_record)
                 ############# prune not-jailbroken jailbreak_prompt ################
                 num_responses = len(new_dataset)
                 eval_call_number = self.eval_model_calls + 1
@@ -283,13 +284,12 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                     "timestamp": eval_call_timestamp,
                     "run_iteration": self.current_iteration,
                     "tree_depth_step": iteration,
-                    "branch_index": i,
                     "call_site": "GAP.single_attack.evaluator.score",
                     "cell_key": str(instance.attack_attrs.get('cell_key', '')),
-                    "eval_model_name": self.eval_model.get_name() if hasattr(self.eval_model, 'get_name') else getattr(self.eval_model, 'model_name', ''),
-                    "num_responses_scored": num_responses,
+                    "eval_model_name": self.eval_model.get_name() if hasattr(self.eval_model, 'get_name') else getattr(self.eval_model, 'model_name', ''),                   
                 }
                 self.evaluator(new_dataset)
+                eval_call_record["query_count"] = self.eval_model.generate.calls - temp_eval_call
                 eval_call_record["completion_timestamp"] = time.time()
                 self.eval_call_history.append(eval_call_record)
                 self.eval_model_calls += 1 
@@ -338,12 +338,6 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
         self.attack_model.generate.calls = 0
         self.eval_model.generate.calls = 0
         self.target_model.generate.calls = 0
-        self.target_model_calls = 0
-        self.attack_model_calls = 0
-        self.eval_model_calls = 0
-        self.target_call_history = []
-        self.attack_call_history = []
-        self.eval_call_history = []
 
         self.evaluator.get_score.calls = 0
         self.constraint.score_prompt.calls = 0
