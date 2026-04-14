@@ -184,13 +184,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         judge_max_n_tokens=config.fitness_llm.sampling_params.get('max_tokens', 10),
                         judge_temperature=config.fitness_llm.sampling_params.get('temperature', 1))
     
-    attacker.attack_model.generate = count_calls(attack_model.generate)
-    attacker.target_model.generate = count_calls(target_model.generate)
-    attacker.eval_model.generate = count_calls(eval_model.generate)
-    attacker.evaluator.get_score = count_calls(attacker.evaluator.get_score)
-    attacker.constraint.process_output_on_topic_score = count_calls(attacker.constraint.process_output_on_topic_score)
-    attacker.selector.select = count_calls(attacker.selector.select)
-
+    
     for iteration in range(args.max_iters):
         print(f"=== Iteration {iteration + 1}===\n")
         node = None
