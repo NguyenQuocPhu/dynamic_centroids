@@ -5,7 +5,7 @@ method: combined-fit
 target_llm:
   type_: vllm
   model_kwargs:
-    model: mistralai/Mistral-7B-Instruct-v0.2
+    model: Qwen/Qwen2.5-7B-Instruct
     gpu_memory_utilization: 0.21
     max_model_len: 1536
     enforce_eager: True
@@ -45,7 +45,7 @@ fitness_llm:
 
 sample_prompts: ./data/harmbench.json
 num_samples: 50
-max_iters: 2
+max_iters: 200
 sim_threshold: 0.6
 num_mutations: 10
 fitness_threshold: 0.6
