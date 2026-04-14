@@ -29,16 +29,12 @@ from rainbowplus.utils import (
     initialize_language_models,
     save_comprehensive_logs,
     save_iteration_logs,
-    format_example,
-    save_attack_memory_log,
-    _repair_yaml_primitives
+    format_example
 )
 from rainbowplus.archive import Archive
 from rainbowplus.configs import ConfigurationLoader
 from rainbowplus.prompts import system_prompt_mutator, TARGET_PROMPT, MUTATOR_PROMPT_V1, SELECTOR_PROMPT, ANALYZER_PROMPT
-from rainbowplus.configs.base import LLMConfig
-from rainbowplus.mutators.persona import PersonaMutator
-from rainbowplus.attack_memory import AttackMemory
+
 
 
 # Set fixed random seed
