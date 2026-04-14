@@ -246,9 +246,9 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 print(f"\n\n===Selected leaf with prompt in step {i}: {leaf.instance.jailbreak_prompt} and {leaf.max_score * 9.0 + 1.0}==\n\n")
                 attacker.branching_factor = 4 if i == 0 else 2 
                 new_instances = attacker.single_attack(leaf.instance)
-                attacker.attack_call_record[-1]['selection_step'] = i + 1
-                attacker.target_call_record[-1]['selection_step'] = i + 1
-                attacker.eval_call_record[-1]['selection_step'] = i + 1
+                attacker.attack_call_history[-1]['selection_step'] = i + 1
+                attacker.target_call_history[-1]['selection_step'] = i + 1
+                attacker.eval_call_history[-1]['selection_step'] = i + 1
                 
                 new_children = []
 
