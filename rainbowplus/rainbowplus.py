@@ -93,7 +93,7 @@ def parse_arguments():
         help="Number of iterations between log saves",
     )
     parser.add_argument(
-        "--dataset", type=str, default="./data/do-not-answer.json", help="Dataset name"
+        "--dataset", type=str, default="./data/formatted_harmbench.json", help="Dataset name"
     )
     parser.add_argument(
         "--shuffle", type=bool, default=True, help="Shuffle seed prompts"
