@@ -527,7 +527,7 @@ class PersonaMutator:
             raise ValueError(f"Invalid persona_type '{persona_type}'. Must be one of: {valid_types}")
         
         self.persona_type = persona_type
-        print(f"DEBUG: PersonaMutator initialized with persona_type = {self.persona_type}")
+        #(f"DEBUG: PersonaMutator initialized with persona_type = {self.persona_type}")
         if not simple_mode:
             self.personas = self._load_personas(config_path)
             self.selected_personas = selected_personas
@@ -677,16 +677,17 @@ class PersonaMutator:
             Tuple of (persona_name, persona_details)
         """
         # Generate a new persona based on persona type
-        print(f"DEBUG: persona_type = {self.persona_type}")
+        
+        #print(f"DEBUG: persona_type = {self.persona_type}")
         if self.persona_type == "RedTeamingExperts":
-            print("DEBUG: Using RedTeamingExperts prompt")
+            #print("DEBUG: Using RedTeamingExperts prompt")
             new_persona = self._generate_new_persona_rter(prompt, mutator_llm, sampling_params)
         elif self.persona_type == "RegularAIUsers":
-            print("DEBUG: Using RegularAIUsers prompt")
+            #print("DEBUG: Using RegularAIUsers prompt")
             new_persona = self._generate_new_persona_user(prompt, mutator_llm, sampling_params)
         else:
             # Default to RedTeamingExperts
-            print(f"DEBUG: Unknown persona_type '{self.persona_type}', defaulting to RedTeamingExperts")
+            #print(f"DEBUG: Unknown persona_type '{self.persona_type}', defaulting to RedTeamingExperts")
             new_persona = self._generate_new_persona_rter(prompt, mutator_llm, sampling_params)
         
         # If we have existing personas in the bank, pick one randomly and compare
@@ -720,23 +721,21 @@ class PersonaMutator:
     
     def _generate_new_persona_rter(self, prompt: str, mutator_llm: BaseLLM, sampling_params: Dict[str, Any]) -> Tuple[str, Dict]:
         """Generate a new RedTeaming expert persona that fits the prompt context."""
-        print(f"DEBUG: _generate_new_persona_rter called with prompt: {prompt[:50]}...")
         persona_prompt = GENERATE_PERSONA_PROMPT_RTer.format(prompt=prompt)
-        print(f"DEBUG: Using RedTeaming Expert prompt template")
         persona_yaml = mutator_llm.generate(persona_prompt, sampling_params)
         
         # Log the raw LLM output for debugging
         import logging
         logger = logging.getLogger(__name__)
-        logger.warning(f"Raw LLM persona YAML output: {persona_yaml}")
+        #logger.warning(f"Raw LLM persona YAML output: {persona_yaml}")
         
         try:
             # Remove Markdown code fences if present
             persona_yaml_clean = strip_markdown_fence(persona_yaml)
-            logger.warning(f"Persona YAML after stripping code fence: {persona_yaml_clean}")
+         #   logger.warning(f"Persona YAML after stripping code fence: {persona_yaml_clean}")
             persona_details = yaml.safe_load(persona_yaml_clean)
             if not isinstance(persona_details, dict):
-                logger.warning(f"Parsed persona is not a dict. Got: {persona_details}")
+          #      logger.warning(f"Parsed persona is not a dict. Got: {persona_details}")
                 raise ValueError("Parsed persona is not a dict")
             
             persona_title = persona_details.pop('title', f"rter_expert_{len(self.personas)}")
@@ -747,7 +746,7 @@ class PersonaMutator:
                 existing_persona = self.personas[persona_title]
                 if self._personas_are_similar(persona_details, existing_persona):
                     # Return the existing similar persona instead of creating a duplicate
-                    logger.warning(f"Found similar existing persona '{persona_title}', reusing it.")
+                    #logger.warning(f"Found similar existing persona '{persona_title}', reusing it.")
                     return persona_title, existing_persona
                 else:
                     # Create a unique title based on occupation or other distinguishing features
@@ -765,7 +764,7 @@ class PersonaMutator:
             return persona_title, persona_details
             
         except Exception as e:
-            logger.warning(f"Failed to parse/generate persona from LLM output: {e}. Falling back to default persona.")
+            #logger.warning(f"Failed to parse/generate persona from LLM output: {e}. Falling back to default persona.")
             default_persona = {
                 "name": "Default RedTeam Expert",
                 "age": 35,
@@ -784,23 +783,23 @@ class PersonaMutator:
     
     def _generate_new_persona_user(self, prompt: str, mutator_llm: BaseLLM, sampling_params: Dict[str, Any]) -> Tuple[str, Dict]:
         """Generate a new regular AI user persona that fits the prompt context."""
-        print(f"DEBUG: _generate_new_persona_user called with prompt: {prompt[:50]}...")
+        #print(f"DEBUG: _generate_new_persona_user called with prompt: {prompt[:50]}...")
         persona_prompt = GENERATE_PERSONA_PROMPT_User.format(prompt=prompt)
-        print(f"DEBUG: Using Regular AI User prompt template")
+        #print(f"DEBUG: Using Regular AI User prompt template")
         persona_yaml = mutator_llm.generate(persona_prompt, sampling_params)
         
         # Log the raw LLM output for debugging
         import logging
         logger = logging.getLogger(__name__)
-        logger.warning(f"Raw LLM persona YAML output: {persona_yaml}")
+        #logger.warning(f"Raw LLM persona YAML output: {persona_yaml}")
         
         try:
             # Remove Markdown code fences if present
             persona_yaml_clean = strip_markdown_fence(persona_yaml)
-            logger.warning(f"Persona YAML after stripping code fence: {persona_yaml_clean}")
+         #   logger.warning(f"Persona YAML after stripping code fence: {persona_yaml_clean}")
             persona_details = yaml.safe_load(persona_yaml_clean)
             if not isinstance(persona_details, dict):
-                logger.warning(f"Parsed persona is not a dict. Got: {persona_details}")
+          #      logger.warning(f"Parsed persona is not a dict. Got: {persona_details}")
                 raise ValueError("Parsed persona is not a dict")
                 
             persona_title = persona_details.pop('title', f"user_{len(self.personas)}")
@@ -811,7 +810,7 @@ class PersonaMutator:
                 existing_persona = self.personas[persona_title]
                 if self._personas_are_similar(persona_details, existing_persona):
                     # Return the existing similar persona instead of creating a duplicate
-                    logger.warning(f"Found similar existing persona '{persona_title}', reusing it.")
+                    #logger.warning(f"Found similar existing persona '{persona_title}', reusing it.")
                     return persona_title, existing_persona
                 else:
                     # Create a unique title based on occupation or other distinguishing features
@@ -829,7 +828,7 @@ class PersonaMutator:
             return persona_title, persona_details
             
         except Exception as e:
-            logger.warning(f"Failed to parse/generate persona from LLM output: {e}. Falling back to default persona.")
+            #logger.warning(f"Failed to parse/generate persona from LLM output: {e}. Falling back to default persona.")
             default_persona = {
                 "name": "Default AI User",
                 "age": 30,
