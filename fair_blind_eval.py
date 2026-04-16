@@ -361,7 +361,8 @@ def _clip(text: str, limit: int) -> str:
     if not isinstance(text, str):
         return ""
     text = text.strip()
-    return text if len(text) <= limit else text[:limit].rstrip() + " [...]"
+    return text
+    #return text if len(text) <= limit else text[:limit].rstrip() + " [...]"
 
 
 def _parse_cell_key(cell_key: str) -> Tuple[str, str]:
