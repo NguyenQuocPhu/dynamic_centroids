@@ -49,7 +49,7 @@ max_iters: 200
 sim_threshold: 0.6
 num_mutations: 10
 fitness_threshold: 0.6
-log_interval: 50
+log_interval: 200
 shuffle: true
 
 mutation_strategy: combined-fit
