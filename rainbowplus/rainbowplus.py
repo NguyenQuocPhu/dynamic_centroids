@@ -164,10 +164,10 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         target_model=target_model,
                         eval_model=fitness_fn,
                         jailbreak_datasets=seed,
-                        tree_width=999,
+                        tree_width=2,
                         tree_depth=1,
                         root_num=1,
-                        branching_factor=2,
+                        branching_factor=4,
                         keep_last_n=3,
                         max_n_attack_attempts=2,
                         conversation_history=global_context,
@@ -283,7 +283,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
             )
 
     current_ts = time.strftime(r"%Y%m%d-%H%M%S")
-    
+
     save_comprehensive_logs(
         log_dir=log_dir,
         archive=archive_by_depth,
