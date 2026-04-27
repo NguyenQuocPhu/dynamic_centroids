@@ -193,7 +193,7 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
         # ── [DEBUG 2] full_prompt sent to model ───────────────────────────────
         _fp_display = full_prompt if isinstance(full_prompt, str) else str(full_prompt)
         print(f"\n[DEBUG get_attack] ── FULL PROMPT SENT TO MODEL (first 600 chars) ──", flush=True)
-        print(_fp_display[:600], flush=True)
+        print(_fp_display, flush=True)
         print(f"[DEBUG get_attack] ── END FULL PROMPT ──\n", flush=True)
 
         max_n_attack_attempts = self.max_n_attack_attempts
