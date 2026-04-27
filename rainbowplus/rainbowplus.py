@@ -309,7 +309,7 @@ if __name__ == "__main__":
             **model_kwargs,
         )
 
-    attack_model = _make_model(config.mutator_llm, fastchat_name="TinyLlama")
+    attack_model = _make_model(config.mutator_llm, fastchat_name="vicuna_v1.1")
     target_model = _make_model(config.target_llm,  fastchat_name="qwen-7b-chat")
     eval_model   = _make_model(config.fitness_llm, fastchat_name="qwen-7b-chat")
     similarity_fn = BleuScoreNLTK()

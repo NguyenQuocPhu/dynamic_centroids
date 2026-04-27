@@ -21,9 +21,9 @@ target_llm:
 
 mutator_llm:
   model_kwargs:
-    model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+    model: lmsys/vicuna-7b-v1.5
     max_model_len: 2048
-    gpu_memory_utilization: 0.25 # Model này nặng hơn 0.5B một chút
+    gpu_memory_utilization: 0.35 # Model này nặng hơn 0.5B một chút
     enforce_eager: True
   sampling_params:
     temperature: 1
@@ -32,9 +32,9 @@ mutator_llm:
 
 fitness_llm:
   model_kwargs:
-    model: Qwen/Qwen2.5-1.5B-Instruct
+    model: Qwen/Qwen2.5-0.5B-Instruct
     max_model_len: 2048
-    gpu_memory_utilization: 0.35 # Model này nặng nhất trong 3 cái
+    gpu_memory_utilization: 0.2 # Model này nặng nhất trong 3 cái
     enforce_eager: True
   sampling_params:
     temperature: 0.7
