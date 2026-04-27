@@ -33,7 +33,7 @@ mutator_llm:
 fitness_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-0.5B-Instruct
-    max_model_len: 2048
+    max_model_len: 1024
     gpu_memory_utilization: 0.1
     enforce_eager: True
   sampling_params:
