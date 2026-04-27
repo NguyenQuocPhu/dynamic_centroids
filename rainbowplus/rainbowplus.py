@@ -80,7 +80,7 @@ def parse_arguments():
     parser.add_argument(
         "--config_file",
         type=str,
-        default="./configs/base-opensource.yml",
+        default="./configs/base.yml",
         help="Path to configuration file",
     )
     parser.add_argument(
@@ -123,16 +123,8 @@ from easyjailbreak.attacker import AttackerBase
 from easyjailbreak.datasets import JailbreakDataset
 from easyjailbreak.datasets.instance import Instance
 from easyjailbreak.loggers.logger import Logger
-from easyjailbreak.models.huggingface_model import HuggingfaceModel
-from easyjailbreak.models.openai_model import OpenaiModel
-
-####### 4 major components #######
-from easyjailbreak.seed.seed_template import SeedTemplate
-# from easyjailbreak.mutation.generation.IntrospectGeneration import IntrospectGeneration
-from easyjailbreak.constraint.DeleteOffTopic import DeleteOffTopic
-from easyjailbreak.metrics.Evaluator.Evaluator_GenerativeGetScore import EvaluatorGenerativeGetScore
 from easyjailbreak.selector.SelectBasedOnScores import SelectBasedOnScores
-from easyjailbreak.models.huggingface_model import from_pretrained
+from rainbowplus.graph_easyjailbreak.vllm_model import VLLMModel, from_pretrained
 from easyjailbreak.datasets import JailbreakDataset, Instance
 
 from rainbowplus.graph_easyjailbreak.model_utils import count_calls
@@ -305,19 +297,21 @@ if __name__ == "__main__":
     args = parse_arguments()
     config = ConfigurationLoader.load(args.config_file)
 
-    #llms = initialize_language_models(config)
-    attack_model = from_pretrained(
-        config.mutator_llm.model_kwargs["model"],
-        model_name = "vicuna_v1.1"
-    )
-    target_model = from_pretrained(
-        config.target_llm.model_kwargs["model"],
-        model_name = "qwen-7b-chat"
-    )
-    eval_model = from_pretrained(
-        config.fitness_llm.model_kwargs["model"],
-        model_name = "llama-2"
-    )
+    # Build vLLM models — model_name is the FastChat template, model_name_or_path is the HF hub id
+    # Any extra keys in model_kwargs (max_model_len, gpu_memory_utilization, enforce_eager …)
+    # are forwarded directly to vllm.LLM.
+    def _make_model(llm_cfg, fastchat_name: str) -> VLLMModel:
+        model_kwargs = dict(llm_cfg.model_kwargs)  # shallow copy
+        model_path = model_kwargs.pop("model")     # HF hub id / local path
+        return from_pretrained(
+            model_name=fastchat_name,
+            model_name_or_path=model_path,
+            **model_kwargs,
+        )
+
+    attack_model = _make_model(config.mutator_llm, fastchat_name="TinyLlama")
+    target_model = _make_model(config.target_llm,  fastchat_name="qwen-7b-chat")
+    eval_model   = _make_model(config.fitness_llm, fastchat_name="qwen-7b-chat")
     similarity_fn = BleuScoreNLTK()
 
     print(config)

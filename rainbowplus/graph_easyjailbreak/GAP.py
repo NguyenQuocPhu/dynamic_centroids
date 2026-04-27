@@ -14,6 +14,7 @@ from easyjailbreak.datasets.instance import Instance
 from easyjailbreak.loggers.logger import Logger
 from easyjailbreak.models.huggingface_model import HuggingfaceModel
 from easyjailbreak.models.openai_model import OpenaiModel
+from rainbowplus.graph_easyjailbreak.vllm_model import VLLMModel
 
 ####### 4 major components #######
 from easyjailbreak.seed.seed_template import SeedTemplate
@@ -170,10 +171,11 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                 self.attack_model.generation_config = {'max_tokens': attack_max_n_tokens,
                                                        'temperature': attack_temperature,
                                                        'top_p': attack_top_p}
-            # if isinstance(self.attack_model, LlamaModel):
-            #     self.attack_model.generation_config = {'maxTokens': attack_max_n_tokens,
-            #                                            'temperature': attack_temperature,
-            #                                            'topP': attack_top_p}
+            elif isinstance(self.attack_model, VLLMModel):
+                self.attack_model.generation_config = {'max_new_tokens': attack_max_n_tokens,
+                                                       'temperature': attack_temperature,
+                                                       'top_p': attack_top_p,
+                                                       'eos_token_id': self.attack_model.tokenizer.eos_token_id}
             elif isinstance(self.attack_model, HuggingfaceModel):
                 self.attack_model.generation_config = {'max_new_tokens': attack_max_n_tokens,
                                                        'temperature': attack_temperature,
@@ -183,6 +185,9 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
 
         if isinstance(self.eval_model, OpenaiModel) and self.eval_model.generation_config == {}:
             self.eval_model.generation_config = {'max_tokens': self.judge_max_n_tokens,
+                                                 'temperature': self.judge_temperature}
+        elif isinstance(self.eval_model, VLLMModel) and self.eval_model.generation_config == {}:
+            self.eval_model.generation_config = {'max_new_tokens': self.judge_max_n_tokens,
                                                  'temperature': self.judge_temperature}
         elif isinstance(self.eval_model, HuggingfaceModel) and self.eval_model.generation_config == {}:
             self.eval_model.generation_config = {'do_sample': True,
@@ -250,26 +255,37 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                     "target_model_name": self.target_model.get_name() if hasattr(self.target_model, 'get_name') else getattr(self.target_model, 'model_name', ''),
                 }
                 temp_target_call = self.target_model.generate.calls
-                for instance in new_dataset:
-                    if isinstance(self.target_model, OpenaiModel):
-                        instance.target_responses = [
-                            self.target_model.generate(instance.jailbreak_prompt, max_tokens=self.target_max_n_tokens,
-                                                    temperature=self.target_temperature, top_p=self.target_top_p)]
-                    # if isinstance(self.target_model, LlamaModel):
-                    #     instance.target_responses = [
-                    #         self.target_model.generate(instance.jailbreak_prompt, generation_config={'maxTokens': self.target_max_n_tokens,
-                    #                                 'temperature': self.target_temperature,
-                    #                                 'topP': self.target_top_p})]
-                    elif isinstance(self.target_model, HuggingfaceModel):
-                        instance.target_responses = [
-                            self.target_model.generate(instance.jailbreak_prompt,
-                                                    max_new_tokens=self.target_max_n_tokens,
-                                                    temperature=self.target_temperature, do_sample=True,
-                                                    top_p=self.target_top_p,
-                                                    eos_token_id=self.target_model.tokenizer.eos_token_id)]
-                    print("\nJailbreak Prompt:{}\n".format(instance.jailbreak_prompt))
-                    print("\nOutput:\n{}\n????????????????????????????\n".format(instance.target_responses))
-                    self.target_model_calls += 1
+                if isinstance(self.target_model, VLLMModel) and len(new_dataset) > 0:
+                    # --- vLLM: one batch_generate call for all instances ---
+                    prompts = [inst.jailbreak_prompt for inst in new_dataset]
+                    responses = self.target_model.batch_generate(
+                        [[p] for p in prompts],
+                        max_new_tokens=self.target_max_n_tokens,
+                        temperature=self.target_temperature,
+                        top_p=self.target_top_p,
+                        eos_token_id=self.target_model.tokenizer.eos_token_id,
+                    )
+                    for inst, resp in zip(new_dataset, responses):
+                        inst.target_responses = [resp]
+                        print("\nJailbreak Prompt:{}\n".format(inst.jailbreak_prompt))
+                        print("\nOutput:\n{}\n????????????????????????????\n".format(inst.target_responses))
+                        self.target_model_calls += 1
+                else:
+                    for instance in new_dataset:
+                        if isinstance(self.target_model, OpenaiModel):
+                            instance.target_responses = [
+                                self.target_model.generate(instance.jailbreak_prompt, max_tokens=self.target_max_n_tokens,
+                                                        temperature=self.target_temperature, top_p=self.target_top_p)]
+                        elif isinstance(self.target_model, HuggingfaceModel):
+                            instance.target_responses = [
+                                self.target_model.generate(instance.jailbreak_prompt,
+                                                        max_new_tokens=self.target_max_n_tokens,
+                                                        temperature=self.target_temperature, do_sample=True,
+                                                        top_p=self.target_top_p,
+                                                        eos_token_id=self.target_model.tokenizer.eos_token_id)]
+                        print("\nJailbreak Prompt:{}\n".format(instance.jailbreak_prompt))
+                        print("\nOutput:\n{}\n????????????????????????????\n".format(instance.target_responses))
+                        self.target_model_calls += 1
                 target_call_record["query_count"] = self.target_model.generate.calls - temp_target_call
                 target_call_record["completion_timestamp"] = time.time()
                 self.target_call_history.append(target_call_record)

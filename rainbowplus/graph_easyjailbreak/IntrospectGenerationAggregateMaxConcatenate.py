@@ -21,6 +21,7 @@ from easyjailbreak.mutation import MutationBase
 from easyjailbreak.datasets import Instance
 from easyjailbreak.models.huggingface_model import HuggingfaceModel
 from easyjailbreak.models.openai_model import OpenaiModel
+from rainbowplus.graph_easyjailbreak.vllm_model import VLLMModel
 
 #from gap_easyjailbreak.models.bedrock_mistral_model import MistralModel
 #from gap_easyjailbreak.models.bedrock_claude_model import ClaudeModel
@@ -161,7 +162,7 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
         conv.append_message(conv.roles[0], prompt)
         conv.append_message(conv.roles[1], init_message)
         # Get prompts
-        if isinstance(model, HuggingfaceModel):
+        if isinstance(model, (HuggingfaceModel, VLLMModel)):
             if conv.sep2 != None:
                 full_prompt = conv.get_prompt()[:-len(conv.sep2)]
             else:
@@ -181,7 +182,7 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
         for _ in range(max_n_attack_attempts):
             # Subset conversations based on indices to regenerate
             output = model.generate(full_prompt)
-            if isinstance(model, HuggingfaceModel):
+            if isinstance(model, (HuggingfaceModel, VLLMModel)):
                 output = init_message + output
             attack_dict, json_str = extract_json(output)
             if attack_dict is None:

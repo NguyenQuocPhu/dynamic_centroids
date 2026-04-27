@@ -1,73 +1,42 @@
 ########## CONFIGURATION ##########
 
-
 # Archive Configuration
 archive: 
   path: [./configs/categories/categories.txt, ./configs/styles/styles.txt]
   descriptor: [Risk Category, Attack Style]
 
 # Seed dataset
-sample_prompts: ./data/do-not-answer.json
+sample_prompts: ./data/formatted_harmbench.json
 
-
-# Target LLM Configuration
 target_llm:
-  type_: vllm
-
   model_kwargs:
-    model: Qwen/Qwen2.5-7B-Instruct
-    trust_remote_code: True
-    max_model_len: 4096 
-    gpu_memory_utilization: 0.8
-
+    model: Qwen/Qwen2.5-0.5B-Instruct
+    max_model_len: 2048
+    gpu_memory_utilization: 0.2 # Giảm xuống
+    enforce_eager: True        # Tắt CUDA Graph để tiết kiệm ~0.5GB
   sampling_params:
-    temperature: 0.6
-    top_p: 0.9
-    max_tokens: 1024
+    temperature: 1
+    top_p: 1
+    max_tokens: 500
 
-
-# Mutator LLM Configuration
-mutator_llm: 
-  type_: openai # or vllm
-
+mutator_llm:
   model_kwargs:
-    model: gpt-4o
-
+    model: TinyLlama/TinyLlama-1.1B-Chat-v1.0
+    max_model_len: 2048
+    gpu_memory_utilization: 0.25 # Model này nặng hơn 0.5B một chút
+    enforce_eager: True
   sampling_params:
-    temperature: 0.7
+    temperature: 1
     top_p: 0.9
-    max_tokens: 128
+    max_tokens: 500
 
-
-# Fitness LLM Configuration
-fitness_llm: 
-  type_: vllm
-
+fitness_llm:
   model_kwargs:
-    model: meta-llama/Llama-Guard-3-1B
-    trust_remote_code: True
-    gpu_memory_utilization: 0.15
-    max_model_len: 4096
-
+    model: Qwen/Qwen2.5-1.5B-Instruct
+    max_model_len: 2048
+    gpu_memory_utilization: 0.35 # Model này nặng nhất trong 3 cái
+    enforce_eager: True
   sampling_params:
     temperature: 0.7
     top_p: 0.9
-    max_tokens: 16
-    logprobs: 1
-
-
-# UNCOMMENT TO USE A OPENAI MODEL FOR FITNESS
-# fitness_llm: 
-#   type_: openai # or vllm
-# 
-
-#   model_kwargs:
-#     model: gpt-4o
-#     max_model_len: 4096
-
-#   sampling_params:
-#     temperature: 0.7
-#     top_p: 0.9
-#     max_tokens: 16
-#     logprobs: True
-#     top_logprobs: 1
+    max_tokens: 10
