@@ -63,7 +63,7 @@ def parse_arguments():
         "--max_iters", type=int, default=200, help="Maximum number of iteration steps"
     )
     parser.add_argument(
-        "--total", type=int, default=6, help="Total number of attacks per leaf node"
+        "--total", type=int, default=4, help="Total number of attacks per leaf node"
     )
     parser.add_argument(
         "--sim_threshold",
@@ -244,7 +244,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                     break
 
                 print(f"\n\n===Selected leaf with prompt in step {i}: {leaf.instance.jailbreak_prompt} and {leaf.max_score * 9.0 + 1.0}==\n\n")
-                attacker.branching_factor = 4 if i == 0 else 2 
+                #attacker.branching_factor = 4 if i == 0 else 2 
                 new_instances = attacker.single_attack(leaf.instance)
                 attacker.attack_call_history[-1]['selection_step'] = i + 1
                 attacker.target_call_history[-1]['selection_step'] = i + 1
