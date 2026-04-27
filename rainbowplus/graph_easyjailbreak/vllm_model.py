@@ -17,14 +17,18 @@ from easyjailbreak.models.model_base import ModelBase
 logger = logging.getLogger(__name__)
 
 
-class _DummyTokenizer:
-    """Minimal tokenizer shim — vLLM handles tokenisation internally."""
-    def __init__(self, eos_token_id: int = 2):
-        self.eos_token_id = eos_token_id
-        self.pad_token_id = eos_token_id
-        self.pad_token = "</s>"
-        self.padding_side = "right"
+class SafeTokenizer:
+    def __init__(self, real_tokenizer):
+        self._tok = real_tokenizer
+        self.eos_token_id = real_tokenizer.eos_token_id
+        self.pad_token_id = getattr(
+            real_tokenizer,
+            "pad_token_id",
+            real_tokenizer.eos_token_id
+        )
 
+    def __getattr__(self, name):
+        return getattr(self._tok, name)
 
 class VLLMModel(ModelBase):
     """
@@ -93,7 +97,7 @@ class VLLMModel(ModelBase):
         # vLLM's own tokenizer lives inside _llm; we expose a minimal shim so that
         # code like `self.target_model.tokenizer.eos_token_id` doesn't crash.
         _eos = self._llm.get_tokenizer().eos_token_id or 2
-        self.tokenizer = _DummyTokenizer(eos_token_id=_eos)
+        self.tokenizer = SafeTokenizer(eos_token_id=_eos)
 
         # --- Generation config (same dict as HuggingfaceModel) ---
         self.generation_config: Dict[str, Any] = generation_config if generation_config is not None else {}
