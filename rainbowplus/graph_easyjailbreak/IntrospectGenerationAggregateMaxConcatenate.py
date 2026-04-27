@@ -175,10 +175,15 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
 
         # Get prompts
         if isinstance(model, (HuggingfaceModel, VLLMModel)):
-            if conv.sep2 != None:
-                full_prompt = conv.get_prompt()[:-len(conv.sep2)]
-            else:
-                full_prompt = conv.get_prompt()
+            full_prompt = conv.get_prompt()
+            if conv.sep2 is not None:
+                # e.g. llama-2: sep2 = ' </s><s>'  → strip it so model can continue
+                full_prompt = full_prompt[:-len(conv.sep2)]
+            elif conv.sep and full_prompt.endswith(conv.sep):
+                # e.g. TinyLlama: sep2=None, sep='</s>'
+                # The assistant turn ends with sep (EOS). Strip it so vLLM doesn't
+                # treat the EOS token as end-of-generation and can continue the JSON.
+                full_prompt = full_prompt[:-len(conv.sep)]
             full_prompt = full_prompt[full_prompt.find(prompt):]
         elif isinstance(model, OpenaiModel):
             full_prompt = [message[1] for message in conv.messages]
