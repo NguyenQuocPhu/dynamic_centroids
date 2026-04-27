@@ -12,6 +12,7 @@ from typing import List, Optional, Dict, Any
 
 from vllm import LLM, SamplingParams
 from fastchat.conversation import get_conv_template
+from easyjailbreak.models.model_base import ModelBase
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class _DummyTokenizer:
         self.padding_side = "right"
 
 
-class VLLMModel:
+class VLLMModel(ModelBase):
     """
     vLLM-backed model that is API-compatible with easyjailbreak's HuggingfaceModel.
 
@@ -63,6 +64,8 @@ class VLLMModel:
         """
         self.model_name = model_name
         _path = model_name_or_path or model_name
+
+        super().__init__()
 
         logger.info(f"[VLLMModel] Loading '{_path}' with vLLM …")
         self._llm = LLM(model=_path, **vllm_kwargs)
