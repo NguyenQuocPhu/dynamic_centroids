@@ -161,9 +161,24 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
         conv.system_message = ''
         conv.append_message(conv.roles[0], prompt)
         conv.append_message(conv.roles[1], init_message)
+
+        # Compute system message first so VLLMModel can embed it in the raw prompt
+        seeds = {'query': query, 'subject': self.trans_dict2[self.attr_name]}
+        system_message = self.get_attacker_system_prompt(seeds)
+        model.set_system_message(system_message)
+        conv.system_message = system_message
+
         # Get prompts
-        if isinstance(model, (HuggingfaceModel, VLLMModel)):
-            if conv.sep2 != None:
+        if isinstance(model, VLLMModel):
+            # Build fully-formatted prompt (system message already in conv).
+            # Sliced so model continues from init_message prefix.
+            if conv.sep2 is not None:
+                full_prompt = conv.get_prompt()[:-len(conv.sep2)]
+            else:
+                full_prompt = conv.get_prompt()
+            full_prompt = full_prompt[full_prompt.find(prompt):]
+        elif isinstance(model, HuggingfaceModel):
+            if conv.sep2 is not None:
                 full_prompt = conv.get_prompt()[:-len(conv.sep2)]
             else:
                 full_prompt = conv.get_prompt()
@@ -173,15 +188,15 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
 #        elif isinstance(model, MistralModel):
 #            print("Using Bedrock to Attack")
 #            full_prompt = [message[1] for message in conv.messages]
-        seeds = {'query': query, 'subject': self.trans_dict2[self.attr_name]}
-        system_message =self.get_attacker_system_prompt(seeds)
-        model.set_system_message(system_message)
-        conv.system_message = system_message
 
         max_n_attack_attempts = self.max_n_attack_attempts
         for _ in range(max_n_attack_attempts):
             # Subset conversations based on indices to regenerate
-            output = model.generate(full_prompt)
+            if isinstance(model, VLLMModel):
+                # generate_raw bypasses create_conversation_prompt (no double-wrap)
+                output = model.generate_raw(full_prompt)
+            else:
+                output = model.generate(full_prompt)
             if isinstance(model, (HuggingfaceModel, VLLMModel)):
                 output = init_message + output
             attack_dict, json_str = extract_json(output)
@@ -191,6 +206,7 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
                 conv.update_last_message(json_str)
                 break
         return attack_dict, json_str
+
 
     def get_init_msg(self, seeds:dict):
         if self._prompt_format==None:
