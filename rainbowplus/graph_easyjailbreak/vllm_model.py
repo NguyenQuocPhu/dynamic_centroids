@@ -184,15 +184,6 @@ class VLLMModel(ModelBase):
         outputs = self._llm.generate([prompt], sampling_params=sampling_params)
         return outputs[0].outputs[0].text
 
-    def generate_raw(self, prompt: str, **kwargs) -> str:
-        """
-        Pass a pre-formatted prompt string DIRECTLY to vLLM — no conversation wrapping.
-        Use this when the caller has already built the full prompt with role tags.
-        """
-        sampling_params = self._build_sampling_params(**kwargs)
-        outputs = self._llm.generate([prompt], sampling_params=sampling_params)
-        return outputs[0].outputs[0].text
-
     # ------------------------------------------------------------------
     # batch_generate — mirrors HuggingfaceModel.batch_generate
     # ------------------------------------------------------------------

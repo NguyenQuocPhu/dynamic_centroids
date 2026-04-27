@@ -173,90 +173,52 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
         print(f"[DEBUG get_attack] init_message   : {repr(init_message)}", flush=True)
         print(f"{'='*60}", flush=True)
 
-        # Build prompt and generate — two separate paths:
-        # 1. VLLMModel  → build the full prompt from conv (with system message) then
-        #                  pass it DIRECTLY to vLLM via generate_raw().  No double-wrap.
-        # 2. HuggingfaceModel / OpenAI → original logic unchanged.
-        seeds = {'query': query, 'subject': self.trans_dict2[self.attr_name]}
-        system_message = self.get_attacker_system_prompt(seeds)
-
-        if isinstance(model, VLLMModel):
-            # Set system message on the conv object (not on model.conversation, which
-            # would only be used by the double-wrapping path we're bypassing).
-            conv.system_message = system_message
-
-            # Build the properly-formatted prompt: system + user + assistant-init
-            full_prompt = conv.get_prompt()
-            # Strip the trailing sep/sep2 so vLLM continues the partial JSON
-            if conv.sep2 is not None:
-                full_prompt = full_prompt[:-len(conv.sep2)]
-            elif conv.sep and full_prompt.endswith(conv.sep):
-                full_prompt = full_prompt[:-len(conv.sep)]
-
-            # ── [DEBUG 2] full_prompt for VLLMModel ───────────────────────────
-            print(f"\n[DEBUG get_attack] ── FULL PROMPT (VLLMModel, first 800 chars) ──", flush=True)
-            print(full_prompt[:800], flush=True)
-            print(f"[DEBUG get_attack] ── END FULL PROMPT ──\n", flush=True)
-
-            max_n_attack_attempts = self.max_n_attack_attempts
-            for attempt_idx in range(max_n_attack_attempts):
-                output = model.generate_raw(full_prompt)
-
-                print(f"\n[DEBUG get_attack] attempt={attempt_idx+1}/{max_n_attack_attempts}", flush=True)
-                print(f"[DEBUG get_attack] RAW output: {repr(output)}", flush=True)
-
-                output = init_message + output
-                print(f"[DEBUG get_attack] after prepend: {repr(output)}", flush=True)
-
-                attack_dict, json_str = extract_json(output)
-                print(f"[DEBUG get_attack] json_str: {repr(json_str)}", flush=True)
-                print(f"[DEBUG get_attack] attack_dict: {attack_dict}", flush=True)
-
-                if attack_dict is None:
-                    print(f"[DEBUG get_attack] ❌ Invalid JSON. Retrying...", flush=True)
-                else:
-                    conv.update_last_message(json_str)
-                    print(f"[DEBUG get_attack] ✅ Valid JSON on attempt {attempt_idx+1}", flush=True)
-                    break
-            return attack_dict, json_str
-
-        # ── Original path for HuggingfaceModel / OpenAI ───────────────────────
-        if isinstance(model, HuggingfaceModel):
-            full_prompt = conv.get_prompt()
-            if conv.sep2 is not None:
-                full_prompt = full_prompt[:-len(conv.sep2)]
-            elif conv.sep and full_prompt.endswith(conv.sep):
-                full_prompt = full_prompt[:-len(conv.sep)]
+        # Get prompts
+        if isinstance(model, (HuggingfaceModel, VLLMModel)):
+            if conv.sep2 != None:
+                full_prompt = conv.get_prompt()[:-len(conv.sep2)]
+            else:
+                full_prompt = conv.get_prompt()
             full_prompt = full_prompt[full_prompt.find(prompt):]
         elif isinstance(model, OpenaiModel):
             full_prompt = [message[1] for message in conv.messages]
-
+#        elif isinstance(model, MistralModel):
+#            print("Using Bedrock to Attack")
+#            full_prompt = [message[1] for message in conv.messages]
+        seeds = {'query': query, 'subject': self.trans_dict2[self.attr_name]}
+        system_message = self.get_attacker_system_prompt(seeds)
         model.set_system_message(system_message)
         conv.system_message = system_message
 
-        # ── [DEBUG 2] full_prompt for HuggingfaceModel/OpenAI ─────────────────
+        # ── [DEBUG 2] full_prompt sent to model ───────────────────────────────
         _fp_display = full_prompt if isinstance(full_prompt, str) else str(full_prompt)
-        print(f"\n[DEBUG get_attack] ── FULL PROMPT (HF/OpenAI, first 600 chars) ──", flush=True)
+        print(f"\n[DEBUG get_attack] ── FULL PROMPT SENT TO MODEL (first 600 chars) ──", flush=True)
         print(_fp_display[:600], flush=True)
         print(f"[DEBUG get_attack] ── END FULL PROMPT ──\n", flush=True)
 
         max_n_attack_attempts = self.max_n_attack_attempts
         for attempt_idx in range(max_n_attack_attempts):
+            # Subset conversations based on indices to regenerate
             output = model.generate(full_prompt)
 
+            # ── [DEBUG 3] raw output from model ───────────────────────────────
             print(f"\n[DEBUG get_attack] attempt={attempt_idx+1}/{max_n_attack_attempts}", flush=True)
-            print(f"[DEBUG get_attack] RAW output: {repr(output)}", flush=True)
+            print(f"[DEBUG get_attack] RAW model output: {repr(output)}", flush=True)
 
-            if isinstance(model, HuggingfaceModel):
+            if isinstance(model, (HuggingfaceModel, VLLMModel)):
                 output = init_message + output
-            print(f"[DEBUG get_attack] after prepend: {repr(output)}", flush=True)
+
+            # ── [DEBUG 4] output after prepending init_message ────────────────
+            print(f"[DEBUG get_attack] output after prepend: {repr(output)}", flush=True)
 
             attack_dict, json_str = extract_json(output)
-            print(f"[DEBUG get_attack] json_str: {repr(json_str)}", flush=True)
-            print(f"[DEBUG get_attack] attack_dict: {attack_dict}", flush=True)
+
+            # ── [DEBUG 5] extract_json result ──────────────────────────────────
+            print(f"[DEBUG get_attack] json_str extracted: {repr(json_str)}", flush=True)
+            print(f"[DEBUG get_attack] attack_dict       : {attack_dict}", flush=True)
 
             if attack_dict is None:
-                print(f"[DEBUG get_attack] ❌ Invalid JSON. Retrying...", flush=True)
+                print(f"[DEBUG get_attack] ❌ Invalid JSON format. Retrying...", flush=True)
             else:
                 conv.update_last_message(json_str)
                 print(f"[DEBUG get_attack] ✅ Valid JSON on attempt {attempt_idx+1}", flush=True)
