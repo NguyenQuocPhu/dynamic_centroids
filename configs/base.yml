@@ -11,7 +11,7 @@ sample_prompts: ./data/formatted_harmbench.json
 target_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-0.5B-Instruct
-    max_model_len: 2048
+    max_model_len: 512
     gpu_memory_utilization: 0.07   # ~1.4GB (Đủ cho 0.5B + context 2048)
     enforce_eager: True            # Tắt CUDA Graph tiết kiệm VRAM
     dtype: half                    # Ép tải ở FP16 để tránh tốn RAM không cần thiết
@@ -19,12 +19,12 @@ target_llm:
   sampling_params:
     temperature: 1
     top_p: 1
-    max_tokens: 500
+    max_tokens: 200
 
 mutator_llm:
   model_kwargs:
     model: lmsys/vicuna-7b-v1.5
-    max_model_len: 2048
+    max_model_len: 1024
     gpu_memory_utilization: 0.72   # ~14.4GB (Vừa vặn cho 7B weights + KV cache nhỏ)
     enforce_eager: True
     dtype: half
@@ -32,12 +32,12 @@ mutator_llm:
   sampling_params:
     temperature: 1
     top_p: 0.9
-    max_tokens: 500
+    max_tokens: 200
 
 fitness_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-0.5B-Instruct
-    max_model_len: 2048
+    max_model_len: 512
     gpu_memory_utilization: 0.07   # ~1.2GB (Đủ cho 0.5B + context 1024)
     enforce_eager: True
     dtype: half
