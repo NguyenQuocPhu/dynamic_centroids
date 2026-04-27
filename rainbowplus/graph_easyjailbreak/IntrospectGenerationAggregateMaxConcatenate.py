@@ -210,7 +210,7 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
 
             # ── [DEBUG 4] output after prepending init_message ────────────────
             print(f"[DEBUG get_attack] output after prepend: {repr(output)}", flush=True)
-
+            
             attack_dict, json_str = extract_json(output)
 
             # ── [DEBUG 5] extract_json result ──────────────────────────────────

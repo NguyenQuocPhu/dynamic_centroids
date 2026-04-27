@@ -11,7 +11,7 @@ sample_prompts: ./data/formatted_harmbench.json
 target_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-0.5B-Instruct
-    max_model_len: 512
+    max_model_len: 1024
     gpu_memory_utilization: 0.07   # ~1.4GB (Đủ cho 0.5B + context 2048)
     enforce_eager: True            # Tắt CUDA Graph tiết kiệm VRAM
     dtype: half                    # Ép tải ở FP16 để tránh tốn RAM không cần thiết
@@ -37,7 +37,7 @@ mutator_llm:
 fitness_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-0.5B-Instruct
-    max_model_len: 512
+    max_model_len: 1024
     gpu_memory_utilization: 0.07   # ~1.2GB (Đủ cho 0.5B + context 1024)
     enforce_eager: True
     dtype: half
