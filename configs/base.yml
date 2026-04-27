@@ -38,7 +38,7 @@ fitness_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-0.5B-Instruct
     max_model_len: 1024
-    gpu_memory_utilization: 0.06   # ~1.2GB (Đủ cho 0.5B + context 1024)
+    gpu_memory_utilization: 0.07   # ~1.2GB (Đủ cho 0.5B + context 1024)
     enforce_eager: True
     dtype: half
     max_num_seqs: 16
