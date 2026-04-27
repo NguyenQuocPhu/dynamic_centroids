@@ -285,7 +285,7 @@ if __name__ == "__main__":
     #llms = initialize_language_models(config)
     attack_model = from_pretrained(
         config.mutator_llm.model_kwargs["model"],
-        model_name = "vicuna_v1.1"
+        model_name = "TinyLlama"
     )
     target_model = from_pretrained(
         config.target_llm.model_kwargs["model"],
