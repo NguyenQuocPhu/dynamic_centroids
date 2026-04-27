@@ -164,16 +164,6 @@ class VLLMModel(ModelBase):
     # generate — mirrors HuggingfaceModel.generate
     # ------------------------------------------------------------------
 
-    def generate_raw(self, raw_prompt: str, **kwargs) -> str:
-        """
-        Pass a pre-formatted prompt string directly to vLLM without any
-        conversation-template wrapping. Use this when the caller has already
-        built the full prompt (e.g. via conv.get_prompt()).
-        """
-        sampling_params = self._build_sampling_params(**kwargs)
-        outputs = self._llm.generate([raw_prompt], sampling_params=sampling_params)
-        return outputs[0].outputs[0].text
-
     def generate(self, messages, clear_old_history: bool = True, **kwargs) -> str:
         """
         Generate a single response.
