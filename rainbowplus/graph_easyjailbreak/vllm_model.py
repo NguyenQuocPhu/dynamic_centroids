@@ -1,11 +1,3 @@
-"""
-VLLMModel: A drop-in replacement for HuggingfaceModel that uses vLLM for inference.
-
-This wrapper mirrors the exact interface of HuggingfaceModel (easyjailbreak) so that
-GAP.py, IntrospectGenerationAggregateMaxConcatenate.py, and rainbowplus.py can work
-without modification — just swap isinstance() checks.
-"""
-
 import warnings
 import logging
 from typing import List, Optional, Dict, Any
@@ -18,34 +10,20 @@ logger = logging.getLogger(__name__)
 
 
 class SafeTokenizer:
-    def __init__(self, real_tokenizer):
+    # SỬA LỖI: Thêm tham số eos_token_id_override để nhận fallback value
+    def __init__(self, real_tokenizer, eos_token_id_override=None):
         self._tok = real_tokenizer
-        self.eos_token_id = real_tokenizer.eos_token_id
+        self.eos_token_id = eos_token_id_override or real_tokenizer.eos_token_id
         self.pad_token_id = getattr(
             real_tokenizer,
             "pad_token_id",
-            real_tokenizer.eos_token_id
+            self.eos_token_id
         )
 
     def __getattr__(self, name):
         return getattr(self._tok, name)
 
 class VLLMModel(ModelBase):
-    """
-    vLLM-backed model that is API-compatible with easyjailbreak's HuggingfaceModel.
-
-    Key design decisions
-    --------------------
-    * Uses FastChat `get_conv_template` exactly the same way HuggingfaceModel does,
-      so the conversation-formatting code in IntrospectGenerationAggregateMaxConcatenate
-      and GAP continues to work unchanged.
-    * `generate()` and `batch_generate()` accept the same signatures.
-    * `generation_config` dict is supported (max_new_tokens / max_tokens, temperature,
-      top_p, do_sample, eos_token_id).
-    * Provides all properties that pipeline code probes (`tokenizer`, `model_name`,
-      `conversation`, `generation_config`).
-    """
-
     def __init__(
         self,
         model_name: str,
@@ -53,19 +31,6 @@ class VLLMModel(ModelBase):
         generation_config: Optional[Dict[str, Any]] = None,
         **vllm_kwargs,
     ):
-        """
-        Parameters
-        ----------
-        model_name : str
-            FastChat template name (e.g. "llama-2", "qwen-7b-chat", "vicuna_v1.1").
-        model_name_or_path : str, optional
-            HuggingFace repo id / local path. Falls back to `model_name` when omitted.
-        generation_config : dict, optional
-            Same keys as HuggingfaceModel (max_new_tokens/max_tokens, temperature, top_p …).
-        **vllm_kwargs
-            Forwarded directly to `vllm.LLM()` (e.g. max_model_len, gpu_memory_utilization,
-            enforce_eager, tensor_parallel_size …).
-        """
         self.model_name = model_name
         _path = model_name_or_path or model_name
 
@@ -74,7 +39,7 @@ class VLLMModel(ModelBase):
         logger.info(f"[VLLMModel] Loading '{_path}' with vLLM …")
         self._llm = LLM(model=_path, **vllm_kwargs)
 
-        # --- Conversation template (identical to HuggingfaceModel) ---
+        # --- Conversation template ---
         try:
             self.conversation = get_conv_template(model_name)
         except KeyError:
@@ -88,26 +53,22 @@ class VLLMModel(ModelBase):
             self.conversation.sep2 = self.conversation.sep2.strip()
 
         if model_name == "zero_shot":
+            # SỬA LỖI: Bỏ .template, FastChat lưu trực tiếp ở .roles
             self.conversation.roles = tuple(
-                ["### " + r for r in self.conversation.template.roles]
+                ["### " + r for r in self.conversation.roles]
             )
             self.conversation.sep = "\n"
 
         # --- Tokenizer shim ---
-        # vLLM's own tokenizer lives inside _llm; we expose a minimal shim so that
-        # code like `self.target_model.tokenizer.eos_token_id` doesn't crash.
-        _eos = self._llm.get_tokenizer().eos_token_id or 2
-        self.tokenizer = SafeTokenizer(eos_token_id=_eos)
+        # SỬA LỖI: Truyền đúng tokenizer object vào tham số đầu tiên
+        real_tok = self._llm.get_tokenizer()
+        _eos = real_tok.eos_token_id or 2
+        self.tokenizer = SafeTokenizer(real_tok, eos_token_id_override=_eos)
 
-        # --- Generation config (same dict as HuggingfaceModel) ---
+        # --- Generation config ---
         self.generation_config: Dict[str, Any] = generation_config if generation_config is not None else {}
 
-    # ------------------------------------------------------------------
-    # Interface parity with HuggingfaceModel
-    # ------------------------------------------------------------------
-
     def set_system_message(self, system_message: str) -> None:
-        """Sets the system message on the conversation template."""
         self.conversation.system_message = system_message
 
     def get_name(self) -> str:
@@ -117,7 +78,6 @@ class VLLMModel(ModelBase):
         self.conversation.messages = []
 
     def create_conversation_prompt(self, messages, clear_old_history: bool = True) -> str:
-        """Mirrors HuggingfaceModel.create_conversation_prompt exactly."""
         if clear_old_history:
             self.conversation.messages = []
         if isinstance(messages, str):
@@ -127,20 +87,7 @@ class VLLMModel(ModelBase):
         self.conversation.append_message(self.conversation.roles[-1], None)
         return self.conversation.get_prompt()
 
-    # ------------------------------------------------------------------
-    # Core inference helpers
-    # ------------------------------------------------------------------
-
     def _build_sampling_params(self, **override_kwargs) -> SamplingParams:
-        """
-        Build a SamplingParams from generation_config + any call-time overrides.
-
-        Mapping (HuggingfaceModel → vLLM):
-          max_new_tokens / max_tokens → max_tokens
-          temperature                 → temperature
-          top_p                       → top_p
-          eos_token_id                → stop_token_ids
-        """
         cfg = dict(self.generation_config)
         cfg.update(override_kwargs)
 
@@ -153,7 +100,6 @@ class VLLMModel(ModelBase):
             eid = cfg["eos_token_id"]
             stop_token_ids = [eid] if isinstance(eid, int) else list(eid)
 
-        # vLLM requires temperature > 0 when top_p < 1; clamp to avoid assertion errors.
         if temperature == 0.0:
             temperature = 1e-6
 
@@ -164,44 +110,18 @@ class VLLMModel(ModelBase):
             stop_token_ids=stop_token_ids,
         )
 
-    # ------------------------------------------------------------------
-    # generate — mirrors HuggingfaceModel.generate
-    # ------------------------------------------------------------------
-
     def generate(self, messages, clear_old_history: bool = True, **kwargs) -> str:
-        """
-        Generate a single response.
-
-        Parameters mirror HuggingfaceModel.generate:
-          messages           : str | list[str]
-          clear_old_history  : bool
-          **kwargs           : generation overrides (max_new_tokens, temperature …)
-
-        Returns a plain string (no chat tokens).
-        """
         if isinstance(messages, str):
             messages = [messages]
 
         prompt = self.create_conversation_prompt(messages, clear_old_history=clear_old_history)
         sampling_params = self._build_sampling_params(**kwargs)
 
-        outputs = self._llm.generate([prompt], sampling_params=sampling_params)
+        # TỐI ƯU: Thêm use_tqdm=False để tránh in rác ra màn hình terminal khi generate
+        outputs = self._llm.generate([prompt], sampling_params=sampling_params, use_tqdm=False)
         return outputs[0].outputs[0].text
 
-    # ------------------------------------------------------------------
-    # batch_generate — mirrors HuggingfaceModel.batch_generate
-    # ------------------------------------------------------------------
-
     def batch_generate(self, conversations, **kwargs) -> List[str]:
-        """
-        Generate responses for a batch of conversations.
-
-        Parameters mirror HuggingfaceModel.batch_generate:
-          conversations : list[list[str]] | list[str]
-          **kwargs      : generation overrides
-
-        Returns a list of response strings.
-        """
         prompt_list = []
         for conversation in conversations:
             if isinstance(conversation, str):
@@ -213,25 +133,14 @@ class VLLMModel(ModelBase):
             prompt_list.append(self.create_conversation_prompt(conversation))
 
         sampling_params = self._build_sampling_params(**kwargs)
-        outputs = self._llm.generate(prompt_list, sampling_params=sampling_params)
+        
+        # TỐI ƯU: Thêm use_tqdm=False
+        outputs = self._llm.generate(prompt_list, sampling_params=sampling_params, use_tqdm=False)
         return [out.outputs[0].text for out in outputs]
-
-    # ------------------------------------------------------------------
-    # Properties / shims expected by the pipeline
-    # ------------------------------------------------------------------
 
     @property
     def model(self):
-        """Return the underlying vLLM engine (for code that probes self.model)."""
         return self._llm
-
-    # GAP.py probes self.target_model.conversation.messages = []
-    # → already handled by self.conversation above.
-
-
-# ---------------------------------------------------------------------------
-# Factory function — mirrors easyjailbreak's from_pretrained signature
-# ---------------------------------------------------------------------------
 
 def from_pretrained(
     model_name: str,
@@ -239,20 +148,6 @@ def from_pretrained(
     generation_config: Optional[Dict[str, Any]] = None,
     **vllm_kwargs,
 ) -> VLLMModel:
-    """
-    Create a VLLMModel.
-
-    Parameters
-    ----------
-    model_name : str
-        FastChat conversation template name (e.g. "llama-2", "qwen-7b-chat").
-    model_name_or_path : str, optional
-        HuggingFace hub id or local path. Defaults to model_name.
-    generation_config : dict, optional
-        Default generation settings (max_new_tokens, temperature, top_p …).
-    **vllm_kwargs
-        Forwarded to vllm.LLM (max_model_len, gpu_memory_utilization, enforce_eager …).
-    """
     return VLLMModel(
         model_name=model_name,
         model_name_or_path=model_name_or_path,
