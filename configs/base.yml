@@ -22,8 +22,8 @@ target_llm:
 mutator_llm:
   model_kwargs:
     model: lmsys/vicuna-7b-v1.5
-    max_model_len: 2048
-    gpu_memory_utilization: 0.35 # Model này nặng hơn 0.5B một chút
+    max_model_len: 1024
+    gpu_memory_utilization: 0.35 
     enforce_eager: True
   sampling_params:
     temperature: 1
@@ -34,7 +34,7 @@ fitness_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-0.5B-Instruct
     max_model_len: 2048
-    gpu_memory_utilization: 0.2 # Model này nặng nhất trong 3 cái
+    gpu_memory_utilization: 0.2 
     enforce_eager: True
   sampling_params:
     temperature: 0.7
