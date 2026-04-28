@@ -1,10 +1,13 @@
 import warnings
 import logging
+import os
 from typing import List, Optional, Dict, Any
 
 from vllm import LLM, SamplingParams
 from fastchat.conversation import get_conv_template
 from easyjailbreak.models.model_base import ModelBase
+from rainbowplus.graph_easyjailbreak.model_utils import count_calls, count_batch_calls
+
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +79,7 @@ class VLLMModel(ModelBase):
 
     def clear_conversation(self) -> None:
         self.conversation.messages = []
-
+    
     def create_conversation_prompt(self, messages, clear_old_history: bool = True) -> str:
         if clear_old_history:
             self.conversation.messages = []
@@ -121,6 +124,7 @@ class VLLMModel(ModelBase):
         outputs = self._llm.generate([prompt], sampling_params=sampling_params, use_tqdm=False)
         return outputs[0].outputs[0].text
 
+    @count_batch_calls
     def batch_generate(self, conversations, **kwargs) -> List[str]:
         prompt_list = []
         for conversation in conversations:
@@ -141,7 +145,7 @@ class VLLMModel(ModelBase):
     @property
     def model(self):
         return self._llm
-
+    
 def from_pretrained(
     model_name: str,
     model_name_or_path: Optional[str] = None,

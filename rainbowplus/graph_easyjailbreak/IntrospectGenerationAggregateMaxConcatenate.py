@@ -188,7 +188,7 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
                 raw_outputs = model.batch_generate([[full_prompt]] * needed)
             else:
                 raw_outputs = [model.generate(full_prompt) for _ in range(needed)]
-
+            print(f'\n[DEBUG get_attack_batch] raw_outputs={raw_outputs}', flush=True)
             for output in raw_outputs:
                 if needed <= 0:
                     break
