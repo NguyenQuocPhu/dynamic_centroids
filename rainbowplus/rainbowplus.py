@@ -60,10 +60,10 @@ def parse_arguments():
         "--num_samples", type=int, default=50, help="Number of initial seed prompts"
     )
     parser.add_argument(
-        "--max_iters", type=int, default=10, help="Maximum number of iteration steps"
+        "--max_iters", type=int, default=200, help="Maximum number of iteration steps"
     )
     parser.add_argument(
-        "--total", type=int, default=3, help="Total number of attacks per leaf node"
+        "--total", type=int, default=4, help="Total number of attacks per leaf node"
     )
     parser.add_argument(
         "--sim_threshold",
