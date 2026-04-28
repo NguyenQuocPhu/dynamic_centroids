@@ -149,10 +149,11 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
         Generates responses for a batch of conversations and prompts using a language model.
         Only valid outputs in proper JSON format are returned.
         """
+        # Initalize the attack model's generated output to match format
         if len(conv.messages) == 0:
-            init_message = \"\"\"{\"improvement\": \"\",\"prompt\": \"\"\"\"
+            init_message = """{\"improvement\": \"\",\"prompt\": \""""
         else:
-            init_message = \"\"\"{\"improvement\": \"\"\"\"
+            init_message = """{\"improvement\": \""""
 
         conv.system_message = ''
         conv.append_message(conv.roles[0], prompt)
