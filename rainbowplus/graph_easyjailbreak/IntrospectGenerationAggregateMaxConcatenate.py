@@ -189,9 +189,7 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
             else:
                 raw_outputs = [model.generate(full_prompt) for _ in range(needed)]
 
-            for output in raw_outputs:
-                print(f'\n[DEBUG get_attack_batch] output={output}', flush=True)
-                
+            
             for output in raw_outputs:
                 if needed <= 0:
                     break
@@ -202,6 +200,10 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
                 attack_dict, json_str = extract_json(output)
 
                 if attack_dict is not None:
+                    print(f"\n{'='*60}", flush=True)
+                    print(f"[DEBUG get_attack_batch] Valid attack found: {output}", flush = True)
+                    print(f"[DEBUG get_attack_batch] Attack dictionary: {attack_dict}", flush = True)
+                    print(f"\n{'='*60}", flush=True)
                     valid_attacks.append((attack_dict, json_str))
                     needed -= 1
 
