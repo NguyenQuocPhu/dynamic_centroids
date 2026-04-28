@@ -183,7 +183,7 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
                 break
                 
             print(f"\\n[DEBUG get_attack_batch] attempt={attempt_idx+1}/{max_n_attack_attempts}, requesting {needed} generations...", flush=True)
-            
+            print(f"[DEBUG get_attack_batch] full_prompt={full_prompt}", flush=True)
             if isinstance(model, VLLMModel) or hasattr(model, 'batch_generate'):
                 raw_outputs = model.batch_generate([[full_prompt]] * needed)
             else:
