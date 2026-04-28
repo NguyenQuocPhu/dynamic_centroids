@@ -24,7 +24,7 @@ target_llm:
 mutator_llm:
   model_kwargs:
     model: lmsys/vicuna-7b-v1.5
-    max_model_len: 2048
+    max_model_len: 2200
     gpu_memory_utilization: 0.75   # ~14.4GB (Vừa vặn cho 7B weights + KV cache nhỏ)
     enforce_eager: True
     dtype: half
