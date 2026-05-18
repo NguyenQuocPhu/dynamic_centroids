@@ -139,7 +139,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     descriptors = load_descriptors(config)
 
     # Setup logging
-    log_dir = Path(args.log_dir) / target_model.model_name 
+    log_dir = Path(args.log_dir) / target_model.model_name / config.sample_prompts.split('/')[-1].split('.')[0]
     log_dir.mkdir(parents=True, exist_ok=True)
     # Prepare seed metadata
     seed = JailbreakDataset(dataset=config.sample_prompts, local_file_type='json')
