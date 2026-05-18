@@ -23,7 +23,7 @@ target_llm:
 mutator_llm:
   model_kwargs:
     model: lmsys/vicuna-13b-v1.5
-    gpu_memory_utilization: 0.34
+    gpu_memory_utilization: 0.36
     max_model_len: 3088
     enforce_eager: True
     max_num_seqs: 10
