@@ -42,7 +42,7 @@ fitness_llm:
     logprobs: 1
 
 
-sample_prompts: ./data/BeaverTails.json
+sample_prompts: ./data/AdversarialQA.json
 num_samples: 50
 max_iters: 200
 sim_threshold: 0.6
