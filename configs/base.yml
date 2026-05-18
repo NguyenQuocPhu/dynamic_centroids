@@ -1,4 +1,4 @@
-log_dir: ./logs
+log_dir: ./network_volume/phunq/logs
 algorithm: rainbowplus
 
 target_llm:
