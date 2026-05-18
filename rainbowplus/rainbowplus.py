@@ -89,7 +89,7 @@ def parse_arguments():
     parser.add_argument(
         "--log_interval",
         type=int,
-        default=5,
+        default=20,
         help="Number of iterations between log saves",
     )
     parser.add_argument(
