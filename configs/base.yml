@@ -11,7 +11,7 @@ sample_prompts: ./data/formatted_harmbench.json
 target_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-7B-Instruct
-    gpu_memory_utilization: 0.215
+    gpu_memory_utilization: 0.2
     max_model_len: 2048
     enforce_eager: True
     max_num_seqs: 10
@@ -35,7 +35,7 @@ mutator_llm:
 fitness_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-14B-Instruct
-    gpu_memory_utilization: 0.36
+    gpu_memory_utilization: 0.37
     max_model_len: 2048
     enforce_eager: True
     max_num_seqs: 10
