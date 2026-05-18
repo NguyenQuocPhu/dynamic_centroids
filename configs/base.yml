@@ -11,10 +11,10 @@ sample_prompts: ./data/formatted_harmbench.json
 target_llm:
   model_kwargs:
     model: Qwen/Qwen2.5-7B-Instruct
-    gpu_memory_utilization: 0.19
+    gpu_memory_utilization: 0.215
     max_model_len: 2048
     enforce_eager: True
-    max_num_seqs: 8
+    max_num_seqs: 10
   sampling_params:
     temperature: 1
     top_p: 1
@@ -26,7 +26,7 @@ mutator_llm:
     gpu_memory_utilization: 0.34
     max_model_len: 3088
     enforce_eager: True
-    max_num_seqs: 8
+    max_num_seqs: 10
   sampling_params:
     temperature: 1
     top_p: 0.9
@@ -38,7 +38,7 @@ fitness_llm:
     gpu_memory_utilization: 0.36
     max_model_len: 2048
     enforce_eager: True
-    max_num_seqs: 8
+    max_num_seqs: 10
   sampling_params:
     temperature: 0.7
     top_p: 0.9
