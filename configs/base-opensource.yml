@@ -20,7 +20,7 @@ target_llm:
 mutator_llm:
   model_kwargs:
     model: lmsys/vicuna-13b-v1.5
-    max_model_len: 2048
+    max_model_len: 4096
   sampling_params:
     temperature: 1
     top_p: 0.9
