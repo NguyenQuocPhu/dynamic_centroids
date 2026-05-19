@@ -45,6 +45,8 @@ class VLLMModel(ModelBase):
         # --- Conversation template ---
         try:
             self.conversation = get_conv_template(model_name)
+            logger.info(f"[VLLMModel] Successfully loaded conversation template: {self.conversation.name}")
+            print(f"✅ Loaded conversation template: {self.conversation.name} for model: {_path}")
         except KeyError:
             logger.error(
                 f"[VLLMModel] Invalid model_name '{model_name}'. "

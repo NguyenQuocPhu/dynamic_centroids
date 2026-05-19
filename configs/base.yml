@@ -10,8 +10,8 @@ sample_prompts: ./data/formatted_harmfulQA.json
 
 target_llm:
   model_kwargs:
-    model: Qwen/Qwen2.5-7B-Instruct
-    gpu_memory_utilization: 0.212
+    model: meta-llama/Llama-3.1-8B-Instruct
+    gpu_memory_utilization: 0.214
     max_model_len: 2048
     enforce_eager: True
     max_num_seqs: 10
