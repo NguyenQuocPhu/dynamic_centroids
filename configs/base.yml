@@ -6,7 +6,7 @@ archive:
   descriptor: [Risk Category, Attack Style]
 
 # Seed dataset
-sample_prompts: ./data/formatted_BeaverTails.json
+sample_prompts: ./data/formatted_DangerousQA.json
 
 target_llm:
   model_kwargs:
