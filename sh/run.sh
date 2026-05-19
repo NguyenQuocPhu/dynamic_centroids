@@ -1,12 +1,12 @@
 #!/bin/bash
 
 DATASETS=(
-    "./data/AdversarialQA.json"
-    "./data/BeaverTails.json"
-    "./data/harmfulQA.json"
-    "./data/CategoricalHarmfulQA.json"
-    "./data/DangerousQA.json"
-    "./data/do-not-answer.json"
+    "./data/formatted_AdversarialQA.json"
+    "./data/formatted_BeaverTails.json"
+    "./data/formatted_harmfulQA.json"
+    "./data/formatted_CategoricalHarmfulQA.json"
+    "./data/formatted_DangerousQA.json"
+    "./data/formatted_do-not-answer.json"
     "./data/harmbench.json"
 )
 
