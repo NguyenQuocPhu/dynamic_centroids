@@ -8,25 +8,6 @@ from fastchat.conversation import get_conv_template
 from easyjailbreak.models.model_base import ModelBase
 from rainbowplus.graph_easyjailbreak.model_utils import count_calls, count_batch_calls
 
-from fastchat.conversation import (
-    Conversation,
-    SeparatorStyle,
-    register_conv_template,
-)
-
-register_conv_template(
-    Conversation(
-        name="meta-llama-3.1",
-        system_message=(
-            "Cutting Knowledge Date: December 2023\n"
-            "Today Date: {{currentDateTimev2}}"
-        ),
-        roles=("user", "assistant"),
-        sep_style=SeparatorStyle.CHATML,
-        sep="\n",
-        stop_str="<|eot_id|>",
-    )
-)
 
 logger = logging.getLogger(__name__)
 
