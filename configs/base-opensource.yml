@@ -4,8 +4,8 @@ algorithm: rainbowplus
 target_llm:
   type_: vllm
   model_kwargs:
-    model: Qwen/Qwen2.5-7B-Instruct
-    gpu_memory_utilization: 0.21
+    model: meta-llama/Llama-3.1-8B-Instruct
+    gpu_memory_utilization: 0.22
     max_model_len: 1536
     enforce_eager: True
     max_num_seqs: 32
