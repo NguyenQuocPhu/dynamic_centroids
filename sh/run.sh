@@ -7,7 +7,6 @@ DATASETS=(
     "./data/DangerousQA.json"
     "./data/do-not-answer.json"
     "./data/harmbench.json"
-    "./data/harmfulQA.json"
 )
 
 for DATASET in "${DATASETS[@]}"; do
