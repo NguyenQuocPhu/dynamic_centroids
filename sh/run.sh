@@ -15,5 +15,6 @@ for DATASET in "${DATASETS[@]}"; do
 
     python -m rainbowplus.rainbowplus \
         --config_file configs/base.yml \
-        --dataset "$DATASET"
+        --dataset "$DATASET" \
+        --log_dir network-volume/phunq/logs
 done

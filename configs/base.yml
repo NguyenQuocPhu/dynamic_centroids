@@ -10,7 +10,7 @@ sample_prompts: ./data/formatted_harmfulQA.json
 
 target_llm:
   model_kwargs:
-    model: meta-llama/Llama-3.1-8B-Instruct
+    model: google/gemma-2-9b
     gpu_memory_utilization: 0.217
     max_model_len: 2048
     enforce_eager: True
