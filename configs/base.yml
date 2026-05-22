@@ -10,7 +10,7 @@ sample_prompts: ./data/formatted_harmfulQA.json
 
 target_llm:
   model_kwargs:
-    model: Qwen/Qwen2.5-7B-Instruct
+    model: mistralai/Ministral-8B-Instruct-2410
     gpu_memory_utilization: 0.24
     max_model_len: 2048
     enforce_eager: True
