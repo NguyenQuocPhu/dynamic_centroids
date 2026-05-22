@@ -7,6 +7,8 @@ DATASETS=(
 
 TOTALS=(
     2
+    3
+    4
 )
 TREE_WIDTHS=(
     2
