@@ -2,6 +2,7 @@
 
 DATASETS=(
     "./data/formatted_harmbench.json"
+    "./data/formatted_do-not-answer.json"
 )
 
 TOTALS=(
