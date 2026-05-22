@@ -6,8 +6,8 @@ DATASETS=(
 
 PARAMETERS=(
     (2, 3)
-    (2, 2)
     (1, 7)
+    (2, 2)
 )
 for DATASET in "${DATASETS[@]}"; do
     echo "Running with dataset: $DATASET"
