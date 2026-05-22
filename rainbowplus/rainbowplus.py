@@ -66,6 +66,9 @@ def parse_arguments():
         "--total", type=int, default=4, help="Total number of attacks per leaf node"
     )
     parser.add_argument(
+        "--tree_width", type=int, default=2, help="Number of child nodes to expand at each step"
+    )
+    parser.add_argument(
         "--sim_threshold",
         type=float,
         default=0.6,
@@ -159,7 +162,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         tree_width=2,
                         tree_depth=1,
                         root_num=1,
-                        branching_factor=3,
+                        branching_factor=4,
                         keep_last_n=3,
                         max_n_attack_attempts=2,
                         conversation_history=global_context,
