@@ -4,22 +4,19 @@ DATASETS=(
     "./data/formatted_harmbench.json"
 )
 
-TOTALS=(
-    2
-    3
-    4
-)
-TREE_WIDTHS=(
-    2
+PARAMETERS=(
+    (2, 3)
+    (2, 2)
+    (1, 7)
 )
 for DATASET in "${DATASETS[@]}"; do
     echo "Running with dataset: $DATASET"
 
-    for TOTAL in "${TOTALS[@]}"; do
+    for PARAM in "${PARAMETERS[@]}"; do
+        TOTAL=$(echo "$PARAM" | cut -d',' -f1)
+        TREE_WIDTH=$(echo "$PARAM" | cut -d',' -f2)
         echo "Running with total: $TOTAL"
-        for TREE_WIDTH in "${TREE_WIDTHS[@]}"; do
-            echo "Running with tree width: $TREE_WIDTH"
-            python -m rainbowplus.rainbowplus --config configs/base.yml --dataset "$DATASET" --total "$TOTAL" --tree_width "$TREE_WIDTH"
-        done
+        echo "Running with tree width: $TREE_WIDTH"
+        python -m rainbowplus.rainbowplus --config configs/base.yml --dataset "$DATASET" --total "$TOTAL" --tree_width "$TREE_WIDTH"
     done
 done
