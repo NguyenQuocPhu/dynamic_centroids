@@ -146,8 +146,11 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     archive_by_depth = Archive[Forest]("map-elites")
     
     # Setup logging
-    log_dir = Path(args.log_dir) / target_model.model_name 
+    dataset_name = Path(args.dataset).stem
+    run_name = f"{dataset_name}_total-{args.total}_tree_width-{args.tree_width}"
+    log_dir = Path(args.log_dir) / target_model.model_name / run_name
     log_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Logging run outputs to: {log_dir}")
 
     seed = JailbreakDataset(dataset=args.dataset, local_file_type="json")
     seed.shuffle()
@@ -159,7 +162,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                         target_model=target_model,
                         eval_model=fitness_fn,
                         jailbreak_datasets=seed,
-                        tree_width=2,
+                        tree_width=args.tree_width,
                         tree_depth=1,
                         root_num=1,
                         branching_factor=4,
@@ -177,6 +180,7 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     
     
     for iteration in range(args.max_iters):
+        attacker.current_iteration = iteration + 1
         print(f"=== Iteration {iteration + 1}===\n")
         node = None
         if iteration < len(seed_prompts):

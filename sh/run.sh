@@ -1,13 +1,18 @@
 #!/bin/bash
 
 DATASETS=(
+    "./data/formatted_AdversarialQA.json"
+    "./data/formatted_BeaverTails.json"
+    "./data/formatted_CategoricalHarmfulQA.json"
+    "./data/formatted_DangerousQA.json"
+    "./data/formatted_do-not-answer.json"
     "./data/formatted_harmbench.json"
+    "./data/formatted_harmfulQA.json"
 )
 
 PARAMETERS=(
-    "2,3"
-    "1,7"
-    "2,2"
+    "3,2"
+    "7,1"
 )
 
 for DATASET in "${DATASETS[@]}"; do
@@ -21,7 +26,7 @@ for DATASET in "${DATASETS[@]}"; do
         echo "Running with tree width: $TREE_WIDTH"
 
         python -m rainbowplus.rainbowplus \
-            --config configs/base.yml \
+            --config_file configs/base.yml \
             --dataset "$DATASET" \
             --total "$TOTAL" \
             --tree_width "$TREE_WIDTH"

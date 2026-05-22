@@ -35,6 +35,12 @@ __all__ = ['GAP']
 
 # target_model_calls = 0
 
+def _generation_query_count(model) -> int:
+    """Return the number of prompt inputs sent through generate/batch_generate."""
+    generate_count = getattr(getattr(model, 'generate', None), 'calls', 0)
+    batch_count = getattr(getattr(model, 'batch_generate', None), 'calls', 0)
+    return generate_count + batch_count
+
 class GAP(AttackerBase):    
     r"""
     Tree of Attack method, an extension of PAIR method. Use 4 phases:
@@ -229,15 +235,16 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                     "attack_model_name": self.attack_model.get_name() if hasattr(self.attack_model, 'get_name') else getattr(self.attack_model, 'model_name', ''),
                 }
                 # Bo sung, mutator co max_n_attemps
-                temp_mutator_call = getattr(self.attack_model.generate, 'calls', 0) + getattr(getattr(self.attack_model, 'batch_generate', None), 'calls', 0)
+                temp_mutator_call = _generation_query_count(self.attack_model)
                 new_dataset = self.mutator(new_dataset, self.conversation_history) # Pass global conversation history to prompt refiner (mutator)
-                new_total_calls = getattr(self.attack_model.generate, 'calls', 0) + getattr(getattr(self.attack_model, 'batch_generate', None), 'calls', 0)
+                new_total_calls = _generation_query_count(self.attack_model)
                 attack_call_record["query_count"] = new_total_calls - temp_mutator_call
                 attack_call_record["completion_timestamp"] = time.time()
                 self.attack_call_history.append(attack_call_record)
                 self.attack_model_calls += 1
 
                 ############# prune off-topic jailbreak_prompt ################
+                eval_query_count_before = _generation_query_count(self.eval_model)
                 constraint_number = len(new_dataset)
                 if len(new_dataset) > 0:
                     new_dataset = self.constraint(new_dataset)
@@ -254,6 +261,7 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                     "cell_key": str(instance.attack_attrs.get('cell_key', '')),
                     "target_model_name": self.target_model.get_name() if hasattr(self.target_model, 'get_name') else getattr(self.target_model, 'model_name', ''),
                 }
+                target_query_count_before = _generation_query_count(self.target_model)
                 if isinstance(self.target_model, VLLMModel) and len(new_dataset) > 0:
                     # --- vLLM: one batch_generate call for all instances ---
                     prompts = [inst.jailbreak_prompt for inst in new_dataset]
@@ -285,7 +293,10 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                         #print("\nJailbreak Prompt:{}\n".format(instance.jailbreak_prompt))
                         #print("\nOutput:\n{}\n????????????????????????????\n".format(instance.target_responses))
                         self.target_model_calls += 1
-                target_call_record["query_count"] = len(new_dataset)
+                target_query_count_after = _generation_query_count(self.target_model)
+                target_call_record["query_count"] = target_query_count_after - target_query_count_before
+                if target_call_record["query_count"] == 0 and len(new_dataset) > 0:
+                    target_call_record["query_count"] = len(new_dataset)
                 target_call_record["completion_timestamp"] = time.time()
                 self.target_call_history.append(target_call_record)
                 ############# prune not-jailbroken jailbreak_prompt ################
@@ -300,7 +311,10 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                     "eval_model_name": self.eval_model.get_name() if hasattr(self.eval_model, 'get_name') else getattr(self.eval_model, 'model_name', ''),                   
                 }
                 self.evaluator(new_dataset)
-                eval_call_record["query_count"] = len(new_dataset) + constraint_number
+                eval_query_count_after = _generation_query_count(self.eval_model)
+                eval_call_record["query_count"] = eval_query_count_after - eval_query_count_before
+                if eval_call_record["query_count"] == 0 and (len(new_dataset) + constraint_number) > 0:
+                    eval_call_record["query_count"] = len(new_dataset) + constraint_number
                 eval_call_record["completion_timestamp"] = time.time()
                 self.eval_call_history.append(eval_call_record)
                 self.eval_model_calls += 1 
