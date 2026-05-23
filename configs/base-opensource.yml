@@ -4,8 +4,8 @@ algorithm: rainbowplus
 target_llm:
   type_: vllm
   model_kwargs:
-    model: google/gemma-2-9b
-    gpu_memory_utilization: 0.252
+    model: mistralai/Ministral-8B-Instruct-2410
+    gpu_memory_utilization: 0.24
     max_model_len: 1536
     enforce_eager: True
     max_num_seqs: 32
