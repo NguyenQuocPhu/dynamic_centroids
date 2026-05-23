@@ -1,12 +1,7 @@
 #!/bin/bash
 
 DATASETS=(
-    "./data/AdversarialQA.json"
-    "./data/BeaverTails.json"
-    "./data/CategoricalHarmfulQA.json"
-    "./data/DangerousQA.json"
-    "./data/do-not-answer.json"
-    "./data/harmbench.json"
+    "./data/harmfulQA.json"
 )
 
 for DATASET in "${DATASETS[@]}"; do
