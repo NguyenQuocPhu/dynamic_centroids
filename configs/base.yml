@@ -6,11 +6,11 @@ archive:
   descriptor: [Risk Category, Attack Style]
 
 # Seed dataset
-sample_prompts: ./data/formatted_harmfulQA.json
+sample_prompts: ./data/formatted_harmbench.json
 
 target_llm:
   model_kwargs:
-    model: mistralai/Ministral-8B-Instruct-2410
+    model: Qwen/Qwen2.5-7B-Instruct
     gpu_memory_utilization: 0.24
     max_model_len: 2048
     enforce_eager: True
