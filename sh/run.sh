@@ -5,7 +5,11 @@ DATASETS=(
     "./data/formatted_harmfulQA.json"
 )
 
-
+DATASETS=(
+    "./data/formatted_AdversarialQA.json"
+    "./data/formatted_BeaverTails.json"
+    "./data/formatted_do-not-answer.json"
+)
 
 for DATASET in "${DATASETS[@]}"; do
     echo "Running with dataset: $DATASET"
