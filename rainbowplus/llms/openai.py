@@ -34,7 +34,15 @@ class LLMviaOpenAI(BaseLLM):
                     ],
                     **sampling_params
                 )
-                return response.choices[0].message.content
+                # Some "thinking" models (e.g. Qwen3.5 via this proxy) can spend the
+                # entire max_tokens budget on invisible reasoning and return
+                # content=None once the budget runs out (reproduced live testing
+                # this against the real proxy: finish_reason "length", content
+                # None). Every downstream caller expects a str (nltk.word_tokenize,
+                # str concatenation, etc.), so a bare None here crashes call sites
+                # far from this one -- return "" instead, same as "model said
+                # nothing", which every caller already handles.
+                return response.choices[0].message.content or ""
             except (openai.APIConnectionError, openai.RateLimitError, httpx.HTTPError, httpx.RemoteProtocolError) as e:
                 last_exception = e
                 print(f"OpenAI API error on attempt {attempt + 1}/{max_retries}: {e}")
