@@ -119,6 +119,14 @@ def parse_arguments():
         help="Stop the main loop once cumulative target-model queries reach this many "
         "(0 = disabled, run all --max_iters as before)",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=RANDOM_SEED,
+        help="RNG seed for reproducibility. Default reproduces today's fixed "
+        f"RANDOM_SEED={RANDOM_SEED}. Vary it (--seed 0,1,2,...) for independent "
+        "runs / multi-seed statistics.",
+    )
     return parser.parse_args()
 
 
@@ -212,7 +220,10 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     seed = JailbreakDataset(dataset=args.dataset, local_file_type='json')
     for i in range(15):
         print(seed._dataset[i].query)
-    random.seed(RANDOM_SEED)
+    # Uses args.seed (default RANDOM_SEED) so multi-seed runs get independent
+    # shuffles + descriptor/cell/parent choices.
+    random.seed(args.seed)
+    np.random.seed(args.seed)
     seed.shuffle() # Shuffle seed prompts to ensure randomness
     for i in range(15):
         print(seed._dataset[i].query)
