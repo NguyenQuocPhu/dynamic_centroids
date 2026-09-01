@@ -319,7 +319,18 @@ Your rating should strictly follow this format: "Rating: [[rating]]", e.g., "Rat
                             "query": instance.query
                         })
                         #print("\n\n<<<<Refinement: Score={}, Prompt={}, Messages={}>>>>\n\n".format(score[-1], instance.query, conversation[-2:]))
-                new_dataset = self.selector.select(new_dataset)
+                # Guard like the off-topic constraint step above: when the
+                # mutator produced zero valid candidates this depth step
+                # (JSON-parse failures, or the attack model outright refusing
+                # to write a jailbreak prompt -- both reproduced live), the
+                # vendored easyjailbreak.SelectBasedOnScores.select() doesn't
+                # handle an empty dataset -- its zero-match fallback does
+                # `[list_dataset[0], list_dataset[1]]` unconditionally, which
+                # IndexErrors on an empty list_dataset instead of leaving the
+                # branch empty (see rainbowplus.py's caller: an empty return
+                # here is already handled as "this branch produced nothing").
+                if len(new_dataset) > 0:
+                    new_dataset = self.selector.select(new_dataset)
                 batch[i] = new_dataset
                 ############# attack successful ################
         return batch
