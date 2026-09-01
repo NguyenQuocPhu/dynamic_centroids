@@ -123,6 +123,14 @@ def parse_arguments():
             "the loop always runs the full --max_iters as before."
         ),
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=RANDOM_SEED,
+        help="RNG seed for reproducibility. Default reproduces today's fixed "
+        f"RANDOM_SEED={RANDOM_SEED}. Vary it (--seed 0,1,2,...) for independent "
+        "runs / multi-seed statistics.",
+    )
     return parser.parse_args()
 
 
@@ -264,10 +272,15 @@ def run_rainbowplus(
             field="question",
             num_samples=args.num_samples,
             shuffle=args.shuffle,
-            seed = RANDOM_SEED
+            seed = args.seed  # default RANDOM_SEED; vary for multi-seed runs
         )
     for i in range(15):
         print(f"Seed prompt {i}: {seed_prompts[i]}")
+    # Reseed the global RNG with args.seed (default RANDOM_SEED) so the
+    # per-iteration random.choice descriptor/cell selection also varies across
+    # multi-seed runs, not just the seed-prompt shuffle handled by load_json.
+    random.seed(args.seed)
+    np.random.seed(args.seed)
     # Load category descriptors
     descriptors = load_descriptors(config)
 
