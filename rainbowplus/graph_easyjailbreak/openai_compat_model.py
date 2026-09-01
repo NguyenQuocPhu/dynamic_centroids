@@ -97,6 +97,23 @@ class OpenAICompatModel(OpenaiModel):
         params.update(kwargs)
         for key in _UNSUPPORTED_KWARGS:
             params.pop(key, None)
+
+        # Default enable_thinking=false, same default as the proxy's own
+        # production config -- verified live: without it, this Qwen3.5
+        # "thinking" endpoint can burn the whole max_tokens budget on
+        # invisible reasoning and return content=None (finish_reason
+        # "length"), silently wasting a real query for a wasted mutation.
+        # This has to travel inside extra_body: chat_template_kwargs isn't a
+        # real Chat Completions param, so the OpenAI SDK rejects it as a bare
+        # top-level kwarg (TypeError) -- it only reaches vLLM's proxy nested
+        # under extra_body. generation_config/kwargs can still override by
+        # setting extra_body={"chat_template_kwargs": {...}} explicitly.
+        extra_body = dict(params.get("extra_body") or {})
+        extra_body["chat_template_kwargs"] = {
+            "enable_thinking": False,
+            **extra_body.get("chat_template_kwargs", {}),
+        }
+        params["extra_body"] = extra_body
         return params
 
     @count_calls
