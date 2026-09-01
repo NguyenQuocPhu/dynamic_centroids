@@ -174,6 +174,16 @@ def parse_arguments():
         "-- this overwrites whatever backpropagate() set that iteration. Pass "
         "this flag to skip that freeze/restore block entirely.",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=RANDOM_SEED,
+        help="RNG seed for reproducibility. Default reproduces today's fixed "
+        f"RANDOM_SEED={RANDOM_SEED}. Vary it (e.g. --seed 0,1,2,...) to get "
+        "independent runs for multi-seed statistics -- the whole point of the "
+        "per-run comparison, since a single run's score distribution is "
+        "noise-dominated at this reward sparsity.",
+    )
     return parser.parse_args()
 
 
@@ -285,8 +295,11 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     # Re-seed immediately before shuffling so the shuffle is deterministic
     # regardless of how much other random-consuming code ran between module
     # import and here -- matches algo/beam-search's run_rainbowplus (parity
-    # requirement: same RNG behavior across the compared branches).
-    random.seed(RANDOM_SEED)
+    # requirement: same RNG behavior across the compared branches). Uses
+    # args.seed (default RANDOM_SEED) so multi-seed runs get independent
+    # shuffles + descriptor/cell/leaf choices.
+    random.seed(args.seed)
+    np.random.seed(args.seed)
     seed.shuffle()
     for i in range(15):
         print(seed._dataset[i].query)
