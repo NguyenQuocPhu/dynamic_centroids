@@ -185,7 +185,19 @@ class IntrospectGenerationAggregateMaxConcatenate(MutationBase):
             #print(f"\\n[DEBUG get_attack_batch] attempt={attempt_idx+1}/{max_n_attack_attempts}, requesting {needed} generations...", flush=True)
             #print(f"[DEBUG get_attack_batch] full_prompt={full_prompt}", flush=True)
             if isinstance(model, VLLMModel) or hasattr(model, 'batch_generate'):
-                raw_outputs = model.batch_generate([[full_prompt]] * needed)
+                # full_prompt is one conversation: a plain string for
+                # VLLMModel/HuggingfaceModel (built at the isinstance branch
+                # above), or already a List[str] of alternating turns for
+                # OpenaiModel/OpenAICompatModel. Wrap only the string case so
+                # each batch item is a proper List[str] conversation -- for
+                # the already-a-list case, wrapping it again nests it one
+                # level too deep, so OpenAICompatModel._to_openai_messages()
+                # sends the whole conversation as a single message's
+                # `content` (a list of strings) instead of alternating
+                # user/assistant turns, which the proxy rejects with a 400
+                # ("'str' object has no attribute 'get'" -- reproduced live).
+                one_conversation = [full_prompt] if isinstance(full_prompt, str) else full_prompt
+                raw_outputs = model.batch_generate([one_conversation] * needed)
             else:
                 raw_outputs = [model.generate(full_prompt) for _ in range(needed)]
 
