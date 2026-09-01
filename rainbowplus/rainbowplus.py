@@ -36,6 +36,7 @@ from rainbowplus.configs import ConfigurationLoader
 from rainbowplus.prompts import MUTATOR_PROMPT, TARGET_PROMPT
 from rainbowplus.configs.base import LLMConfig
 from rainbowplus.mutators.persona import PersonaMutator
+from rainbowplus.switcher import LLMSwitcher
 
 # Set fixed random seed for reproducibility
 RANDOM_SEED = 15
@@ -164,18 +165,9 @@ def apply_api_override(config):
     now rather than mixing local models with a half-configured API client.
 
     NOTE: this makes target_llm and mutator_llm resolve to the identical model
-    name. initialize_language_models() dedups switchers by model_kwargs, so
-    they'll share ONE LLMSwitcher instance, and further down in
-    run_rainbowplus() the target/mutator call-count wrapping block
-    (`llms[target_model].generate = count_calls(...)` then the same for
-    `llms[mutator_model]`, same dict slot) will nest-wrap the same object
-    twice -- every call ends up logged into BOTH target_call_history and
-    attack_call_history. That's a pre-existing latent bug in that wrapping
-    block (it assumes target/mutator are always different models, true for
-    every existing configs/*.yml), not something introduced here; it only
-    surfaces once target_llm and mutator_llm point at the same model, which
-    is exactly this override's purpose. Actual generation/eval correctness is
-    unaffected -- only the per-role query-count bookkeeping in saved logs.
+    name, which initialize_language_models() would otherwise dedup into ONE
+    shared LLMSwitcher -- see the target_llm_key/mutator_llm_key handling in
+    run_rainbowplus() for why that matters and how it's kept safe.
     """
     api_key = os.environ.get("OPENAI_API_KEY")
     base_url = os.environ.get("OPENAI_BASE_URL")
@@ -194,8 +186,7 @@ def apply_api_override(config):
 
     logger.info(
         f"apply_api_override: routing target_llm, mutator_llm and fitness_llm through "
-        f"model='{model_id}' @ base_url='{base_url}' (local model loading skipped for all 3). "
-        f"NOTE: target/mutator query-count logs will double-count -- see apply_api_override() docstring."
+        f"model='{model_id}' @ base_url='{base_url}' (local model loading skipped for all 3)."
     )
     for role in ("target_llm", "mutator_llm", "fitness_llm"):
         llm_cfg = getattr(config, role)
@@ -287,21 +278,42 @@ def run_rainbowplus(
     mutator_model = config.mutator_llm.model_kwargs["model"]
     eval_model_name = config.fitness_llm.model_kwargs.get("model", "LlamaGuard")
 
+    # Keys used to look up `llms` below -- kept separate from the target_model/
+    # mutator_model display-name strings above (those still feed
+    # target_model_name/attack_model_name in saved logs and must stay the
+    # plain model id). initialize_language_models() dedups switchers by
+    # model_kwargs, so when target_llm and mutator_llm point at the identical
+    # model (e.g. apply_api_override() routing every role through one shared
+    # API), both `target_model` and `mutator_model` resolve to the SAME dict
+    # entry in `llms`. Wrapping .generate/.batch_generate for BOTH
+    # roles on that one shared object would nest count_calls() wrappers and
+    # double-log every call into both target_call_history and
+    # attack_call_history. Give the mutator role its own LLMSwitcher instance
+    # (identical config -> identical endpoint/model, just an independent
+    # object) under a disambiguated key so the two roles' call-count wrapping
+    # -- and everything below that reads via these keys -- stays correctly
+    # separated even when they hit the exact same underlying model.
+    target_llm_key = target_model
+    mutator_llm_key = mutator_model
+    if mutator_llm_key == target_llm_key and target_llm_key in llms:
+        mutator_llm_key = f"{mutator_model}::mutator_role"
+        llms[mutator_llm_key] = LLMSwitcher(config.mutator_llm)
+
     # Wrap LLM methods with call tracking
-    if target_model in llms:
-        llms[target_model].generate = count_calls(
-            llms[target_model].generate, target_call_history, f"rainbowplus.target_model.generate", "target"
+    if target_llm_key in llms:
+        llms[target_llm_key].generate = count_calls(
+            llms[target_llm_key].generate, target_call_history, f"rainbowplus.target_model.generate", "target"
         )
-        llms[target_model].batch_generate = count_calls(
-            llms[target_model].batch_generate, target_call_history, f"rainbowplus.target_model.batch_generate", "target"
+        llms[target_llm_key].batch_generate = count_calls(
+            llms[target_llm_key].batch_generate, target_call_history, f"rainbowplus.target_model.batch_generate", "target"
         )
-    
-    if mutator_model in llms:
-        llms[mutator_model].generate = count_calls(
-            llms[mutator_model].generate, attack_call_history, f"rainbowplus.mutator_model.generate", "attack"
+
+    if mutator_llm_key in llms:
+        llms[mutator_llm_key].generate = count_calls(
+            llms[mutator_llm_key].generate, attack_call_history, f"rainbowplus.mutator_model.generate", "attack"
         )
-        llms[mutator_model].batch_generate = count_calls(
-            llms[mutator_model].batch_generate, attack_call_history, f"rainbowplus.mutator_model.batch_generate", "attack"
+        llms[mutator_llm_key].batch_generate = count_calls(
+            llms[mutator_llm_key].batch_generate, attack_call_history, f"rainbowplus.mutator_model.batch_generate", "attack"
         )
     
     # Wrap eval/fitness model for logging
@@ -371,7 +383,7 @@ def run_rainbowplus(
             for key, values in descriptors.items():
                 if key == "Persona":
                     persona_name, persona_details = persona_mutator._find_fitting_persona(
-                        prompt, llms[config.mutator_llm.model_kwargs["model"]], config.mutator_llm.sampling_params
+                        prompt, llms[mutator_llm_key], config.mutator_llm.sampling_params
                     )
                     descriptor[key] = persona_name
                     selected_persona = (persona_name, persona_details)
@@ -399,7 +411,7 @@ def run_rainbowplus(
                 selected_persona = (persona_name, persona_details)
             else:
                 persona_name, persona_details = persona_mutator._find_fitting_persona(
-                    prompt, llms[config.mutator_llm.model_kwargs["model"]], config.mutator_llm.sampling_params
+                    prompt, llms[mutator_llm_key], config.mutator_llm.sampling_params
                 )
                 descriptor["Persona"] = persona_name
                 selected_persona = (persona_name, persona_details)
@@ -430,13 +442,13 @@ def run_rainbowplus(
 
         if config.mutation_strategy == "persona" and persona_mutator:
             mutated_prompts = persona_mutator.mutate(
-                prompt, llms[mutator_model], config.mutator_llm.sampling_params,
+                prompt, llms[mutator_llm_key], config.mutator_llm.sampling_params,
                 selected_persona=selected_persona, num_mutations=args.num_mutations
             )
             prompt_ = prompt
         else:
             prompt_ = MUTATOR_PROMPT.format(descriptor=descriptor_str.strip(), prompt=prompt)
-            mutated_prompts = llms[mutator_model].batch_generate(
+            mutated_prompts = llms[mutator_llm_key].batch_generate(
                 [prompt_] * args.num_mutations, config.mutator_llm.sampling_params
             )
 
@@ -465,7 +477,7 @@ def run_rainbowplus(
 
         if mutated_prompts:
             target_prompts = [TARGET_PROMPT.format(prompt=p.strip()) for p in mutated_prompts if p and p.strip()]
-            candidates = llms[target_model].batch_generate(target_prompts, config.target_llm.sampling_params)
+            candidates = llms[target_llm_key].batch_generate(target_prompts, config.target_llm.sampling_params)
 
             fitness_scores = fitness_fn.batch_score(mutated_prompts, candidates, config.fitness_llm.sampling_params)
 
@@ -492,15 +504,15 @@ def run_rainbowplus(
         rejection_reasons_for_key = []
 
         if original_mutated_prompts:
-            llms[target_model].batch_generate.disable_log()
+            llms[target_llm_key].batch_generate.disable_log()
             fitness_fn.batch_score.disable_log()
             all_target_prompts = [TARGET_PROMPT.format(prompt=p.strip()) for p in original_mutated_prompts if p and p.strip()]
-            all_candidates = llms[target_model].batch_generate(all_target_prompts, config.target_llm.sampling_params)
+            all_candidates = llms[target_llm_key].batch_generate(all_target_prompts, config.target_llm.sampling_params)
             
 
             all_fitness_scores = fitness_fn.batch_score(original_mutated_prompts, all_candidates, config.fitness_llm.sampling_params)
             
-            llms[target_model].batch_generate.enable_log()
+            llms[target_llm_key].batch_generate.enable_log()
             fitness_fn.batch_score.enable_log()
             all_sim_scores = [similarity_fn.score(p, prompt_) for p in original_mutated_prompts]
 
