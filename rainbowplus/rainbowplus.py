@@ -3,6 +3,7 @@
 # Copyright (C) 2025 Apple Inc. All Rights Reserved.
 #
 
+import os
 import sys
 import argparse
 import random
@@ -14,6 +15,13 @@ import uuid  # Required for ID generation
 from pathlib import Path
 import yaml
 import numpy as np
+
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()  # picks up a .env in CWD, e.g. OPENAI_API_KEY/BASE_URL/MODEL_ID
+except ImportError:
+    pass  # python-dotenv not installed -- fall back to whatever's already in the shell env
 from typing import List, Optional, Any, Dict, Tuple
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
@@ -103,6 +111,46 @@ def parse_arguments():
 
 
 
+def apply_api_override(config):
+    """
+    If OPENAI_API_KEY / OPENAI_BASE_URL / OPENAI_MODEL_ID are all set (typically
+    via .env, same var names as the data-agent proxy config so the same .env
+    can be reused as-is), point target_llm/mutator_llm/fitness_llm at that one
+    API instead of loading 3 separate local vLLM models. sampling_params
+    (temperature/top_p/max_tokens per role) are left untouched -- those are
+    algorithm hyperparameters, not infra identifiers.
+
+    No silent partial fallback: if only some of the 3 vars are set, fail loudly
+    now rather than mixing local models with a half-configured API client.
+    """
+    api_key = os.environ.get("OPENAI_API_KEY")
+    base_url = os.environ.get("OPENAI_BASE_URL")
+    model_id = os.environ.get("OPENAI_MODEL_ID")
+    present = {"OPENAI_API_KEY": bool(api_key), "OPENAI_BASE_URL": bool(base_url), "OPENAI_MODEL_ID": bool(model_id)}
+
+    if not any(present.values()):
+        return config  # unchanged: local vLLM models, as before
+
+    missing = [name for name, ok in present.items() if not ok]
+    if missing:
+        raise ValueError(
+            f"apply_api_override: {missing} missing from env/.env while the others are set "
+            f"({present}) -- set all 3 (OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL_ID) or none."
+        )
+
+    logger.info(
+        f"apply_api_override: routing target_llm, mutator_llm and fitness_llm through "
+        f"model='{model_id}' @ base_url='{base_url}' (local vLLM loading skipped for all 3)."
+    )
+    for role in ("target_llm", "mutator_llm", "fitness_llm"):
+        llm_cfg = getattr(config, role)
+        llm_cfg.type_ = "openai"
+        llm_cfg.api_key = api_key
+        llm_cfg.base_url = base_url
+        llm_cfg.model_kwargs = {"model": model_id}
+    return config
+
+
 def load_descriptors(config):
     descriptors = {}
     for path, descriptor in zip(config.archive["path"], config.archive["descriptor"]):
@@ -131,6 +179,7 @@ from rainbowplus.graph_easyjailbreak.model_utils import count_calls, count_batch
 #from gap_easyjailbreak.models.bedrock_claude_model import ClaudeModel
 from rainbowplus.graph_easyjailbreak.IntrospectGenerationAggregateMaxConcatenate import IntrospectGenerationAggregateMaxConcatenate as IntrospectGeneration
 from rainbowplus.graph_easyjailbreak.GAP import GAP
+from rainbowplus.graph_easyjailbreak.openai_compat_model import OpenAICompatModel
 
 
 def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_model=None, fitness_fn=None, similarity_fn=None):
@@ -271,11 +320,21 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
 if __name__ == "__main__":
     args = parse_arguments()
     config = ConfigurationLoader.load(args.config_file)
+    config = apply_api_override(config)
 
     # Build vLLM models — model_name is the FastChat template, model_name_or_path is the HF hub id
     # Any extra keys in model_kwargs (max_model_len, gpu_memory_utilization, enforce_eager …)
     # are forwarded directly to vllm.LLM.
-    def _make_model(llm_cfg, fastchat_name: str) -> VLLMModel:
+    # When apply_api_override() set type_="openai" above, build an OpenAICompatModel
+    # instead -- no local weights loaded, every call goes over HTTP to the same API.
+    def _make_model(llm_cfg, fastchat_name: str):
+        if llm_cfg.type_ == "openai":
+            return OpenAICompatModel(
+                model_name=llm_cfg.model_kwargs["model"],
+                api_key=llm_cfg.api_key,
+                base_url=llm_cfg.base_url,
+                generation_config=llm_cfg.sampling_params,
+            )
         model_kwargs = dict(llm_cfg.model_kwargs)  # shallow copy
         model_path = model_kwargs.pop("model")     # HF hub id / local path
         return from_pretrained(
