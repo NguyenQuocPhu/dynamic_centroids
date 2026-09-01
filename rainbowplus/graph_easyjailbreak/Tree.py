@@ -1,8 +1,14 @@
 import math
 
+# Raw judge-score threshold (1-10 scale, same as eval_results) at/above which
+# a node is marked terminal by default -- see MCTSNode.__init__. A
+# terminal_score <= 0 (the CLI's --terminal_score 0) disables terminal
+# marking entirely, since 0 is never a valid raw judge score.
+DEFAULT_TERMINAL_SCORE = 9.0
+
 
 class MCTSNode:
-    def __init__(self, instance, parent=None):
+    def __init__(self, instance, parent=None, terminal_score: float = DEFAULT_TERMINAL_SCORE):
         self.instance = instance # Chứa prompt, điểm số, cell_key...
         self.parent = parent
         self.children = []
@@ -12,17 +18,28 @@ class MCTSNode:
             if instance is not None and instance.eval_results
             else 0.0
         )
-        self.is_terminal = self.max_score * 9.0 + 1 >= 9.0
+        # terminal_score <= 0 (or None) disables terminal-marking entirely --
+        # see --terminal_score / DEFAULT_TERMINAL_SCORE above.
+        if terminal_score is None or terminal_score <= 0:
+            self.is_terminal = False
+        else:
+            self.is_terminal = self.max_score * 9.0 + 1 >= terminal_score
 
 class Forest:
-    def __init__(self):
+    def __init__(self, terminal_score: float = DEFAULT_TERMINAL_SCORE, visit_increment: str = "k"):
+        # terminal_score/visit_increment are stashed on the Forest so every
+        # MCTSNode created for it (add_migrant_tree here, and the driver
+        # loop's per-attack child nodes) shares one consistent ablation
+        # setting instead of re-reading CLI args/globals from inside Tree.py.
+        self.terminal_score = terminal_score
+        self.visit_increment = visit_increment
         # Dummy root không chứa prompt thật, chỉ làm quản lý
-        self.root = MCTSNode(instance=None) 
-        self.root.visits = 1 
+        self.root = MCTSNode(instance=None, terminal_score=terminal_score)
+        self.root.visits = 1
 
     def add_migrant_tree(self, new_instance):
         """Khi có một nhánh từ cell khác bay sang, gắn nó vào root"""
-        new_node = MCTSNode(instance=new_instance, parent=self.root)
+        new_node = MCTSNode(instance=new_instance, parent=self.root, terminal_score=self.terminal_score)
         self.root.children.append(new_node)
 
         self.root.visits += 1
@@ -52,11 +69,14 @@ class Forest:
     def backpropagate(self, leaf_node, new_children_nodes):
         """Truyền Max-Backup và Lượt thăm lên tận root"""
         K = len(new_children_nodes)
+        # visit_increment='k' (default) reproduces today's += K; '1' is
+        # textbook UCT visit-counting -- see --visit_increment.
+        increment = K if self.visit_increment == "k" else 1
         max_new_score = max([c.max_score for c in new_children_nodes]) if new_children_nodes else 0
-        
+
         current = leaf_node
         while current is not None:
-            current.visits += K
+            current.visits += increment
             if max_new_score > current.max_score:
                 current.max_score = max_new_score
             if current.children:
