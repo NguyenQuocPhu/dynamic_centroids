@@ -37,8 +37,14 @@ from rainbowplus.utils import (
     initialize_language_models,
     save_comprehensive_logs,
     save_iteration_logs,
-    format_example
+    format_example,
+    build_run_metadata,
 )
+
+# Identifies which algorithm produced a given log -- written into every saved
+# log's run_metadata (see build_run_metadata()) so a log file can be traced
+# back to its run later without relying on directory naming conventions.
+ALGORITHM_NAME = "gap-beam-search"
 from rainbowplus.archive import Archive
 from rainbowplus.configs import ConfigurationLoader
 from rainbowplus.prompts import system_prompt_mutator, TARGET_PROMPT, MUTATOR_PROMPT_V1, SELECTOR_PROMPT, ANALYZER_PROMPT
@@ -190,6 +196,11 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
     # Setup logging
     log_dir = Path(args.log_dir) / target_model.model_name / args.dataset.split('/')[-1].split('.')[0]
     log_dir.mkdir(parents=True, exist_ok=True)
+
+    # Which algorithm + hyperparameters + model backend produced every log
+    # saved below -- see build_run_metadata().
+    run_metadata = build_run_metadata(ALGORITHM_NAME, args, config)
+
     # Prepare seed metadata
     seed = JailbreakDataset(dataset=args.dataset, local_file_type='json')
     for i in range(15):
@@ -296,7 +307,8 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 eval_call_history=attacker.eval_call_history,
                 target_model_name=target_model.get_name() if hasattr(target_model, 'get_name') else getattr(target_model, 'model_name', ''),
                 attack_model_name=attack_model.get_name() if hasattr(attack_model, 'get_name') else getattr(attack_model, 'model_name', ''),
-                eval_model_name=eval_model.get_name() if hasattr(eval_model, 'get_name') else getattr(eval_model, 'model_name', '')
+                eval_model_name=eval_model.get_name() if hasattr(eval_model, 'get_name') else getattr(eval_model, 'model_name', ''),
+                run_metadata=run_metadata,
             )
     current_ts = time.strftime(r"%Y%m%d-%H%M%S")
     
@@ -312,7 +324,8 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
         eval_call_history=attacker.eval_call_history,
         target_model_name=target_model.get_name() if hasattr(target_model, 'get_name') else getattr(target_model, 'model_name', ''),
         attack_model_name=attack_model.get_name() if hasattr(attack_model, 'get_name') else getattr(attack_model, 'model_name', ''),
-        eval_model_name=eval_model.get_name() if hasattr(eval_model, 'get_name') else getattr(eval_model, 'model_name', '')
+        eval_model_name=eval_model.get_name() if hasattr(eval_model, 'get_name') else getattr(eval_model, 'model_name', ''),
+        run_metadata=run_metadata,
     )
     print("Done!")
 

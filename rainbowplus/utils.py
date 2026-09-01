@@ -121,9 +121,49 @@ def _build_llm_log(llm_type, llm_call_history, model_name, llm_type_display):
 import json
 from pathlib import Path
 
+
+def build_run_metadata(algorithm: str, args, config=None) -> Dict[str, Any]:
+    """
+    Snapshot of "what produced this log": the algorithm name plus every CLI/
+    config hyperparameter (num_samples, max_iters, tree_width, tree_depth,
+    ...), saved into every saved log file's "run_metadata" key so a log can
+    be identified/traced back to its exact run later without external
+    bookkeeping (which was previously not recorded anywhere in the logs).
+
+    api_key is deliberately never included in model_backend -- only the
+    model name/type/base_url, which is enough to tell a local-vLLM run apart
+    from an apply_api_override() run without leaking the secret into a log
+    file that might get shared or committed.
+    """
+    hyperparameters = dict(vars(args))
+
+    model_backend = None
+    if config is not None:
+        def _role_info(llm_cfg):
+            if llm_cfg is None:
+                return None
+            return {
+                "model": llm_cfg.model_kwargs.get("model"),
+                "type": getattr(llm_cfg, "type_", "vllm"),
+                "base_url": llm_cfg.base_url,  # None for local vllm
+            }
+
+        model_backend = {
+            "target": _role_info(config.target_llm),
+            "mutator": _role_info(config.mutator_llm),
+            "fitness": _role_info(config.fitness_llm),
+        }
+
+    return {
+        "algorithm": algorithm,
+        "hyperparameters": hyperparameters,
+        "model_backend": model_backend,
+    }
+
+
 def save_iteration_logs(log_dir, archive, global_context, timestamp, iteration, max_iters,
                        target_call_history=None, attack_call_history=None, eval_call_history=None,
-                       target_model_name="", attack_model_name="", eval_model_name=""):
+                       target_model_name="", attack_model_name="", eval_model_name="", run_metadata=None):
     """
     Lưu trữ log cho từng vòng lặp (iteration) bao gồm Archive, Global Context 
     và tính toán nhanh ASR (Attack Success Rate).
@@ -212,7 +252,13 @@ def save_iteration_logs(log_dir, archive, global_context, timestamp, iteration, 
         "map_elites_archive": archive_dump,
         "global_context": global_context
     }
-    
+
+    # run_metadata identifies WHICH algorithm/hyperparameters produced this
+    # log (see build_run_metadata()) -- put it first so it's the first thing
+    # anyone opening the file sees, e.g. when digging back through old runs.
+    if run_metadata:
+        log_payload = {"run_metadata": run_metadata, **log_payload}
+
     # Add LLM logs to the payload
     if llm_logs:
         log_payload["llm_call_logs"] = llm_logs
@@ -230,7 +276,7 @@ from pathlib import Path
 
 def save_comprehensive_logs(log_dir, archive, global_context, timestamp, iteration, max_iters,
                             target_call_history=None, attack_call_history=None, eval_call_history=None,
-                            target_model_name="", attack_model_name="", eval_model_name=""):
+                            target_model_name="", attack_model_name="", eval_model_name="", run_metadata=None):
     """
     Lưu trữ Archive, Global Context và tính toán nhanh ASR (Attack Success Rate).
     """
@@ -317,7 +363,13 @@ def save_comprehensive_logs(log_dir, archive, global_context, timestamp, iterati
         "map_elites_archive": archive_dump,
         "global_context": global_context
     }
-    
+
+    # run_metadata identifies WHICH algorithm/hyperparameters produced this
+    # log (see build_run_metadata()) -- put it first so it's the first thing
+    # anyone opening the file sees, e.g. when digging back through old runs.
+    if run_metadata:
+        log_payload = {"run_metadata": run_metadata, **log_payload}
+
     # Add LLM logs to the payload
     if llm_logs:
         log_payload["llm_call_logs"] = llm_logs
