@@ -112,6 +112,13 @@ def parse_arguments():
     parser.add_argument(
         "--shuffle", type=bool, default=True, help="Shuffle seed prompts"
     )
+    parser.add_argument(
+        "--target_query_budget",
+        type=int,
+        default=0,
+        help="Stop the main loop once cumulative target-model queries reach this many "
+        "(0 = disabled, run all --max_iters as before)",
+    )
     return parser.parse_args()
 
 
@@ -310,6 +317,24 @@ def run_rainbowplus(args, config, seed_prompts=[], attack_model=None, target_mod
                 eval_model_name=eval_model.get_name() if hasattr(eval_model, 'get_name') else getattr(eval_model, 'model_name', ''),
                 run_metadata=run_metadata,
             )
+
+        # Target-query budget stop (--target_query_budget, 0 = disabled): caps a run by
+        # actual target-model query cost instead of only by --max_iters, so runs across
+        # algorithms/branches can be compared at equal target-query spend. target_call_history
+        # entries already carry an accurate per-call "query_count" (GAP.py sets it to
+        # len(new_dataset), not the generate/batch_generate call-count delta used for
+        # attack/eval -- see the double-counting fix in openai_compat_model.py), so summing
+        # it here gives the true cumulative target-query count with no further fixup needed.
+        if args.target_query_budget > 0:
+            cumulative_target_queries = sum(
+                record.get("query_count", 0) for record in attacker.target_call_history
+            )
+            if cumulative_target_queries >= args.target_query_budget:
+                logger.info(
+                    f"target_query_budget reached ({cumulative_target_queries} >= "
+                    f"{args.target_query_budget}) at iteration {iteration} -- stopping main loop early."
+                )
+                break
     current_ts = time.strftime(r"%Y%m%d-%H%M%S")
     
     save_comprehensive_logs(

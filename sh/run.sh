@@ -1,6 +1,7 @@
 #!/bin/bash
 
 DATASETS=(
+    "./data/formatted_AdversarialQA.json"
     "./data/formatted_BeaverTails.json"
     "./data/formatted_CategoricalHarmfulQA.json"
     "./data/formatted_DangerousQA.json"

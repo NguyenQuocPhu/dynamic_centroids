@@ -16,7 +16,7 @@ from openai import OpenAI
 from fastchat.model import get_conversation_template
 from easyjailbreak.models.openai_model import OpenaiModel
 
-from rainbowplus.graph_easyjailbreak.model_utils import count_calls, count_batch_calls
+from rainbowplus.graph_easyjailbreak.model_utils import count_calls
 
 logger = logging.getLogger(__name__)
 
@@ -139,6 +139,15 @@ class OpenAICompatModel(OpenaiModel):
                     raise
         raise last_exception
 
-    @count_batch_calls
+    # No @count_batch_calls here (unlike VLLMModel.batch_generate): this method
+    # fans out to self.generate() per conversation below, and self.generate is
+    # already @count_calls-decorated, so it already accounts for every prompt
+    # sent through this path. GAP.py's query-count deltas read
+    # `generate.calls + batch_generate.calls` together (see single_attack's
+    # attack_call_record/eval_call_record) -- stacking a second counter here
+    # would double-count every prompt that goes through batch_generate.
+    # VLLMModel.batch_generate doesn't have this problem: it calls the raw
+    # vLLM engine (self._llm.generate) directly, not self.generate, so its own
+    # @count_batch_calls is the only counter for that path.
     def batch_generate(self, conversations: List[Union[str, List[str]]], **kwargs) -> List[str]:
         return [self.generate(conv, **kwargs) for conv in conversations]
