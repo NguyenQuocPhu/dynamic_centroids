@@ -30,7 +30,13 @@ from rainbowplus.utils import (
     save_iteration_log,
     save_comprehensive_log,
     count_calls,
+    build_run_metadata,
 )
+
+# Identifies which algorithm produced a given log -- written into every saved
+# log's run_metadata (see build_run_metadata()) so a log file can be traced
+# back to its run later without relying on directory naming conventions.
+ALGORITHM_NAME = "rainbowplus-baseline"
 from rainbowplus.archive import Archive
 from rainbowplus.configs import ConfigurationLoader
 from rainbowplus.prompts import MUTATOR_PROMPT, TARGET_PROMPT
@@ -272,6 +278,10 @@ def run_rainbowplus(
     attack_call_history = []
     eval_call_history = []
     # ================================================================
+
+    # Which algorithm + hyperparameters + model backend produced every log
+    # saved below -- see build_run_metadata().
+    run_metadata = build_run_metadata(ALGORITHM_NAME, args, config)
 
     # Extract model names for context
     target_model = config.target_llm.model_kwargs["model"]
@@ -556,7 +566,8 @@ def run_rainbowplus(
             eval_call_history=eval_call_history,
             target_model_name=target_model,
             attack_model_name=mutator_model,
-            eval_model_name=eval_model_name
+            eval_model_name=eval_model_name,
+            run_metadata=run_metadata,
         )
 
         save_comprehensive_log(
@@ -567,7 +578,8 @@ def run_rainbowplus(
             eval_call_history=eval_call_history,
             target_model_name=target_model,
             attack_model_name=mutator_model,
-            eval_model_name=eval_model_name
+            eval_model_name=eval_model_name,
+            run_metadata=run_metadata,
         )
 
         # Periodic logging
@@ -576,13 +588,15 @@ def run_rainbowplus(
             save_iteration_log(
                 log_dir, adv_prompts, responses, scores, iters, timestamp, iteration=i, max_iters=args.max_iters,
                 target_call_history=target_call_history, attack_call_history=attack_call_history, eval_call_history=eval_call_history,
-                target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name
+                target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name,
+                run_metadata=run_metadata,
             )
             save_comprehensive_log(
                 log_dir, all_prompts, all_responses, all_scores, all_similarities, rejection_reasons, timestamp, iteration=i,
                 all_prompt_ids=all_prompt_ids, all_parent_ids=all_parent_ids, all_seed_ids=all_seed_ids, max_iters=args.max_iters,
                 target_call_history=target_call_history, attack_call_history=attack_call_history, eval_call_history=eval_call_history,
-                target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name
+                target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name,
+                run_metadata=run_metadata,
             )
 
     # Save final logs
@@ -590,13 +604,15 @@ def run_rainbowplus(
     save_iteration_log(
         log_dir, adv_prompts, responses, scores, iters, timestamp, iteration=i, max_iters=args.max_iters,
         target_call_history=target_call_history, attack_call_history=attack_call_history, eval_call_history=eval_call_history,
-        target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name
+        target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name,
+        run_metadata=run_metadata,
     )
     save_comprehensive_log(
         log_dir, all_prompts, all_responses, all_scores, all_similarities, rejection_reasons, timestamp, iteration=i,
         all_prompt_ids=all_prompt_ids, all_parent_ids=all_parent_ids, all_seed_ids=all_seed_ids, max_iters=args.max_iters,
         target_call_history=target_call_history, attack_call_history=attack_call_history, eval_call_history=eval_call_history,
-        target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name
+        target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name,
+        run_metadata=run_metadata,
     )
 
     return adv_prompts, responses, scores
