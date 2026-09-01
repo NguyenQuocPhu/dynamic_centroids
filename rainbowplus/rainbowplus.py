@@ -4,6 +4,7 @@
 # Copyright (C) 2025 Apple Inc. All Rights Reserved.
 #
 
+import os
 import sys
 import argparse
 import random
@@ -14,6 +15,12 @@ from pathlib import Path
 import yaml
 import numpy as np
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()  # picks up a .env in CWD, e.g. OPENAI_API_KEY/BASE_URL/MODEL_ID
+except ImportError:
+    pass  # python-dotenv not installed -- fall back to whatever's already in the shell env
 
 from rainbowplus.scores import BleuScoreNLTK, OpenAIGuard, LlamaGuard
 from rainbowplus.utils import (
@@ -142,6 +149,61 @@ def merge_config_with_args(config, args):
         merged_args.dataset = args.dataset
     
     return merged_args
+
+
+def apply_api_override(config):
+    """
+    If OPENAI_API_KEY / OPENAI_BASE_URL / OPENAI_MODEL_ID are all set (typically
+    via .env, same var names as the data-agent proxy config so the same .env
+    can be reused as-is), point target_llm/mutator_llm/fitness_llm at that one
+    API instead of loading local models. sampling_params (temperature/top_p/
+    max_tokens per role) are left untouched -- those are algorithm
+    hyperparameters, not infra identifiers.
+
+    No silent partial fallback: if only some of the 3 vars are set, fail loudly
+    now rather than mixing local models with a half-configured API client.
+
+    NOTE: this makes target_llm and mutator_llm resolve to the identical model
+    name. initialize_language_models() dedups switchers by model_kwargs, so
+    they'll share ONE LLMSwitcher instance, and further down in
+    run_rainbowplus() the target/mutator call-count wrapping block
+    (`llms[target_model].generate = count_calls(...)` then the same for
+    `llms[mutator_model]`, same dict slot) will nest-wrap the same object
+    twice -- every call ends up logged into BOTH target_call_history and
+    attack_call_history. That's a pre-existing latent bug in that wrapping
+    block (it assumes target/mutator are always different models, true for
+    every existing configs/*.yml), not something introduced here; it only
+    surfaces once target_llm and mutator_llm point at the same model, which
+    is exactly this override's purpose. Actual generation/eval correctness is
+    unaffected -- only the per-role query-count bookkeeping in saved logs.
+    """
+    api_key = os.environ.get("OPENAI_API_KEY")
+    base_url = os.environ.get("OPENAI_BASE_URL")
+    model_id = os.environ.get("OPENAI_MODEL_ID")
+    present = {"OPENAI_API_KEY": bool(api_key), "OPENAI_BASE_URL": bool(base_url), "OPENAI_MODEL_ID": bool(model_id)}
+
+    if not any(present.values()):
+        return config  # unchanged: local models, as before
+
+    missing = [name for name, ok in present.items() if not ok]
+    if missing:
+        raise ValueError(
+            f"apply_api_override: {missing} missing from env/.env while the others are set "
+            f"({present}) -- set all 3 (OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL_ID) or none."
+        )
+
+    logger.info(
+        f"apply_api_override: routing target_llm, mutator_llm and fitness_llm through "
+        f"model='{model_id}' @ base_url='{base_url}' (local model loading skipped for all 3). "
+        f"NOTE: target/mutator query-count logs will double-count -- see apply_api_override() docstring."
+    )
+    for role in ("target_llm", "mutator_llm", "fitness_llm"):
+        llm_cfg = getattr(config, role)
+        llm_cfg.type_ = "openai"
+        llm_cfg.api_key = api_key
+        llm_cfg.base_url = base_url
+        llm_cfg.model_kwargs = {"model": model_id}
+    return config
 
 
 def load_descriptors(config):
@@ -533,6 +595,7 @@ if __name__ == "__main__":
 
     # Load configuration and seed prompts
     config = ConfigurationLoader.load(args.config_file)
+    config = apply_api_override(config)
 
     # Merge configuration with command-line arguments
     merged_args = merge_config_with_args(config, args)
@@ -544,7 +607,13 @@ if __name__ == "__main__":
 
     # Initialize language models and scoring functions
     llms = initialize_language_models(config)
-    fitness_fn = LlamaGuard(config.fitness_llm.model_kwargs)
+    # apply_api_override() sets fitness_llm.type_="openai" -- OpenAIGuard (built on
+    # LLMviaOpenAI, same api_key/base_url/model config shape) is the existing
+    # drop-in replacement for LlamaGuard's local-vLLM judge in that case.
+    if config.fitness_llm.type_ == "openai":
+        fitness_fn = OpenAIGuard(config.fitness_llm)
+    else:
+        fitness_fn = LlamaGuard(config.fitness_llm.model_kwargs)
     similarity_fn = BleuScoreNLTK()
 
     # Show configuration
