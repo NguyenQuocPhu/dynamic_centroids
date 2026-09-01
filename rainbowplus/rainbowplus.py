@@ -112,6 +112,17 @@ def parse_arguments():
     parser.add_argument(
         "--shuffle", action="store_true", help="Shuffle seed prompts"
     )
+    parser.add_argument(
+        "--target_query_budget",
+        type=int,
+        default=0,
+        help=(
+            "Stop once cumulative target-model queries (summed from "
+            "target_call_history, the same count saved as total_queries in "
+            "the logs) reach this many. 0 (default) disables the budget -- "
+            "the loop always runs the full --max_iters as before."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -134,7 +145,11 @@ def merge_config_with_args(config, args):
     merged_args.shuffle = config.shuffle
     merged_args.dataset = config.sample_prompts or "./data/do-not-answer.json"
     merged_args.config_file = args.config_file
-    
+    # No config-file equivalent -- target_query_budget is CLI-only (default 0
+    # / disabled), so just carry it straight through instead of an
+    # if-args.x-is-not-None override like the fields above.
+    merged_args.target_query_budget = args.target_query_budget
+
     # Override with command-line arguments if provided
     if args.num_samples is not None:
         merged_args.num_samples = args.num_samples
@@ -598,6 +613,28 @@ def run_rainbowplus(
                 target_model_name=target_model, attack_model_name=mutator_model, eval_model_name=eval_model_name,
                 run_metadata=run_metadata,
             )
+
+        # Target-model query budget (--target_query_budget, default 0 =
+        # disabled -- unset behaves exactly as before). Cumulative count is
+        # read from target_call_history, the same call-history list the
+        # count_calls() wrappers above append to and that
+        # save_iteration_log/save_comprehensive_log already sum into
+        # total_queries in the logs -- so this stops on the identical number
+        # a human reading the saved logs would see. Checked here, after this
+        # iteration's saves above, so an early stop never discards logging
+        # for the iteration that tripped it; the "Save final logs" block
+        # below still runs on break (it reads `i`, which Python leaves bound
+        # to this iteration's value after the loop exits).
+        if args.target_query_budget > 0:
+            cumulative_target_queries = sum(
+                call.get("query_count", 0) for call in target_call_history
+            )
+            if cumulative_target_queries >= args.target_query_budget:
+                logger.warning(
+                    f"Target query budget reached ({cumulative_target_queries} >= "
+                    f"{args.target_query_budget}) at iteration {i} -- stopping early."
+                )
+                break
 
     # Save final logs
     timestamp = time.strftime(r"%Y%m%d-%H%M%S")
