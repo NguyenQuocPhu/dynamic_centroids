@@ -23,8 +23,31 @@ class LLMviaOpenAI(BaseLLM):
     def get_name(self):
         return self.model_kwargs["model"]
 
+    def _with_thinking_disabled(self, sampling_params: dict) -> dict:
+        """Default enable_thinking=false, matching what algo/beam-search and
+        algo/mcts already do in OpenAICompatModel._clean_sampling_kwargs().
+
+        Without it this Qwen3.5 "thinking" endpoint spends the whole max_tokens
+        budget on invisible reasoning and returns content=None -- with the
+        mutator's max_tokens=128 that happened on EVERY call, so every mutation
+        came back as "" and the baseline produced an archive of empty prompts
+        (reproduced live). The flag has to travel inside extra_body:
+        chat_template_kwargs is not a real Chat Completions parameter, so the
+        OpenAI SDK rejects it as a bare top-level kwarg. Callers can still
+        override by passing their own extra_body["chat_template_kwargs"].
+        """
+        params = dict(sampling_params or {})
+        extra_body = dict(params.get("extra_body") or {})
+        extra_body["chat_template_kwargs"] = {
+            "enable_thinking": False,
+            **extra_body.get("chat_template_kwargs", {}),
+        }
+        params["extra_body"] = extra_body
+        return params
+
     def generate(self, query: str, sampling_params: dict, max_retries: int = 5, backoff: float = 2.0):
         last_exception = None
+        params = self._with_thinking_disabled(sampling_params)
         for attempt in range(max_retries):
             try:
                 response = self.client.chat.completions.create(
@@ -32,7 +55,7 @@ class LLMviaOpenAI(BaseLLM):
                     messages=[
                         {"role": "user", "content": query},
                     ],
-                    **sampling_params
+                    **params
                 )
                 # Some "thinking" models (e.g. Qwen3.5 via this proxy) can spend the
                 # entire max_tokens budget on invisible reasoning and return

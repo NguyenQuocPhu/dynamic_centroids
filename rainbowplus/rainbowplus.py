@@ -157,6 +157,10 @@ def merge_config_with_args(config, args):
     # / disabled), so just carry it straight through instead of an
     # if-args.x-is-not-None override like the fields above.
     merged_args.target_query_budget = args.target_query_budget
+    # --seed is CLI-only too (no config-file equivalent); carry it through so
+    # run_rainbowplus() can reseed with it. Without this the merged Args object
+    # has no .seed and run_rainbowplus() raises AttributeError.
+    merged_args.seed = args.seed
 
     # Override with command-line arguments if provided
     if args.num_samples is not None:
@@ -678,9 +682,16 @@ if __name__ == "__main__":
     # Merge configuration with command-line arguments
     merged_args = merge_config_with_args(config, args)
 
-    # Update configuration based on merged arguments
-    # Only override dataset if not specified in config file
-    if not config.sample_prompts:
+    # Update configuration based on merged arguments.
+    # An explicit --dataset wins over the config file's sample_prompts: seed
+    # loading and the log path both read config.sample_prompts (see
+    # run_rainbowplus), so without this an explicit --dataset was silently
+    # ignored whenever the YAML set sample_prompts -- every run would use the
+    # config's dataset. algo/beam-search and algo/mcts already honour --dataset,
+    # so this also makes the three arms consistent for per-dataset comparisons.
+    if args.dataset is not None:
+        config.sample_prompts = args.dataset
+    elif not config.sample_prompts:
         config.sample_prompts = merged_args.dataset
 
     # Initialize language models and scoring functions
