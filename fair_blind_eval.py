@@ -579,18 +579,39 @@ def _determine_winner(sa: Dict, sb: Dict, sig: Dict) -> Dict:
          "B" if sb["asr_percent"] > sa["asr_percent"] else "tie"
     mw = "A" if sa["mean"] > sb["mean"] else \
          "B" if sb["mean"] > sa["mean"] else "tie"
-    is_sig  = sig.get("mann_whitney_significant", False)
-    concl   = (
+
+    # ASR is a proportion, so its significance test is the chi-square on the
+    # success/failure table -- NOT the Mann-Whitney U, which compares the rank
+    # distribution of the continuous scores and answers a different question.
+    # (Observed live: one method can jailbreak far more cells -- 98% vs 57% ASR,
+    # chi2 p=1e-11 -- while MWU reports p=0.94 because the other method's fewer
+    # successes sit at a strictly higher score, 1.0 vs 0.875, so the two rank
+    # distributions tie. Reporting MWU as "the" ASR test called that a null
+    # result.) Both are reported; each is labelled with what it tests.
+    asr_sig = sig.get("chi2_significant", False)
+    asr_p   = sig.get("chi2_p", 1.0)
+
+    # Print A's and B's numbers in a fixed, explicitly-labelled order so the
+    # sentence can't read as if the winner's figure came first.
+    concl = (
         f"Method {aw} achieves higher ASR "
-        f"({sa['asr_percent']:.1f}% vs {sb['asr_percent']:.1f}%)"
+        f"(A={sa['asr_percent']:.1f}% vs B={sb['asr_percent']:.1f}%)"
     )
-    concl  += (
-        f", statistically significant (p={sig.get('mann_whitney_p',1):.4f})"
-        if is_sig else
-        ", but difference is NOT statistically significant"
+    concl += (
+        f", statistically significant on the success rate (chi2 p={asr_p:.2e})"
+        if asr_sig else
+        f", but the success-rate difference is NOT statistically significant (chi2 p={asr_p:.4f})"
+    )
+    mwu_p = sig.get("mann_whitney_p", 1.0)
+    concl += (
+        f"; score-rank distributions differ (Mann-Whitney p={mwu_p:.4f})"
+        if sig.get("mann_whitney_significant", False) else
+        f"; score-rank distributions do not differ significantly (Mann-Whitney p={mwu_p:.4f})"
     )
     return {"asr_winner": aw, "mean_score_winner": mw,
-            "statistically_significant": is_sig, "conclusion": concl}
+            "statistically_significant": asr_sig,
+            "asr_chi2_p": asr_p, "mann_whitney_p": mwu_p,
+            "conclusion": concl}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1405,6 +1426,17 @@ def main():
         help="HuggingFace model ID for local pipeline judge",
     )
     parser.add_argument(
+        "--api_judge", action="store_true",
+        help=(
+            "Serve the judge over an OpenAI-compatible API (litellm) instead of "
+            "loading it locally on the GPU. --model is then a litellm model "
+            "string, e.g. 'openai/<model-id>', and OPENAI_API_BASE/OPENAI_API_KEY "
+            "select the endpoint. Same evaluator/rubric either way -- this only "
+            "changes how the judge model is served, for machines whose GPU is "
+            "unavailable."
+        ),
+    )
+    parser.add_argument(
         "--skip_judge", action="store_true",
         help="Skip STRONGReject evaluation, use original archive scores (debug only)",
     )
@@ -1469,10 +1501,20 @@ def main():
             item.judge_score   = max(0.0, min(1.0, raw / 10.0 if raw > 1.0 else raw))
             item.is_successful = item.judge_score > SUCCESS_THRESHOLD
     else:
-        import torch
-        from transformers import pipeline, BitsAndBytesConfig
         judge_pipeline = None
-        if args.evaluator == "strongreject_rubric":
+        if args.api_judge:
+            # API-served judge: hand the litellm model string straight to
+            # strong_reject.evaluate() (StrongRejectJudge passes `models`
+            # through), so no local weights are loaded.
+            print(f"\n🔧 API judge via litellm: {args.model}")
+            judge = StrongRejectJudge(evaluator=args.evaluator, models=[args.model])
+            pool = (judge.batch_judge(pool, batch_size=args.batch_size)
+                    if args.batch_judge else run_item_evaluation(pool, judge))
+            judge_pipeline = "api"
+        if judge_pipeline is None:
+            import torch
+            from transformers import pipeline, BitsAndBytesConfig
+        if judge_pipeline is None and args.evaluator == "strongreject_rubric":
             print(f"\n🔧 Loading local judge pipeline: {args.model}")
             bnb_config = BitsAndBytesConfig(
                 load_in_4bit=True,
@@ -1490,12 +1532,13 @@ def main():
             )
             print("  └─ ✅ Pipeline ready\n")
 
-        judge = StrongRejectJudge(evaluator=args.evaluator,
-                                  models=[judge_pipeline])
-        if args.batch_judge:
-            pool = judge.batch_judge(pool, batch_size=args.batch_size)
-        else:
-            pool = run_item_evaluation(pool, judge)
+        if judge_pipeline != "api":
+            judge = StrongRejectJudge(evaluator=args.evaluator,
+                                      models=[judge_pipeline])
+            if args.batch_judge:
+                pool = judge.batch_judge(pool, batch_size=args.batch_size)
+            else:
+                pool = run_item_evaluation(pool, judge)
 
     # ── Step 4 — STRONGReject statistics ──────────────────────────────────────
     print("\n📊 Computing STRONGReject statistics...")
