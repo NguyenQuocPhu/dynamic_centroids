@@ -6,6 +6,7 @@
 
 from openai import OpenAI
 from rainbowplus.llms.base import BaseLLM
+from rainbowplus.rate_limit import throttle
 from pydantic import BaseModel
 import time
 import httpx
@@ -18,7 +19,10 @@ class LLMviaOpenAI(BaseLLM):
     def __init__(self, config):
         self.config = config
         self.model_kwargs = config.model_kwargs
-        self.client = OpenAI(api_key=config.api_key, base_url=config.base_url)
+        # max_retries=0: the SDK's built-in retry bypasses our global rate
+        # gate (throttle()), so a burst of 5xx/429 retries would exceed
+        # LLM_MAX_RPS. Retries are handled by our own throttled loop below.
+        self.client = OpenAI(api_key=config.api_key, base_url=config.base_url, max_retries=0, timeout=90.0)
 
     def get_name(self):
         return self.model_kwargs["model"]
@@ -50,6 +54,7 @@ class LLMviaOpenAI(BaseLLM):
         params = self._with_thinking_disabled(sampling_params)
         for attempt in range(max_retries):
             try:
+                throttle()   # global rate cap (LLM_MAX_RPS), re-gated each retry
                 response = self.client.chat.completions.create(
                     model=self.model_kwargs["model"],
                     messages=[
@@ -66,7 +71,8 @@ class LLMviaOpenAI(BaseLLM):
                 # far from this one -- return "" instead, same as "model said
                 # nothing", which every caller already handles.
                 return response.choices[0].message.content or ""
-            except (openai.APIConnectionError, openai.RateLimitError, httpx.HTTPError, httpx.RemoteProtocolError) as e:
+            except (openai.APIConnectionError, openai.RateLimitError, openai.APITimeoutError,
+                    openai.InternalServerError, httpx.HTTPError, httpx.RemoteProtocolError) as e:
                 last_exception = e
                 print(f"OpenAI API error on attempt {attempt + 1}/{max_retries}: {e}")
                 if attempt < max_retries - 1:
@@ -74,10 +80,14 @@ class LLMviaOpenAI(BaseLLM):
                     print(f"Retrying in {sleep_time} seconds...")
                     time.sleep(sleep_time)  # Exponential backoff
                 else:
-                    print(f"All {max_retries} attempts failed. Raising final exception.")
-                    raise e
-        # If all retries fail, raise the last exception
-        raise last_exception
+                    # Graceful degradation instead of killing a multi-hour run:
+                    # after exhausting retries, return "" (same contract as "model
+                    # said nothing"). Downstream handles empty -- empty mutation is
+                    # filtered / falls back, empty target response scores as refusal,
+                    # empty judge output defaults. One lost item beats a dead run.
+                    print(f"All {max_retries} attempts failed ({e}); returning '' to keep the run alive.")
+                    return ""
+        return ""
 
     def batch_generate(self, queries: List[str], sampling_params: dict):
         responses = [self.generate(query, sampling_params) for query in queries]

@@ -1,0 +1,544 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>T&#7845;n C&#244;ng Jailbreak C&#249;ng Ng&#226;n S&#225;ch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --ground:   #f4f6f7;
+    --surface:  #ffffff;
+    --sunken:   #eceff1;
+    --ink:      #14181c;
+    --muted:    #5c6670;
+    --faint:    #838d96;
+    --rule:     #d5dce0;
+    --rule-soft:#e5eaed;
+    --accent:   #14575e;
+    --m-base:   #8892a0;
+    --m-beam:   #b26b16;
+    --m-mcts:   #14575e;
+    --warn:     #9a3d2f;
+    --warn-bg:  #f6ece9;
+
+    --f-display: "Spectral", Georgia, "Times New Roman", serif;
+    --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #101418;
+      --surface:  #171c21;
+      --sunken:   #1c2228;
+      --ink:      #e6ebee;
+      --muted:    #9aa5ae;
+      --faint:    #78848d;
+      --rule:     #2b333a;
+      --rule-soft:#232a30;
+      --accent:   #5fb3ac;
+      --m-base:   #7d8894;
+      --m-beam:   #d99640;
+      --m-mcts:   #5fb3ac;
+      --warn:     #d78776;
+      --warn-bg:  #2a1e1b;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:   #101418;
+    --surface:  #171c21;
+    --sunken:   #1c2228;
+    --ink:      #e6ebee;
+    --muted:    #9aa5ae;
+    --faint:    #78848d;
+    --rule:     #2b333a;
+    --rule-soft:#232a30;
+    --accent:   #5fb3ac;
+    --m-base:   #7d8894;
+    --m-beam:   #d99640;
+    --m-mcts:   #5fb3ac;
+    --warn:     #d78776;
+    --warn-bg:  #2a1e1b;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 980px; margin: 0 auto; padding: 56px 28px 96px; }
+  .measure { max-width: 68ch; }
+
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 22px; }
+  .eyebrow {
+    font-family: var(--f-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--accent);
+  }
+  h1 {
+    font-family: var(--f-display); font-weight: 600;
+    font-size: clamp(32px, 5vw, 50px); line-height: 1.1;
+    margin: 12px 0 14px; text-wrap: balance; letter-spacing: -.015em;
+  }
+  .standfirst {
+    font-family: var(--f-display); font-size: 19px; line-height: 1.6;
+    color: var(--muted); max-width: 62ch; margin: 0;
+  }
+  .facts {
+    display: flex; flex-wrap: wrap; gap: 0 32px;
+    margin-top: 26px; font-family: var(--f-mono); font-size: 12px;
+    color: var(--muted);
+  }
+  .facts b { color: var(--ink); font-weight: 500; }
+
+  section { margin-top: 56px; }
+  h2 {
+    font-family: var(--f-display); font-weight: 600; font-size: 27px;
+    letter-spacing: -.01em; margin: 0 0 6px; text-wrap: balance;
+  }
+  .sect-note { color: var(--muted); font-size: 15px; margin: 0 0 22px; max-width: 68ch; }
+  p { margin: 0 0 14px; }
+
+  .verdict {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    border: 1px solid var(--rule); background: var(--surface);
+    margin-top: 30px;
+  }
+  .v-cell { padding: 20px 22px; border-right: 1px solid var(--rule-soft); }
+  .v-cell:last-child { border-right: 0; }
+  .v-rank {
+    font-family: var(--f-mono); font-size: 11px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--faint);
+  }
+  .v-name {
+    font-family: var(--f-display); font-size: 23px; font-weight: 600;
+    margin: 4px 0 10px; display: flex; align-items: center; gap: 9px;
+  }
+  .swatch { width: 11px; height: 11px; border-radius: 2px; flex: none; display: inline-block; }
+  .v-num {
+    font-family: var(--f-body); font-size: 32px; font-weight: 600;
+    font-variant-numeric: tabular-nums; line-height: 1; letter-spacing: -.01em;
+  }
+  .v-sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+  .consensus {
+    margin-top: 14px; padding: 14px 18px; background: var(--sunken);
+    border-left: 3px solid var(--accent); font-size: 15px;
+  }
+
+  .tw { overflow-x: auto; margin: 18px 0 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 560px; }
+  caption {
+    text-align: left; font-family: var(--f-mono); font-size: 11px;
+    letter-spacing: .09em; text-transform: uppercase; color: var(--faint);
+    padding-bottom: 9px;
+  }
+  th, td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--rule-soft); }
+  th:first-child, td:first-child { text-align: left; }
+  thead th {
+    font-family: var(--f-mono); font-size: 11px; font-weight: 600;
+    letter-spacing: .05em; text-transform: uppercase; color: var(--muted);
+    border-bottom: 1px solid var(--rule); white-space: nowrap;
+  }
+  tbody td {
+    font-family: var(--f-body); font-variant-numeric: tabular-nums;
+    font-weight: 500; letter-spacing: .01em;
+  }
+  tbody td:first-child { font-family: var(--f-body); }
+  tbody tr:last-child td { border-bottom: 0; }
+  .tot td { border-top: 1px solid var(--rule); font-weight: 600; }
+  .win { color: var(--m-mcts); font-weight: 600; }
+  .lo { color: var(--faint); }
+
+  figure { margin: 22px 0 0; }
+  .chart-wrap { overflow-x: auto; }
+  svg { display: block; }
+  .bar-base { fill: var(--m-base); }
+  .bar-beam { fill: var(--m-beam); }
+  .bar-mcts { fill: var(--m-mcts); }
+  .ax { stroke: var(--rule); stroke-width: 1; }
+  .grid { stroke: var(--rule-soft); stroke-width: 1; }
+  .tick { fill: var(--faint); font-family: var(--f-mono); font-size: 11px; }
+  .xlab { fill: var(--muted); font-family: var(--f-mono); font-size: 11px; }
+  figcaption { font-size: 13px; color: var(--muted); margin-top: 12px; max-width: 68ch; }
+
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; margin: 4px 0 14px;
+            font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+  .legend span { display: flex; align-items: center; gap: 7px; }
+
+  .caveat {
+    background: var(--warn-bg); border-left: 3px solid var(--warn);
+    padding: 16px 20px; margin: 16px 0;
+  }
+  .caveat h4 {
+    margin: 0 0 6px; font-family: var(--f-body); font-size: 15px; font-weight: 600;
+    color: var(--warn);
+  }
+  .caveat p { margin: 0; font-size: 14.5px; }
+
+  .fixes { display: grid; gap: 0; border-top: 1px solid var(--rule); margin-top: 18px; }
+  .fix { display: grid; grid-template-columns: 180px 1fr; gap: 22px;
+         padding: 15px 0; border-bottom: 1px solid var(--rule-soft); }
+  .fix-tag {
+    font-family: var(--f-mono); font-size: 11.5px; color: var(--accent);
+    letter-spacing: .03em; padding-top: 3px;
+  }
+  .fix-body { font-size: 14.5px; }
+
+  .status { display: grid; gap: 0; margin-top: 16px; }
+  .st-row {
+    display: grid; grid-template-columns: 220px 92px 1fr; gap: 16px; align-items: baseline;
+    padding: 11px 0; border-bottom: 1px solid var(--rule-soft); font-size: 14.5px;
+  }
+  .st-row .n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+  .pill {
+    font-family: var(--f-mono); font-size: 11px; letter-spacing: .04em;
+    padding: 2px 8px; border-radius: 2px; white-space: nowrap;
+  }
+  .pill-done { background: var(--m-mcts); color: var(--surface); }
+  .pill-stop { background: var(--sunken); color: var(--muted); border: 1px solid var(--rule); }
+
+  code {
+    font-family: var(--f-mono); font-size: .9em; background: var(--sunken);
+    padding: 1px 5px; border-radius: 2px;
+  }
+  footer {
+    margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule);
+    font-family: var(--f-mono); font-size: 12px; color: var(--faint); line-height: 1.8;
+  }
+  @media (max-width: 720px) {
+    .verdict { grid-template-columns: 1fr; }
+    .v-cell { border-right: 0; border-bottom: 1px solid var(--rule-soft); }
+    .fix { grid-template-columns: 1fr; gap: 4px; }
+    .st-row { grid-template-columns: 1fr auto; }
+    .st-row .n { grid-column: 1 / -1; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">An to&#224;n &#273;&#7889;i kh&#225;ng &#183; so s&#225;nh thu&#7853;t to&#225;n t&#236;m ki&#7871;m</div>
+    <h1>T&#7845;n C&#244;ng Jailbreak C&#249;ng Ng&#226;n S&#225;ch</h1>
+    <p class="standfirst">Ba thu&#7853;t to&#225;n t&#236;m ki&#7871;m &#273;&#432;&#7907;c ch&#7841;y v&#7899;i c&#249;ng m&#7897;t ng&#226;n s&#225;ch truy v&#7845;n m&#244; h&#236;nh &#273;&#237;ch tr&#234;n
+      b&#7843;y b&#7897; d&#7919; li&#7879;u, r&#7891;i ch&#7845;m m&#249; b&#7903;i n&#259;m gi&#225;m kh&#7843;o &#273;&#7897;c l&#7853;p. C&#7843; n&#259;m &#273;&#7873;u cho c&#249;ng m&#7897;t th&#7913; h&#7841;ng.</p>
+    <div class="facts">
+      <div><b>3</b> ph&#432;&#417;ng ph&#225;p</div>
+      <div><b>7</b> b&#7897; d&#7919; li&#7879;u</div>
+      <div><b>n=5</b> l&#7847;n ch&#7841;y m&#7895;i &#244;</div>
+      <div><b>1.500</b> truy v&#7845;n &#273;&#237;ch</div>
+      <div><b>525</b> l&#7847;n ch&#7845;m m&#249;</div>
+      <div>seed <b>15</b></div>
+    </div>
+  </header>
+
+  <section>
+    <h2>K&#7871;t lu&#7853;n</h2>
+    <p class="sect-note">T&#7881; l&#7879; t&#7845;n c&#244;ng th&#224;nh c&#244;ng (ASR), trung b&#236;nh tr&#234;n b&#7843;y b&#7897; d&#7919; li&#7879;u, theo gi&#225;m kh&#7843;o
+      ch&#237;nh th&#7913;c (StrongREJECT rubric). C&#7843; ba ph&#432;&#417;ng ph&#225;p d&#249;ng &#273;&#250;ng c&#249;ng m&#7897;t ng&#226;n s&#225;ch truy v&#7845;n.</p>
+
+    <div class="verdict">
+      <div class="v-cell">
+        <div class="v-rank">H&#7841;ng ba</div>
+        <div class="v-name"><span class="swatch" style="background:var(--m-base)"></span>baseline</div>
+        <div class="v-num">10,3<span style="font-size:16px;color:var(--muted)">%</span></div>
+        <div class="v-sub">RainbowPlus nguy&#234;n b&#7843;n</div>
+      </div>
+      <div class="v-cell">
+        <div class="v-rank">H&#7841;ng nh&#236;</div>
+        <div class="v-name"><span class="swatch" style="background:var(--m-beam)"></span>beam</div>
+        <div class="v-num">36,5<span style="font-size:16px;color:var(--muted)">%</span></div>
+        <div class="v-sub">GAP beam search, &#273;&#7897; s&#226;u 2</div>
+      </div>
+      <div class="v-cell">
+        <div class="v-rank">H&#7841;ng nh&#7845;t</div>
+        <div class="v-name"><span class="swatch" style="background:var(--m-mcts)"></span>mcts</div>
+        <div class="v-num">57,9<span style="font-size:16px;color:var(--muted)">%</span></div>
+        <div class="v-sub">UCT, c=0,1, tree_width 3</div>
+      </div>
+    </div>
+
+    <div class="consensus">
+      <b>5 tr&#234;n 5 gi&#225;m kh&#7843;o &#273;&#7873;u x&#7871;p mcts &gt; beam &gt; baseline.</b> Trong &#273;&#243; c&#243;
+      <code>string_matching</code> &#8212; ho&#224;n to&#224;n kh&#244;ng d&#249;ng m&#244; h&#236;nh ng&#244;n ng&#7919;. N&#234;n th&#7913; h&#7841;ng n&#224;y kh&#244;ng th&#7875; l&#224;
+      h&#7879; qu&#7843; c&#7911;a vi&#7879;c gi&#225;m kh&#7843;o d&#249;ng chung m&#244; h&#236;nh v&#7899;i h&#7879; th&#7889;ng &#273;ang b&#7883; t&#7845;n c&#244;ng.
+    </div>
+  </section>
+
+  <section>
+    <h2>&#272;&#227; ch&#7841;y nh&#7919;ng g&#236;</h2>
+    <p class="sect-note">Hai giai &#273;o&#7841;n: sinh kho t&#7845;n c&#244;ng d&#432;&#7899;i ng&#226;n s&#225;ch c&#226;n b&#7857;ng, r&#7891;i ch&#7845;m l&#7841;i to&#224;n b&#7897;
+      b&#7857;ng c&#225;c gi&#225;m kh&#7843;o m&#224; kh&#244;ng thu&#7853;t to&#225;n n&#224;o t&#7915;ng nh&#236;n th&#7845;y trong l&#250;c ch&#7841;y.</p>
+
+    <div class="measure">
+      <p>M&#7895;i l&#7847;n ch&#7841;y l&#7845;p &#273;&#7847;y m&#7897;t kho MAP-Elites g&#7891;m 100 &#244; (10 nh&#243;m r&#7911;i ro &#215; 10 ki&#7875;u t&#7845;n c&#244;ng) v&#224; d&#7915;ng ngay
+        khi ti&#234;u h&#7871;t 1.500 truy v&#7845;n t&#7899;i <em>m&#244; h&#236;nh &#273;&#237;ch</em>. Vi&#7879;c l&#7863;p l&#7841;i &#273;&#432;&#7907;c th&#7921;c hi&#7879;n b&#7857;ng c&#225;ch &#273;&#7893;i b&#7897;
+        d&#7919; li&#7879;u ch&#7913; kh&#244;ng &#273;&#7893;i seed ng&#7851;u nhi&#234;n, n&#234;n c&#7843; 105 l&#7847;n ch&#7841;y &#273;&#7873;u d&#249;ng chung seed 15.</p>
+      <p>Kh&#244;ng th&#7875; d&#249;ng &#273;i&#7875;m n&#7897;i b&#7897; &#273;&#7875; so s&#225;nh gi&#7919;a c&#225;c ph&#432;&#417;ng ph&#225;p: beam v&#224; mcts ghi &#273;i&#7875;m 1&#8211;10 c&#7911;a gi&#225;m kh&#7843;o
+        GAP, c&#242;n baseline ghi c&#7901; an to&#224;n nh&#7883; ph&#226;n 0/1. V&#236; v&#7853;y m&#7885;i kho &#273;&#7873;u &#273;&#432;&#7907;c ch&#7845;m l&#7841;i t&#7915; &#273;&#7847;u &#8212; l&#7845;y m&#7909;c c&#243;
+        &#273;i&#7875;m cao nh&#7845;t trong m&#7895;i &#244; c&#7911;a t&#7915;ng ph&#432;&#417;ng ph&#225;p, tr&#7897;n chung, x&#225;o tr&#7897;n v&#224; <em>xo&#225; nh&#227;n ngu&#7891;n</em>
+        tr&#432;&#7899;c khi &#273;&#432;a cho gi&#225;m kh&#7843;o.</p>
+    </div>
+
+    <div class="tw">
+      <table>
+        <caption>K&#7871; to&#225;n truy v&#7845;n &#8212; trung b&#236;nh m&#7895;i l&#7847;n ch&#7841;y, b&#225;o &#273;&#7911; c&#7843; ba lo&#7841;i</caption>
+        <thead>
+          <tr><th>Ph&#432;&#417;ng ph&#225;p</th><th>S&#7889; run</th><th>Truy v&#7845;n &#273;&#237;ch</th><th>G&#7885;i mutator</th><th>G&#7885;i judge</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>baseline</td><td>35</td><td>1.500</td><td>1.500</td><td>1.500</td></tr>
+          <tr><td>beam</td><td>38</td><td>1.501</td><td>10.160</td><td>3.043</td></tr>
+          <tr><td>mcts</td><td>38</td><td>1.500</td><td>10.265</td><td>3.114</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="sect-note" style="margin-top:4px">Truy v&#7845;n t&#7899;i m&#244; h&#236;nh &#273;&#237;ch l&#224; &#273;&#417;n v&#7883; chi ph&#237; trong m&#244; h&#236;nh &#273;e
+      do&#7841; h&#7897;p &#273;en ti&#234;u chu&#7849;n, v&#224; ch&#250;ng kh&#7899;p nhau t&#7899;i t&#7915;ng truy v&#7845;n. G&#7885;i mutator v&#224; judge l&#224; t&#224;i nguy&#234;n ri&#234;ng
+      c&#7911;a k&#7867; t&#7845;n c&#244;ng; beam v&#224; mcts ti&#234;u nhi&#7873;u h&#417;n kho&#7843;ng 6,8 l&#7847;n &#8212; con s&#7889; n&#224;y &#273;&#432;&#7907;c b&#225;o c&#225;o minh b&#7841;ch ch&#7913;
+      kh&#244;ng c&#226;n b&#7857;ng.</p>
+  </section>
+
+  <section>
+    <h2>N&#259;m gi&#225;m kh&#7843;o, m&#7897;t th&#7913; h&#7841;ng</h2>
+    <p class="sect-note">M&#7895;i gi&#225;m kh&#7843;o ch&#7845;m to&#224;n b&#7897; 105 c&#7863;p &#8212; t&#7893;ng c&#7897;ng 525 l&#7847;n ch&#7845;m m&#249;. C&#225;c c&#7897;t d&#249;ng chung
+      m&#7897;t thang; th&#7913; h&#7841;ng gi&#7919; nguy&#234;n &#7903; m&#7885;i nh&#243;m.</p>
+
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--m-base)"></i>baseline</span>
+      <span><i class="swatch" style="background:var(--m-beam)"></i>beam</span>
+      <span><i class="swatch" style="background:var(--m-mcts)"></i>mcts</span>
+    </div>
+
+    <figure>
+      <div class="chart-wrap">
+        <svg viewBox="0 0 800 372" width="100%" style="max-width:800px" role="img"
+             aria-label="ASR theo t&#7915;ng gi&#225;m kh&#7843;o: mcts cao nh&#7845;t &#7903; c&#7843; n&#259;m, k&#7871; &#273;&#7871;n beam, th&#7845;p nh&#7845;t baseline.">
+          <line class="ax" x1="60" y1="300" x2="756" y2="300"></line>
+          <line class="grid" x1="60" y1="262.9" x2="756" y2="262.9"></line>
+          <line class="grid" x1="60" y1="225.7" x2="756" y2="225.7"></line>
+          <line class="grid" x1="60" y1="188.6" x2="756" y2="188.6"></line>
+          <line class="grid" x1="60" y1="151.4" x2="756" y2="151.4"></line>
+          <line class="grid" x1="60" y1="114.3" x2="756" y2="114.3"></line>
+          <line class="grid" x1="60" y1="77.1"  x2="756" y2="77.1"></line>
+          <line class="grid" x1="60" y1="40"    x2="756" y2="40"></line>
+          <text class="tick" x="50" y="304" text-anchor="end">0</text>
+          <text class="tick" x="50" y="266.9" text-anchor="end">10</text>
+          <text class="tick" x="50" y="229.7" text-anchor="end">20</text>
+          <text class="tick" x="50" y="192.6" text-anchor="end">30</text>
+          <text class="tick" x="50" y="155.4" text-anchor="end">40</text>
+          <text class="tick" x="50" y="118.3" text-anchor="end">50</text>
+          <text class="tick" x="50" y="81.1"  text-anchor="end">60</text>
+          <text class="tick" x="50" y="44"    text-anchor="end">70</text>
+          <text class="tick" x="60" y="22">ASR %</text>
+
+          <rect class="bar-base" x="80"  y="261.7" width="28" height="38.3"></rect>
+          <rect class="bar-beam" x="114" y="164.4" width="28" height="135.6"></rect>
+          <rect class="bar-mcts" x="148" y="85.0"  width="28" height="215.0"></rect>
+          <text class="xlab" x="128" y="320" text-anchor="middle">strongreject</text>
+          <text class="xlab" x="128" y="335" text-anchor="middle">_rubric</text>
+
+          <rect class="bar-base" x="216" y="296.7" width="28" height="3.3"></rect>
+          <rect class="bar-beam" x="250" y="231.3" width="28" height="68.7"></rect>
+          <rect class="bar-mcts" x="284" y="200.1" width="28" height="99.9"></rect>
+          <text class="xlab" x="264" y="320" text-anchor="middle">pair</text>
+
+          <rect class="bar-base" x="352" y="288.9" width="28" height="11.1"></rect>
+          <rect class="bar-beam" x="386" y="189.3" width="28" height="110.7"></rect>
+          <rect class="bar-mcts" x="420" y="120.6" width="28" height="179.4"></rect>
+          <text class="xlab" x="400" y="320" text-anchor="middle">gpt4_judge</text>
+
+          <rect class="bar-base" x="488" y="296.3" width="28" height="3.7"></rect>
+          <rect class="bar-beam" x="522" y="189.0" width="28" height="111.0"></rect>
+          <rect class="bar-mcts" x="556" y="120.2" width="28" height="179.8"></rect>
+          <text class="xlab" x="536" y="320" text-anchor="middle">jailbroken</text>
+          <text class="xlab" x="536" y="335" text-anchor="middle">_binary</text>
+
+          <rect class="bar-base" x="624" y="271.4" width="28" height="28.6"></rect>
+          <rect class="bar-beam" x="658" y="157.4" width="28" height="142.6"></rect>
+          <rect class="bar-mcts" x="692" y="73.4"  width="28" height="226.6"></rect>
+          <text class="xlab" x="672" y="320" text-anchor="middle">string</text>
+          <text class="xlab" x="672" y="335" text-anchor="middle">_matching</text>
+
+          <text class="xlab" x="408" y="362" text-anchor="middle" style="fill:var(--faint)">gi&#225;m kh&#7843;o (string_matching kh&#244;ng d&#249;ng LLM)</text>
+        </svg>
+      </div>
+      <figcaption>Gi&#225; tr&#7883; tuy&#7879;t &#273;&#7889;i ch&#234;nh nhau t&#7899;i 10 l&#7847;n gi&#7919;a c&#225;c gi&#225;m kh&#7843;o &#8212; baseline &#273;&#7885;c 0,9% d&#432;&#7899;i
+        <code>pair</code> nh&#432;ng 10,3% d&#432;&#7899;i rubric. Th&#7913; <em>h&#7841;ng</em> m&#7899;i l&#224; th&#7913; l&#7863;p l&#7841;i &#273;&#432;&#7907;c.</figcaption>
+    </figure>
+
+    <div class="tw">
+      <table>
+        <caption>ASR % trung b&#236;nh tr&#234;n b&#7843;y b&#7897; d&#7919; li&#7879;u</caption>
+        <thead>
+          <tr><th>Gi&#225;m kh&#7843;o</th><th>Lo&#7841;i</th><th>baseline</th><th>beam</th><th>mcts</th><th>Th&#7913; h&#7841;ng</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>strongreject_rubric</td><td class="lo" style="text-align:right">LLM rubric</td><td>10,3</td><td>36,5</td><td class="win">57,9</td><td style="text-align:right">mcts &gt; beam &gt; base</td></tr>
+          <tr><td>pair</td><td class="lo" style="text-align:right">LLM 1&#8211;10</td><td>0,9</td><td>18,5</td><td class="win">26,9</td><td style="text-align:right">mcts &gt; beam &gt; base</td></tr>
+          <tr><td>gpt4_judge</td><td class="lo" style="text-align:right">LLM</td><td>3,0</td><td>29,8</td><td class="win">48,3</td><td style="text-align:right">mcts &gt; beam &gt; base</td></tr>
+          <tr><td>jailbroken_binary</td><td class="lo" style="text-align:right">LLM nh&#7883; ph&#226;n</td><td>1,0</td><td>29,9</td><td class="win">48,4</td><td style="text-align:right">mcts &gt; beam &gt; base</td></tr>
+          <tr><td>string_matching</td><td class="lo" style="text-align:right">kh&#244;ng LLM</td><td>7,7</td><td>38,4</td><td class="win">61,0</td><td style="text-align:right">mcts &gt; beam &gt; base</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Chi ti&#7871;t theo b&#7897; d&#7919; li&#7879;u</h2>
+    <p class="sect-note">Ch&#7881; t&#237;nh gi&#225;m kh&#7843;o ch&#237;nh. mcts d&#7851;n &#273;&#7847;u &#7903; c&#7843; b&#7843;y b&#7897;; kho&#7843;ng c&#225;ch so v&#7899;i beam r&#7845;t
+      r&#7897;ng &#7903; harmbench v&#224; harmfulQA, nh&#432;ng g&#7847;n nh&#432; b&#7857;ng kh&#244;ng &#7903; BeaverTails.</p>
+    <div class="tw">
+      <table>
+        <caption>ASR % theo strongreject_rubric &#183; trung b&#236;nh 5 l&#7847;n ch&#7841;y</caption>
+        <thead>
+          <tr><th>B&#7897; d&#7919; li&#7879;u</th><th>baseline</th><th>beam</th><th>mcts</th><th>mcts &#8722; beam</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>harmbench</td><td>10,7</td><td>32,4</td><td class="win">70,7</td><td>+38,3</td></tr>
+          <tr><td>harmfulQA</td><td>6,9</td><td>54,0</td><td class="win">82,4</td><td>+28,4</td></tr>
+          <tr><td>do-not-answer</td><td>12,2</td><td>33,1</td><td class="win">60,3</td><td>+27,2</td></tr>
+          <tr><td>AdversarialQA</td><td>7,3</td><td>31,0</td><td class="win">54,4</td><td>+23,4</td></tr>
+          <tr><td>DangerousQA</td><td>8,5</td><td>14,6</td><td class="win">32,4</td><td>+17,8</td></tr>
+          <tr><td>CategoricalHarmfulQA</td><td>15,8</td><td>41,1</td><td class="win">53,7</td><td>+12,6</td></tr>
+          <tr><td>BeaverTails</td><td>11,1</td><td>49,6</td><td class="win">51,4</td><td>+1,8</td></tr>
+          <tr class="tot"><td>Trung b&#236;nh</td><td>10,3</td><td>36,5</td><td class="win">57,9</td><td>+21,4</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>&#272;&#7889;i &#273;&#7847;u tr&#7921;c ti&#7871;p</h2>
+    <p class="sect-note">S&#7889; c&#7863;p m&#224; ph&#432;&#417;ng ph&#225;p b&#234;n ph&#7843;i &#273;&#7841;t &#273;i&#7875;m cao h&#417;n, tr&#234;n t&#7893;ng 35 (7 b&#7897; d&#7919; li&#7879;u &#215; 5 l&#7847;n
+      ch&#7841;y). Vi&#7879;c v&#432;&#7907;t baseline l&#7863;p l&#7841;i r&#7845;t v&#7919;ng; c&#242;n mcts v&#432;&#7907;t beam th&#236; kh&#244;ng.</p>
+    <div class="tw">
+      <table>
+        <caption>S&#7889; c&#7863;p th&#7855;ng / 35, theo t&#7915;ng gi&#225;m kh&#7843;o</caption>
+        <thead>
+          <tr><th>Gi&#225;m kh&#7843;o</th><th>beam &gt; baseline</th><th>mcts &gt; baseline</th><th>mcts &gt; beam</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>strongreject_rubric</td><td>29</td><td>33</td><td>23</td></tr>
+          <tr><td>pair</td><td>32</td><td>28</td><td class="lo">17</td></tr>
+          <tr><td>gpt4_judge</td><td>31</td><td>33</td><td>24</td></tr>
+          <tr><td>jailbroken_binary</td><td>32</td><td>33</td><td>23</td></tr>
+          <tr><td>string_matching</td><td>33</td><td>34</td><td>27</td></tr>
+          <tr class="tot"><td>T&#7881; l&#7879; g&#7897;p</td><td class="win">90%</td><td class="win">92%</td><td>65%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Nh&#7919;ng g&#236; d&#7919; li&#7879;u KH&#212;NG cho ph&#233;p kh&#7859;ng &#273;&#7883;nh</h2>
+    <p class="sect-note">Ba gi&#7899;i h&#7841;n n&#234;n t&#7921; n&#234;u trong b&#224;i b&#225;o, tr&#432;&#7899;c khi ng&#432;&#7901;i ph&#7843;n bi&#7879;n n&#234;u h&#7897;.</p>
+
+    <div class="caveat">
+      <h4>ASR tuy&#7879;t &#273;&#7889;i kh&#244;ng ph&#7843;i m&#7897;t &#273;&#7841;i l&#432;&#7907;ng &#273;o &#273;&#432;&#7907;c</h4>
+      <p>Baseline &#273;&#7885;c 0,9% d&#432;&#7899;i <code>pair</code> nh&#432;ng 10,3% d&#432;&#7899;i rubric &#8212; ch&#234;nh m&#7897;t b&#7853;c &#273;&#7897; l&#7899;n tr&#234;n c&#249;ng
+        m&#7897;t d&#7919; li&#7879;u. H&#227;y tr&#237;ch th&#7913; h&#7841;ng v&#224; t&#7881; l&#7879; th&#7855;ng; &#273;&#7915;ng tr&#237;ch m&#7897;t con s&#7889; ASR &#273;&#417;n l&#7867; nh&#432; th&#7875; n&#243; &#273;o &#273;&#432;&#7907;c
+        s&#7913;c m&#7841;nh c&#7911;a ph&#432;&#417;ng ph&#225;p t&#7845;n c&#244;ng.</p>
+    </div>
+
+    <div class="caveat">
+      <h4>mcts &gt; beam l&#224; th&#7853;t, nh&#432;ng y&#7871;u</h4>
+      <p>Ch&#7881; &#273;&#250;ng &#7903; 65% s&#7889; c&#7863;p khi g&#7897;p l&#7841;i, v&#224; ri&#234;ng <code>pair</code> ch&#7881; 17/35 &#8212; ngang v&#7899;i tung &#273;&#7891;ng xu.
+        &#272;&#7889;i l&#7853;p h&#7859;n v&#7899;i 90&#8211;92% c&#7911;a c&#7843; hai ph&#432;&#417;ng ph&#225;p khi so v&#7899;i baseline. Con s&#7889; trung b&#236;nh (57,9 so v&#7899;i
+        36,5) <em>ph&#243;ng &#273;&#7841;i</em> m&#7913;c &#273;&#7897; &#7893;n &#273;&#7883;nh c&#7911;a vi&#7879;c mcts th&#7855;ng trong m&#7897;t l&#7847;n ch&#7841;y b&#7845;t k&#7923;.</p>
+    </div>
+
+    <div class="caveat">
+      <h4>M&#7897;t gi&#225;m kh&#7843;o &#273;&#7843;o chi&#7873;u &#7903; m&#7897;t b&#7897; d&#7919; li&#7879;u</h4>
+      <p>Tr&#234;n DangerousQA, <code>pair</code> ch&#7845;m mcts 0,2% c&#242;n beam 5,2% &#8212; ng&#432;&#7907;c h&#432;&#7899;ng v&#7899;i b&#7889;n gi&#225;m kh&#7843;o
+        c&#242;n l&#7841;i. &#272;&#226;y l&#224; b&#7897; d&#7919; li&#7879;u duy nh&#7845;t m&#224; h&#7897;i &#273;&#7891;ng b&#7845;t &#273;&#7891;ng v&#7873; d&#7845;u; n&#234;n &#273;i&#7873;u tra ch&#7913; &#273;&#7915;ng b&#7887; qua.</p>
+    </div>
+
+    <p class="measure" style="margin-top:20px">C&#242;n m&#7897;t h&#7841;n ch&#7871; n&#7919;a mang t&#237;nh c&#7845;u tr&#250;c: m&#244; h&#236;nh &#273;&#237;ch, m&#244; h&#236;nh
+      sinh bi&#7871;n th&#7875; (mutator) v&#224; b&#7889;n trong s&#225;u gi&#225;m kh&#7843;o &#273;&#7873;u ch&#7841;y tr&#234;n c&#249;ng m&#7897;t m&#244; h&#236;nh
+      (<code>Qwen3.5-35B-A3B-FP8</code>). &#272;&#243; ch&#237;nh l&#224; l&#253; do <code>string_matching</code> quan tr&#7885;ng &#8212; n&#243;
+      kh&#244;ng d&#249;ng chung m&#244; h&#236;nh v&#7899;i b&#7845;t k&#7923; th&#224;nh ph&#7847;n n&#224;o trong h&#7879; th&#7889;ng, m&#224; v&#7851;n t&#225;i l&#7853;p &#273;&#250;ng th&#7913; h&#7841;ng.</p>
+  </section>
+
+  <section>
+    <h2>C&#225;c l&#7895;i &#273;&#227; ph&#225;t hi&#7879;n v&#224; s&#7917;a</h2>
+    <p class="sect-note">M&#7895;i l&#7895;i d&#432;&#7899;i &#273;&#226;y &#273;&#7873;u &#226;m th&#7847;m l&#224;m sai k&#7871;t qu&#7843; tr&#432;&#7899;c khi b&#7883; ph&#225;t hi&#7879;n. Ch&#250;ng &#273;&#432;&#7907;c li&#7879;t
+      k&#234; v&#236; c&#225;c con s&#7889; ph&#237;a tr&#234;n ch&#7881; &#273;&#225;ng tin sau khi &#273;&#227; s&#7917;a xong.</p>
+
+    <div class="fixes">
+      <div class="fix">
+        <div class="fix-tag">&#273;i&#7875;m gi&#225;m kh&#7843;o gi&#7843;</div>
+        <div class="fix-body">B&#7897; ph&#226;n lo&#7841;i HarmBench n&#7841;p &#273;&#432;&#7907;c &#7903; 4-bit nh&#432;ng h&#7871;t b&#7897; nh&#7899; GPU khi suy lu&#7853;n, n&#234;n
+          tr&#7843; v&#7873; <b>0,0 cho m&#7885;i m&#7909;c</b> &#8212; nh&#236;n y h&#7879;t "kh&#244;ng jailbreak &#273;&#432;&#7907;c g&#236;". To&#224;n b&#7897; k&#7871;t qu&#7843; &#273;&#243; &#273;&#227; b&#7883;
+          <b>xo&#225;, kh&#244;ng &#273;&#432;a v&#224;o b&#225;o c&#225;o</b>.</div>
+      </div>
+      <div class="fix">
+        <div class="fix-tag">so s&#225;nh nh&#7847;m run</div>
+        <div class="fix-body">Driver ch&#7845;m gi&#7843; &#273;&#7883;nh s&#7889; replicate l&#224; 1&#8211;5, nh&#432;ng c&#225;c &#273;&#7907;t batch b&#7883; gi&#7871;t &#273;&#7875; l&#7841;i l&#7895;
+          h&#7893;ng v&#224; c&#225;c run b&#7893; sung d&#249;ng r10&#8211;r12. N&#243; v&#7915;a b&#7887; s&#243;t run th&#7853;t, v&#7915;a c&#243; th&#7875; tr&#7887; th&#432; m&#7909;c t&#234;n
+          <code>r4</code> v&#224;o m&#7897;t run kh&#225;c. &#272;&#227; thay b&#7857;ng manifest li&#7879;t k&#234; &#273;&#432;&#7901;ng d&#7851;n log t&#432;&#7901;ng minh &#273;&#227; x&#225;c minh.</div>
+      </div>
+      <div class="fix">
+        <div class="fix-tag">b&#225;o th&#224;nh c&#244;ng b&#7915;a</div>
+        <div class="fix-body">Driver in <code>DONE</code> b&#7845;t k&#7875; job c&#243; sinh ra k&#7871;t qu&#7843; hay kh&#244;ng &#8212; 76 job b&#225;o
+          th&#224;nh c&#244;ng trong khi kh&#244;ng ghi &#273;&#432;&#7907;c g&#236;. Nay b&#225;o <code>OK</code>/<code>FAIL</code> d&#7921;a tr&#234;n vi&#7879;c file
+          k&#7871;t qu&#7843; c&#243; t&#7891;n t&#7841;i th&#7853;t hay kh&#244;ng.</div>
+      </div>
+      <div class="fix">
+        <div class="fix-tag">s&#7853;p sau khi &#273;&#227; t&#7889;n API</div>
+        <div class="fix-body">C&#7843; <code>chi2_contingency</code> (khi kh&#244;ng b&#234;n n&#224;o th&#224;nh c&#244;ng) l&#7851;n
+          <code>gaussian_kde</code> (khi m&#7885;i &#273;i&#7875;m gi&#7889;ng h&#7879;t nhau) &#273;&#7873;u n&#233;m l&#7895;i <em>sau</em> khi ch&#7845;m xong, l&#224;m
+          m&#7845;t k&#7871;t qu&#7843; &#273;&#227; tr&#7843; ti&#7873;n API. C&#7843; hai nay &#273;&#227; &#273;&#432;&#7907;c b&#7885;c an to&#224;n.</div>
+      </div>
+      <div class="fix">
+        <div class="fix-tag">judge kh&#244;ng ch&#7883;u tr&#7847;n</div>
+        <div class="fix-body">Vi&#7879;c ch&#7845;m &#273;i t&#7899;i API qua litellm &#8212; m&#7897;t &#273;&#432;&#7901;ng ho&#224;n to&#224;n t&#225;ch bi&#7879;t v&#7899;i c&#225;c run t&#7845;n
+          c&#244;ng &#8212; n&#234;n tr&#7847;n t&#7889;c &#273;&#7897; to&#224;n c&#7909;c ch&#432;a bao gi&#7901; &#225;p l&#234;n n&#243;. Nay &#273;&#227; n&#7889;i v&#224;o c&#249;ng throttle, v&#224; litellm
+          &#273;&#432;&#7907;c &#273;&#7863;t timeout 120 gi&#226;y sau khi 15 job treo 9 ph&#250;t tr&#234;n m&#7897;t endpoint ho&#224;n to&#224;n kho&#7867; m&#7841;nh.</div>
+      </div>
+      <div class="fix">
+        <div class="fix-tag">O(n&#178;) m&#7895;i iteration</div>
+        <div class="fix-body">Baseline t&#237;nh l&#7841;i &#273;&#7897; &#273;a d&#7841;ng embedding tr&#234;n to&#224;n b&#7897; kho &#7903; m&#7895;i iteration, khi&#7871;n
+          th&#7901;i gian m&#7895;i v&#242;ng ph&#236;nh t&#7915; v&#224;i gi&#226;y l&#234;n v&#224;i ph&#250;t. C&#7897;ng th&#234;m vi&#7879;c n&#7841;p l&#7841;i SentenceTransformer m&#7895;i
+          l&#7847;n, throughput ch&#7881; c&#242;n 2,1 req/s; sau khi s&#7917;a c&#7843; hai, &#273;&#7841;t 10,5 req/s.</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>M&#7913;c &#273;&#7897; ho&#224;n th&#224;nh</h2>
+    <p class="sect-note">Giai &#273;o&#7841;n sinh d&#7919; li&#7879;u &#273;&#227; xong. N&#259;m tr&#234;n b&#7843;y gi&#225;m kh&#7843;o &#273;&#227; ch&#7845;m h&#7871;t; hai gi&#225;m kh&#7843;o c&#242;n
+      l&#7841;i c&#7847;n GPU c&#7909;c b&#7897; &#273;ang b&#7883; ti&#7871;n tr&#236;nh c&#7911;a ng&#432;&#7901;i kh&#225;c chi&#7871;m, n&#234;n &#273;&#227; d&#7915;ng thay v&#236; ch&#7841;y CPU m&#7845;t ~29 gi&#7901;.</p>
+    <div class="status">
+      <div class="st-row"><span>strongreject_rubric</span><span class="n">105 / 105</span><span><span class="pill pill-done">ho&#224;n t&#7845;t</span></span></div>
+      <div class="st-row"><span>pair</span><span class="n">105 / 105</span><span><span class="pill pill-done">ho&#224;n t&#7845;t</span></span></div>
+      <div class="st-row"><span>gpt4_judge</span><span class="n">105 / 105</span><span><span class="pill pill-done">ho&#224;n t&#7845;t</span></span></div>
+      <div class="st-row"><span>jailbroken_binary</span><span class="n">105 / 105</span><span><span class="pill pill-done">ho&#224;n t&#7845;t</span></span></div>
+      <div class="st-row"><span>string_matching</span><span class="n">105 / 105</span><span><span class="pill pill-done">ho&#224;n t&#7845;t</span></span></div>
+      <div class="st-row"><span>strongreject_finetuned</span><span class="n">4 / 105</span><span><span class="pill pill-stop">&#273;&#227; d&#7915;ng &#8212; c&#7847;n GPU</span></span></div>
+      <div class="st-row"><span>harmbench</span><span class="n">0 / 105</span><span><span class="pill pill-stop">&#273;&#227; d&#7915;ng &#8212; c&#7847;n GPU</span></span></div>
+    </div>
+    <p class="measure" style="margin-top:20px">Hai gi&#225;m kh&#7843;o c&#242;n l&#7841;i &#273;&#7873;u l&#224; b&#7897; ph&#226;n lo&#7841;i ch&#7913; kh&#244;ng ph&#7843;i LLM
+      &#273;&#432;&#7907;c nh&#7855;c l&#7879;nh, n&#234;n ch&#250;ng s&#7869; l&#224; th&#224;nh vi&#234;n &#273;&#7897;c l&#7853;p nh&#7845;t c&#7911;a h&#7897;i &#273;&#7891;ng. Tuy nhi&#234;n kh&#244;ng b&#7855;t bu&#7897;c ph&#7843;i c&#243;
+      &#273;&#7875; r&#250;t ra k&#7871;t lu&#7853;n: <code>string_matching</code> &#273;&#227; &#273;&#243;ng vai tr&#242; ki&#7875;m ch&#7913;ng kh&#244;ng-LLM, v&#224; n&#243; &#273;&#7891;ng thu&#7853;n.</p>
+  </section>
+
+  <footer>
+    D&#7919; li&#7879;u &#183; <code>/tmp/judge/&lt;gi&#225;m kh&#7843;o&gt;/</code> 525 k&#7871;t qu&#7843; ch&#7845;m k&#232;m bi&#7875;u &#273;&#7891; &#183;
+    <code>results/runs.csv</code> b&#7843;ng ch&#7881; m&#7909;c c&#225;c run &#183;
+    <code>score10_examples.json</code> 20 m&#7851;u &#273;&#7841;t &#273;i&#7875;m t&#7889;i &#273;a.<br>
+    L&#432;u &#253;: d&#7919; li&#7879;u n&#7857;m d&#432;&#7899;i <code>/tmp</code> s&#7869; m&#7845;t khi kh&#7903;i &#273;&#7897;ng l&#7841;i m&#225;y.
+  </footer>
+
+</div>
+
+</body>
+</html>

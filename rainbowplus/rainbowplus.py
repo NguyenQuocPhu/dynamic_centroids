@@ -55,6 +55,11 @@ logging.basicConfig(
     level=logging.INFO,
     stream=sys.stdout,
 )
+# Show each API call's HTTP status ("HTTP Request: POST ... 200 OK") in the
+# run log for live monitoring. httpx defaults its own logger to WARNING even
+# when the root is INFO, so set it explicitly. beam/mcts already log this.
+logging.getLogger("httpx").setLevel(logging.INFO)
+logging.getLogger("openai").setLevel(logging.WARNING)  # openai debug is noisy; keep httpx only
 logger = logging.getLogger(__name__)
 
 
@@ -612,6 +617,7 @@ def run_rainbowplus(
             attack_model_name=mutator_model,
             eval_model_name=eval_model_name,
             run_metadata=run_metadata,
+            compute_diversity=False,  # skip O(n^2) embedding diversity every iter
         )
 
         # Periodic logging

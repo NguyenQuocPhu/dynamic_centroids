@@ -14,16 +14,17 @@ tree_width survivors -- stays comparable to MCTS, which keeps every tree node):
   target/attack/eval  query counts (target is the cost currency)
 
 Usage:
-  python analyze_runs.py                      # scan the default /tmp run roots
-  python analyze_runs.py /tmp/conf /tmp/long  # specific roots
+  python analyze_runs.py                      # scan every batch dir under runs/ ($DC_RUNS)
+  python analyze_runs.py runs/conf runs/long  # specific roots
   python analyze_runs.py --csv results/runs.csv
   python analyze_runs.py --dataset harmbench --budget 1500
 """
 import argparse, csv, glob, json, os, statistics
 from collections import defaultdict
 
-DEFAULT_ROOTS = ['/tmp/conf', '/tmp/long', '/tmp/curve', '/tmp/peak',
-                 '/tmp/alloc', '/tmp/sweep', '/tmp/full', '/tmp/data', '/tmp/var']
+# Runs live outside /tmp: a reboot on 2026-10-16 wiped every /tmp run log.
+RUNS_ROOT = os.environ.get('DC_RUNS', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'runs'))
+DEFAULT_ROOTS = sorted(glob.glob(os.path.join(RUNS_ROOT, '*')))
 METHOD = {'gap-beam-search': 'beam', 'gap-mcts': 'mcts', 'rainbowplus-baseline': 'baseline'}
 
 
@@ -44,13 +45,35 @@ def read_log(path):
     meta = d.get('run_metadata') or {}
     hp = meta.get('hyperparameters') or {}
     method = METHOD.get(meta.get('algorithm'), meta.get('algorithm') or '?')
+    # beam/mcts store the archive as map_elites_archive {cell: [{score: ...}]};
+    # the baseline branch stores it as all_scores {cell: [score, ...]} instead.
+    # Read whichever this log has, so all three methods produce comparable
+    # per-cell-best (AQD) coverage numbers from the same function.
+    #
+    # NOTE ON SCALE: the score recorded in-loop is NOT the same scale across
+    # methods -- beam/mcts log the GAP judge's 1-10 rating, the baseline logs its
+    # own OpenAIGuard 0/1 safety flag. AQD is therefore comparable WITHIN a
+    # method but not across baseline vs beam/mcts; the cross-method comparison
+    # has to come from re-judging every archive with one shared judge.
     archive = d.get('map_elites_archive', {})
     cell_best = []
-    for items in archive.values():
-        s = [it.get('score') or 0 for it in items]
-        s = [x for x in s if x > 0]
-        if s:
-            cell_best.append(max(s))
+    if archive:
+        for items in archive.values():
+            s = [it.get('score') or 0 for it in items]
+            s = [x for x in s if x > 0]
+            if s:
+                cell_best.append(max(s))
+    else:
+        for scores in (d.get('all_scores') or {}).values():
+            flat = []
+            for x in (scores if isinstance(scores, list) else [scores]):
+                if isinstance(x, list):
+                    flat.extend(x)
+                elif isinstance(x, (int, float)):
+                    flat.append(x)
+            flat = [x for x in flat if x and x > 0]
+            if flat:
+                cell_best.append(max(flat))
     if not cell_best:
         return None
     logs = d.get('llm_call_logs', {})
@@ -81,14 +104,24 @@ def main():
 
     roots = args.roots or [r for r in DEFAULT_ROOTS if os.path.isdir(r)]
     rows = []
+    # beam/mcts write comprehensive_log_iter_FINAL_*.json; the baseline branch
+    # writes comprehensive_log_global.json instead. Scan for both, but keep at
+    # most ONE log per run directory (a run also emits per-epoch snapshots), so
+    # a single run never contributes several rows to the same aggregate cell.
     for root in roots:
-        for p in glob.glob(os.path.join(root, '**', 'comprehensive_log_iter_FINAL_*.json'), recursive=True):
-            try:
-                r = read_log(p)
-            except Exception:
-                continue
-            if r:
-                rows.append(r)
+        seen_dirs = set()
+        for pattern in ('comprehensive_log_iter_FINAL_*.json', 'comprehensive_log_global.json'):
+            for p in glob.glob(os.path.join(root, '**', pattern), recursive=True):
+                run_dir = os.path.dirname(p)
+                if run_dir in seen_dirs:
+                    continue
+                try:
+                    r = read_log(p)
+                except Exception:
+                    continue
+                if r:
+                    seen_dirs.add(run_dir)
+                    rows.append(r)
     if args.dataset:
         rows = [r for r in rows if r['dataset'] == args.dataset]
     if args.budget:

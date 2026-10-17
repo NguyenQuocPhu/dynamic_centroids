@@ -17,4 +17,16 @@ __pycache__/
 result.txt
 
 # Bỏ qua các file cấu hình hệ thống
-.DS_Store
+.DS_Storeruns/
+
+# Virtualenv dùng để test
+.test-venv/
+
+# Log/kết quả run (thư mục output thật nằm ở runs/, không commit vì quá lớn)
+runs/
+logs/
+logs-*/
+
+# Ngoại lệ: dữ liệu tổng hợp duy nhất còn sót sau khi /tmp bị xoá -- phải giữ
+!score10_examples.json
+!result.jpg

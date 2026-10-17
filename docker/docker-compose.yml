@@ -1,0 +1,30 @@
+services:
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USERNAME: dev
+        USER_UID: ${HOST_UID:-1000}
+        USER_GID: ${HOST_GID:-1000}
+    image: dynamic-centroids-dev:latest
+    container_name: dynamic-centroids-dev
+    hostname: dc-dev
+    stdin_open: true
+    tty: true
+    working_dir: /workspace
+    # GPU passthrough (host runtime is already "nvidia" by default, but be explicit).
+    gpus: all
+    volumes:
+      # The 3 branches under comparison. Each is a `git worktree` of the same
+      # repo, and worktree metadata stores *absolute host paths* pointing at
+      # each other (main/.git/worktrees/<name>/gitdir <-> <name>/.git), so
+      # these must be mounted at the SAME path as on the host or git breaks
+      # inside the container. /workspace/{main,beam,mcts} are symlinks to
+      # these paths, set up in the Dockerfile, for convenience.
+      - /home/phunq/5080_cuda13/Research/dynamic_centroids:/home/phunq/5080_cuda13/Research/dynamic_centroids
+      - /tmp/wt-beam3:/tmp/wt-beam3
+      - /tmp/wt-mcts3:/tmp/wt-mcts3
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=all

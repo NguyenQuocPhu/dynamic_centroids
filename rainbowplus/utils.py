@@ -285,13 +285,29 @@ def calculate_lexical_diversity_from_archives(all_prompts):
     }
 
 
+# Cached embedding model. save_comprehensive_log() calls the diversity helper
+# below on EVERY iteration, and constructing SentenceTransformer each time
+# re-initialised the model and issued ~14 HuggingFace HEAD/GET cache-check
+# requests per call. Measured live: 52 loads across 50 iterations, machine load
+# average 176, and the API only ~4% utilised because the loop was stuck doing
+# this. Load once per process and reuse -- identical embeddings, no reload.
+_EMBED_MODEL = None
+
+
+def _get_embed_model():
+    global _EMBED_MODEL
+    if _EMBED_MODEL is None:
+        _EMBED_MODEL = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
+    return _EMBED_MODEL
+
+
 def calculate_embedding_diversity_from_archives(all_prompts):
     flat_prompts = []
     for key, prompts in all_prompts._archive.items():
         flat_prompts.extend(prompts)
     if len(flat_prompts) < 2:
         return 0.0
-    model = SentenceTransformer('all-MiniLM-L6-v2', device = 'cpu')
+    model = _get_embed_model()
     embeddings = model.encode(flat_prompts, show_progress_bar=False)
     # Compute pairwise cosine distances
     dists = cosine_distances(embeddings)
@@ -316,7 +332,7 @@ def save_comprehensive_log(
     max_iters=None,
     target_call_history=None, attack_call_history=None, eval_call_history=None,
     target_model_name="", attack_model_name="", eval_model_name="", run_metadata=None
-):
+, compute_diversity: bool = True):
     """
     Save comprehensive log of all generated prompts (Cập nhật lưu TOÀN BỘ LLM logs).
     """
@@ -343,8 +359,13 @@ def save_comprehensive_log(
         llm_logs["eval_llm"] = _build_llm_log("eval", normalized_eval, eval_model_name, "Evaluation/Judge Model")
 
     # Tính toán Diversity
-    diversity = calculate_lexical_diversity_from_archives(all_prompts)
-    embedding_diversity = calculate_embedding_diversity_from_archives(all_prompts)
+    diversity = calculate_lexical_diversity_from_archives(all_prompts)  # O(n), cheap
+    # embedding_diversity is O(n^2) (encode all prompts + pairwise cosine over the
+    # WHOLE archive) and was recomputed on every iteration's "global" log rewrite,
+    # so iterations slowed from seconds to minutes as the archive grew -- baseline
+    # would take days. Compute it only on the periodic/final saves (compute_diversity
+    # True); skip it on the per-iteration global rewrite.
+    embedding_diversity = calculate_embedding_diversity_from_archives(all_prompts) if compute_diversity else 0.0
 
     log_data = {
         "max_iters": max_iters,
