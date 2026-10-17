@@ -17,6 +17,7 @@ from fastchat.model import get_conversation_template
 from easyjailbreak.models.openai_model import OpenaiModel
 
 from rainbowplus.graph_easyjailbreak.model_utils import count_calls
+from rainbowplus.rate_limit import throttle
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,9 @@ class OpenAICompatModel(OpenaiModel):
         self.generation_config = dict(generation_config) if generation_config else {}
         self.max_retries = max_retries
         self.retry_backoff = retry_backoff
-        self.client = OpenAI(api_key=api_key, base_url=base_url)
+        # max_retries=0: the SDK's own retry would bypass the global rate gate
+        # and burst past LLM_MAX_RPS; retries are done by our loop in generate().
+        self.client = OpenAI(api_key=api_key, base_url=base_url, max_retries=0, timeout=90.0)
 
         # Generic blank conversation, same role this plays for VLLMModel
         # (get_conv_template) -- get_conversation_template() falls back to a
@@ -124,20 +127,25 @@ class OpenAICompatModel(OpenaiModel):
         last_exception = None
         for attempt in range(self.max_retries):
             try:
+                throttle()   # global rate cap (LLM_MAX_RPS), re-gated each retry
                 response = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=payload_messages,
                     **params,
                 )
                 return response.choices[0].message.content or ""
-            except (openai.APIConnectionError, openai.RateLimitError, httpx.HTTPError, httpx.RemoteProtocolError) as e:
+            except (openai.APIConnectionError, openai.RateLimitError, openai.APITimeoutError,
+                    openai.InternalServerError, httpx.HTTPError, httpx.RemoteProtocolError) as e:
                 last_exception = e
                 logger.warning(f"[OpenAICompatModel] API error on attempt {attempt + 1}/{self.max_retries}: {e}")
                 if attempt < self.max_retries - 1:
                     time.sleep(self.retry_backoff * (2 ** attempt))
                 else:
-                    raise
-        raise last_exception
+                    # Same graceful degradation as main's LLMviaOpenAI: one lost
+                    # item beats a dead multi-hour run. Callers already handle "".
+                    logger.warning(f"[OpenAICompatModel] all {self.max_retries} attempts failed ({e}); returning ''")
+                    return ""
+        return ""
 
     # No @count_batch_calls here (unlike VLLMModel.batch_generate, which
     # doesn't decorate its own generate()): this batch_generate just fans out

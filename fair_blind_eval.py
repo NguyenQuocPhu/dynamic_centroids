@@ -167,6 +167,15 @@ class StrongRejectJudge:
         """
         from strong_reject.evaluate import evaluate
 
+        # Judging goes strong_reject -> litellm -> API, a separate path from the
+        # attack runs' client; gate it through the same global throttle so one
+        # LLM_MAX_RPS cap governs every request sent to the shared endpoint.
+        try:
+            from rainbowplus.rate_limit import throttle
+            throttle()
+        except Exception:
+            pass
+
         try:
             results = evaluate(
                 forbidden_prompt=_clip(forbidden_prompt, 1024),
