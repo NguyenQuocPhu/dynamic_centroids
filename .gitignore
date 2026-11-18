@@ -30,3 +30,8 @@ logs-*/
 # Ngoại lệ: dữ liệu tổng hợp duy nhất còn sót sau khi /tmp bị xoá -- phải giữ
 !score10_examples.json
 !result.jpg
+
+# Paper pipeline: worktrees of the other method branches, server venv, backups
+.wt/
+.venv/
+backups/

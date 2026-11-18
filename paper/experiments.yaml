@@ -1,0 +1,133 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Paper experiment matrix: RainbowPlus baseline vs GAP beam search vs GAP MCTS
+# Read by paper/run_matrix.py (plan / run / status) and paper/eval/*.py.
+#
+# Roles:
+#   mutator (attacker) + in-loop judge : Qwen3.5-35B-A3B-FP8 proxy (.env OPENAI_*)
+#   target (attacked model)            : Modal-hosted vLLM, one endpoint per target
+#   post-hoc judges                    : paper/eval/judges.yaml (none are Qwen)
+# ─────────────────────────────────────────────────────────────────────────────
+
+runs_root: runs/paper          # relative to repo root; env PAPER_RUNS overrides
+
+# Where each method's code lives (git worktrees, created by paper/setup_server.sh)
+worktrees:
+  baseline: .                  # branch exp/paper        (from main)
+  beam: .wt/beam               # branch exp/paper-beam   (from algo/beam-search)
+  mcts: .wt/mcts               # branch exp/paper-mcts   (from algo/mcts)
+
+methods:
+  baseline:
+    config: paper/configs/baseline.yml
+    dataset_path: data/{ds}.json             # main's schema ("question")
+    args: [--shuffle, --max_iters, "100000"] # budget, not iterations, ends the run
+    final_log_glob: "**/comprehensive_log_global.json"
+  beam:
+    config: paper/configs/beam.yml
+    dataset_path: data/formatted_{ds}.json   # easyjailbreak schema ("query")
+    args: [--tree_depth, "2", --max_iters, "100000"]
+    final_log_glob: "**/comprehensive_log_iter_FINAL_*.json"
+  mcts:
+    config: paper/configs/mcts.yml
+    dataset_path: data/formatted_{ds}.json
+    # tuned config from results/beam_vs_mcts_report.md
+    args: [--total, "2", --tree_width, "3", --uct_c, "0.1", --terminal_score, "0", --max_iters, "100000"]
+    final_log_glob: "**/comprehensive_log_iter_FINAL_*.json"
+
+# Targets. url_env: env var (in .env) holding the endpoint base url, e.g.
+#   TARGET_URL_LLAMA31_8B=https://<workspace>--paper-targets-llama31-8b.modal.run/v1
+# If unset, run_matrix.py derives it from MODAL_WORKSPACE (+ MODAL_ENVIRONMENT).
+# modal_fn must match the function names in paper/modal/serve_targets.py.
+targets:
+  llama31_8b:
+    model_id: meta-llama/Llama-3.1-8B-Instruct
+    modal_fn: llama31_8b
+    url_env: TARGET_URL_LLAMA31_8B
+    note: strongest alignment of the four; most discriminative
+  gemma2_9b:
+    model_id: google/gemma-2-9b-it
+    modal_fn: gemma2_9b
+    url_env: TARGET_URL_GEMMA2_9B
+    note: instruct model (the May-2026 runs used the BASE google/gemma-2-9b -- not comparable)
+  qwen25_7b:
+    model_id: Qwen/Qwen2.5-7B-Instruct
+    modal_fn: qwen25_7b
+    url_env: TARGET_URL_QWEN25_7B
+    note: same family as the attacker -- report as a limitation
+  ministral_8b:
+    model_id: mistralai/Ministral-8B-Instruct-2410
+    modal_fn: ministral_8b
+    url_env: TARGET_URL_MINISTRAL_8B
+    note: weak alignment, near ceiling (80-90% ASR in May); "weakly aligned" representative
+
+datasets: [AdversarialQA, BeaverTails, CategoricalHarmfulQA, DangerousQA, do-not-answer, harmbench, harmfulQA]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Experiments. Each expands to methods x targets x datasets x seeds x budgets
+# (x variants). A run is identified by its directory, so the same
+# (method, variant, target, dataset, budget, seed) is never run twice even if
+# two experiments list it -- E2 reuses E1's budget-1500 runs automatically.
+# ─────────────────────────────────────────────────────────────────────────────
+experiments:
+  E1:   # main table: 4 targets x 7 datasets x 3 methods x 3 seeds = 252 runs
+    description: Main comparison at equal target-query budget
+    methods: [baseline, beam, mcts]
+    targets: all
+    datasets: all
+    seeds: [15, 42, 123]
+    budgets: [1500]
+
+  E2:   # query-efficiency curve (budget 1500 comes from E1)
+    description: ASR vs target-query budget
+    methods: [beam, mcts]
+    targets: [llama31_8b, qwen25_7b]
+    datasets: [harmbench, harmfulQA]
+    seeds: [15, 42, 123]
+    budgets: [500, 1000, 3000]
+
+  E3:   # equal TOTAL LLM calls: baseline spends ~3 calls per target query,
+        # beam/mcts ~10 (Sept accounting: 1500 target + ~10.2k mutator + ~3.1k judge),
+        # so baseline gets ~14.9k/3 ~= 5000 target queries.
+    description: Baseline at equal total-compute budget
+    methods: [baseline]
+    targets: [llama31_8b, qwen25_7b]
+    datasets: all
+    seeds: [15, 42, 123]
+    budgets: [5000]
+
+  E4:   # MCTS ablations (each variant overrides some of mcts.args)
+    description: MCTS hyperparameter ablation
+    methods: [mcts]
+    targets: [llama31_8b]
+    datasets: [harmbench, harmfulQA]
+    seeds: [15, 42, 123]
+    budgets: [1500]
+    variants:
+      c0.5:   {--uct_c: "0.5"}
+      c1.4:   {--uct_c: "1.414"}
+      w2:     {--tree_width: "2"}
+      w4:     {--tree_width: "4"}
+      t1:     {--total: "1"}
+      t4:     {--total: "4"}
+      term9:  {--terminal_score: "9"}
+
+  E4b:  # beam depth ablation (tuned-vs-tuned fairness)
+    description: Beam depth ablation
+    methods: [beam]
+    targets: [llama31_8b]
+    datasets: [harmbench, harmfulQA]
+    seeds: [15, 42, 123]
+    budgets: [1500]
+    variants:
+      d1: {--tree_depth: "1"}
+      d3: {--tree_depth: "3"}
+      d4: {--tree_depth: "4"}
+
+  SMOKE:  # 1-minute end-to-end check before launching anything big
+    description: Pipeline smoke test (tiny budget)
+    methods: [baseline, beam, mcts]
+    targets: [llama31_8b]
+    datasets: [harmbench]
+    seeds: [15]
+    budgets: [12]
+    extra_args: [--num_samples, "15"]   # baseline prints seed_prompts[0..14]; fewer -> IndexError

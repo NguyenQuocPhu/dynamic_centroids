@@ -1,5 +1,8 @@
 from typing import List
-from vllm import LLM, SamplingParams
+try:
+    from vllm import LLM, SamplingParams
+except ImportError:  # vllm is only needed for local (type_: vllm) models; the paper setup is all-HTTP
+    LLM = SamplingParams = None
 from rainbowplus.llms.base import BaseLLM
 
 

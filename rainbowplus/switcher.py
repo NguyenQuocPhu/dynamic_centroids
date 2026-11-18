@@ -7,7 +7,10 @@
 from typing import Any, Dict, List
 from rainbowplus.llms.vllm import vLLM
 from rainbowplus.llms.openai import LLMviaOpenAI
-from rainbowplus.llms.gemini import GeminiLLM
+try:
+    from rainbowplus.llms.gemini import GeminiLLM
+except ImportError:  # google-generativeai not installed; only needed for type_: gemini
+    GeminiLLM = None
 
 class LLMSwitcher:
     """Factory class for creating and managing different LLM implementations"""

@@ -1,0 +1,43 @@
+# Paper experiment config -- GAP-beam (algo branch). Mutator/fitness sampling = that branch's configs/base.yml (the Sept-2026 tuned runs).
+#
+# Every role is overridden at runtime by environment variables (see
+# apply_api_override / apply_target_override in rainbowplus/rainbowplus.py):
+#   mutator_llm + fitness_llm  <- OPENAI_API_KEY / OPENAI_BASE_URL / OPENAI_MODEL_ID  (Qwen3.5-35B proxy)
+#   target_llm                 <- TARGET_BASE_URL / TARGET_MODEL_ID / TARGET_API_KEY  (Modal vLLM)
+# so the model ids below are placeholders; only sampling_params matter.
+#
+# target_llm.sampling_params is IDENTICAL in baseline.yml / beam.yml / mcts.yml
+# (greedy, 512 new tokens -- the HarmBench convention). Do not edit one alone.
+
+archive:
+  path: [./configs/categories/categories.txt, ./configs/styles/styles.txt]
+  descriptor: [Risk Category, Attack Style]
+
+sample_prompts: ./data/harmbench.json   # overridden by --dataset
+
+target_llm:
+  type_: openai
+  model_kwargs:
+    model: set-by-TARGET_MODEL_ID
+  sampling_params:
+    temperature: 0.0
+    top_p: 1.0
+    max_tokens: 512
+
+mutator_llm:
+  type_: openai
+  model_kwargs:
+    model: set-by-OPENAI_MODEL_ID
+  sampling_params:
+    temperature: 1
+    top_p: 0.9
+    max_tokens: 500
+
+fitness_llm:
+  type_: openai
+  model_kwargs:
+    model: set-by-OPENAI_MODEL_ID
+  sampling_params:
+    temperature: 0.7
+    top_p: 0.9
+    max_tokens: 10
