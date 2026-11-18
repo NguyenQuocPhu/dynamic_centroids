@@ -28,7 +28,10 @@ from sklearn.cluster import KMeans
 from sentence_transformers import SentenceTransformer
 from dataclasses import dataclass, field
 from copy import deepcopy
-from vllm import SamplingParams
+try:
+    from vllm import SamplingParams
+except ImportError:  # vllm is only needed for local (type_: vllm) models; the paper setup is all-HTTP
+    SamplingParams = None
 # --- Imports ---
 from rainbowplus.scores import BleuScoreNLTK, OpenAIGuard, LlamaGuard
 from rainbowplus.utils import (
@@ -226,6 +229,42 @@ def apply_api_override(config):
         llm_cfg.api_key = api_key
         llm_cfg.base_url = base_url
         llm_cfg.model_kwargs = {"model": model_id}
+    return apply_target_override(config)
+
+
+def target_override_active():
+    return bool(os.environ.get("TARGET_BASE_URL") and os.environ.get("TARGET_MODEL_ID"))
+
+
+def apply_target_override(config):
+    """
+    Per-role override for the TARGET only (paper setup): attacker + judge stay
+    on the shared OPENAI_* endpoint (Qwen3.5-35B), while the model under attack
+    is served elsewhere -- e.g. a Modal-hosted vLLM (paper/modal/serve_targets.py).
+
+      TARGET_BASE_URL   OpenAI-compatible base url, e.g. https://...modal.run/v1
+      TARGET_MODEL_ID   served model name, e.g. meta-llama/Llama-3.1-8B-Instruct
+      TARGET_API_KEY    optional (vLLM --api-key); defaults to "EMPTY"
+
+    Both TARGET_BASE_URL and TARGET_MODEL_ID must be set together, or neither.
+    target sampling_params are left as the config file sets them -- the paper
+    configs make them identical across the three methods.
+    """
+    t_url = os.environ.get("TARGET_BASE_URL")
+    t_model = os.environ.get("TARGET_MODEL_ID")
+    if not t_url and not t_model:
+        return config
+    if not (t_url and t_model):
+        raise ValueError(
+            "apply_target_override: set BOTH TARGET_BASE_URL and TARGET_MODEL_ID (or neither); "
+            f"got TARGET_BASE_URL={bool(t_url)}, TARGET_MODEL_ID={bool(t_model)}"
+        )
+    llm_cfg = config.target_llm
+    llm_cfg.type_ = "openai"
+    llm_cfg.api_key = os.environ.get("TARGET_API_KEY") or "EMPTY"
+    llm_cfg.base_url = t_url
+    llm_cfg.model_kwargs = {"model": t_model}
+    logger.info(f"apply_target_override: target_llm -> model='{t_model}' @ base_url='{t_url}'")
     return config
 
 
@@ -545,6 +584,13 @@ if __name__ == "__main__":
     attack_model = _make_model(config.mutator_llm, fastchat_name="vicuna_v1.1")
     target_model = _make_model(config.target_llm,  fastchat_name="qwen-7b-chat")
     eval_model   = _make_model(config.fitness_llm, fastchat_name="qwen-7b-chat")
+    if target_override_active() and hasattr(target_model, "set_system_message"):
+        # Paper setup: the target receives ONLY the user turn, exactly like the
+        # baseline (LLMviaOpenAI sends no system message). Without this the
+        # target would get FastChat's per-model default system prompt, which
+        # differs by model name and from the baseline -- and Gemma's chat
+        # template rejects the system role outright (HTTP 400).
+        target_model.set_system_message("")
     similarity_fn = BleuScoreNLTK()
 
     print(config)

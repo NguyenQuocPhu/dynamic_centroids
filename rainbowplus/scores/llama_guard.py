@@ -1,6 +1,9 @@
 import numpy as np
 from typing import List
-from vllm import SamplingParams
+try:
+    from vllm import SamplingParams
+except ImportError:  # vllm is only needed for local (type_: vllm) models; the paper setup is all-HTTP
+    SamplingParams = None
 
 from rainbowplus.llms.vllm import vLLM
 
