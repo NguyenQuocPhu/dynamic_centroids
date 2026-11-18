@@ -31,7 +31,7 @@ class LLMviaOpenAI(BaseLLM):
         last_exception = None
         for attempt in range(max_retries):
             try:
-                throttle()   # global rate cap (LLM_MAX_RPS), re-gated each retry
+                throttle(self.config.base_url)   # per-endpoint rate cap (rate_limit.py), re-gated each retry
                 response = self.client.chat.completions.create(
                     model=self.model_kwargs["model"],
                     messages=[

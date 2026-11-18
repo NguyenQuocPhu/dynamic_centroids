@@ -3,7 +3,10 @@ import logging
 import os
 from typing import List, Optional, Dict, Any
 
-from vllm import LLM, SamplingParams
+try:
+    from vllm import LLM, SamplingParams
+except ImportError:  # vllm is only needed for local (type_: vllm) models; the paper setup is all-HTTP
+    LLM = SamplingParams = None
 from fastchat.conversation import get_conv_template
 from easyjailbreak.models.model_base import ModelBase
 from rainbowplus.graph_easyjailbreak.model_utils import count_calls, count_batch_calls

@@ -63,6 +63,7 @@ class OpenAICompatModel(OpenaiModel):
         self.retry_backoff = retry_backoff
         # max_retries=0: the SDK's own retry would bypass the global rate gate
         # and burst past LLM_MAX_RPS; retries are done by our loop in generate().
+        self.base_url = base_url  # selects the rate-limit gate (rate_limit.throttle)
         self.client = OpenAI(api_key=api_key, base_url=base_url, max_retries=0, timeout=90.0)
 
         # Generic blank conversation, same role this plays for VLLMModel
@@ -127,7 +128,7 @@ class OpenAICompatModel(OpenaiModel):
         last_exception = None
         for attempt in range(self.max_retries):
             try:
-                throttle()   # global rate cap (LLM_MAX_RPS), re-gated each retry
+                throttle(self.base_url)   # per-endpoint rate cap (rate_limit.py), re-gated each retry
                 response = self.client.chat.completions.create(
                     model=self.model_name,
                     messages=payload_messages,
